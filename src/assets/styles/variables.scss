@@ -1,0 +1,181 @@
+/**
+ * SCSS 变量定义
+ */
+
+// ==================== 布局相关 ====================
+
+// 侧边栏宽度
+$sidebar-width: 60px;
+
+// 会话列表宽度
+$session-list-width: 280px;
+
+// 头部高度
+$header-height: 60px;
+
+// 底部高度
+$footer-height: 60px;
+
+// 消息输入框高度
+$input-height: 120px;
+
+// ==================== 间距 ====================
+
+// 基础间距单位
+$space-unit: 4px;
+
+// 小间距
+$space-xs: $space-unit;
+$space-sm: $space-unit * 2;
+$space-md: $space-unit * 3;
+$space-lg: $space-unit * 4;
+$space-xl: $space-unit * 6;
+$space-xxl: $space-unit * 8;
+
+// 页面边距
+$page-padding: 16px;
+
+// 卡片间距
+$card-gap: 8px;
+
+// 组件内边距
+$component-padding: 12px;
+
+// ==================== 圆角 ====================
+
+$radius-xs: 2px;
+$radius-sm: 4px;
+$radius-md: 8px;
+$radius-lg: 12px;
+$radius-xl: 16px;
+$radius-round: 50%;
+
+// 组件圆角
+$button-radius: $radius-sm;
+$card-radius: $radius-md;
+$input-radius: $radius-sm;
+$message-bubble-radius: $radius-md;
+$avatar-radius: $radius-sm;
+
+// ==================== 字体 ====================
+
+// 字体大小
+$font-xs: 11px;
+$font-sm: 12px;
+$font-base: 14px;
+$font-lg: 16px;
+$font-xl: 18px;
+$font-xxl: 20px;
+
+// 行高
+$line-height-xs: 1.2;
+$line-height-sm: 1.4;
+$line-height-base: 1.5;
+$line-height-lg: 1.6;
+$line-height-xl: 1.8;
+
+// 字重
+$font-light: 300;
+$font-normal: 400;
+$font-medium: 500;
+$font-bold: 700;
+
+// ==================== 颜色 ====================
+
+// 主题色（微信绿）
+$color-primary: #07c160;
+$color-primary-light: #38cd7f;
+$color-primary-dark: #06ad56;
+
+// 成功色
+$color-success: #67c23a;
+
+// 警告色
+$color-warning: #e6a23c;
+
+// 危险色
+$color-danger: #f56c6c;
+
+// 信息色
+$color-info: #909399;
+
+// 亮色主题
+$bg-color-light: #f7f7f7;
+$bg-color-white: #ffffff;
+$text-color-primary-light: #191919;
+$text-color-regular-light: #606266;
+$text-color-secondary-light: #909399;
+$text-color-placeholder-light: #c0c4cc;
+$border-color-light: #e5e5e5;
+$divider-color-light: #ebebeb;
+
+// 暗色主题
+$bg-color-dark: #1e1e1e;
+$bg-color-darker: #2b2b2b;
+$text-color-primary-dark: #e5e5e5;
+$text-color-regular-dark: #c0c4cc;
+$text-color-secondary-dark: #909399;
+$text-color-placeholder-dark: #606266;
+$border-color-dark: #3e3e3e;
+$divider-color-dark: #3e3e3e;
+
+// 消息气泡颜色
+$message-bg-self-light: #95ec69;
+$message-bg-other-light: #ffffff;
+$message-bg-self-dark: #2d6a4f;
+$message-bg-other-dark: #2b2b2b;
+
+// 阴影
+$shadow-light: 0 2px 8px rgba(0, 0, 0, 0.08);
+$shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.12);
+$shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.16);
+
+// ==================== 头像尺寸 ====================
+
+$avatar-xs: 24px;
+$avatar-sm: 32px;
+$avatar-md: 40px;
+$avatar-lg: 48px;
+$avatar-xl: 64px;
+$avatar-xxl: 80px;
+
+// ==================== Z-Index ====================
+
+$z-index-dropdown: 1000;
+$z-index-modal: 2000;
+$z-index-popover: 3000;
+$z-index-toast: 4000;
+$z-index-tooltip: 5000;
+
+// ==================== 过渡动画 ====================
+
+$transition-fast: 0.15s;
+$transition-base: 0.3s;
+$transition-slow: 0.5s;
+
+$transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+
+// ==================== 断点 ====================
+
+$breakpoint-xs: 480px;
+$breakpoint-sm: 768px;
+$breakpoint-md: 1024px;
+$breakpoint-lg: 1280px;
+$breakpoint-xl: 1920px;
+
+// ==================== 其他 ====================
+
+// 最大内容宽度
+$max-content-width: 1200px;
+
+// 最小内容宽度
+$min-content-width: 320px;
+
+// 消息气泡最大宽度
+$message-max-width: 60%;
+
+// 图片最大宽度
+$image-max-width: 300px;
+
+// 视频最大宽度
+$video-max-width: 400px;

@@ -1,0 +1,394 @@
+/**
+ * SCSS 混入 (Mixins)
+ */
+
+// ==================== 布局相关 ====================
+
+/**
+ * Flex 布局
+ */
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-start {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+@mixin flex-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+/**
+ * 绝对居中
+ */
+@mixin absolute-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/**
+ * 绝对填充
+ */
+@mixin absolute-full {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/**
+ * 固定比例容器
+ */
+@mixin aspect-ratio($width, $height) {
+  position: relative;
+  
+  &::before {
+    content: '';
+    display: block;
+    padding-top: ($height / $width) * 100%;
+  }
+  
+  > * {
+    @include absolute-full;
+  }
+}
+
+// ==================== 文本相关 ====================
+
+/**
+ * 单行文本省略
+ */
+@mixin ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/**
+ * 多行文本省略
+ */
+@mixin ellipsis-multiline($lines: 2) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/**
+ * 文本不可选
+ */
+@mixin no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/**
+ * 文本换行
+ */
+@mixin word-break {
+  word-wrap: break-word;
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
+// ==================== 滚动条 ====================
+
+/**
+ * 自定义滚动条
+ */
+@mixin scrollbar($width: 6px, $color: rgba(0, 0, 0, 0.1)) {
+  &::-webkit-scrollbar {
+    width: $width;
+    height: $width;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $color;
+    border-radius: $width / 2;
+    transition: background 0.3s;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.2);
+    }
+  }
+}
+
+/**
+ * 隐藏滚动条
+ */
+@mixin hide-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+// ==================== 阴影 ====================
+
+/**
+ * 卡片阴影
+ */
+@mixin card-shadow {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.3s;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+}
+
+/**
+ * 浮动阴影
+ */
+@mixin float-shadow {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/**
+ * 深度阴影
+ */
+@mixin deep-shadow {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+// ==================== 过渡动画 ====================
+
+/**
+ * 通用过渡
+ */
+@mixin transition($property: all, $duration: 0.3s, $timing: ease) {
+  transition: $property $duration $timing;
+}
+
+/**
+ * 淡入淡出
+ */
+@mixin fade-in($duration: 0.3s) {
+  animation: fade-in $duration ease;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/**
+ * 滑入
+ */
+@mixin slide-in($direction: 'right', $duration: 0.3s) {
+  @if $direction == 'right' {
+    animation: slide-in-right $duration ease;
+  } @else if $direction == 'left' {
+    animation: slide-in-left $duration ease;
+  } @else if $direction == 'up' {
+    animation: slide-in-up $duration ease;
+  } @else if $direction == 'down' {
+    animation: slide-in-down $duration ease;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+// ==================== 响应式 ====================
+
+/**
+ * 媒体查询
+ */
+@mixin mobile {
+  @media (max-width: 768px) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (min-width: 769px) and (max-width: 1024px) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: 1025px) {
+    @content;
+  }
+}
+
+@mixin large-screen {
+  @media (min-width: 1920px) {
+    @content;
+  }
+}
+
+/**
+ * 响应式字体大小
+ */
+@mixin responsive-font($mobile-size, $desktop-size) {
+  font-size: $mobile-size;
+  
+  @include desktop {
+    font-size: $desktop-size;
+  }
+}
+
+// ==================== 其他 ====================
+
+/**
+ * 清除浮动
+ */
+@mixin clearfix {
+  &::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+}
+
+/**
+ * 占位符样式
+ */
+@mixin placeholder {
+  &::-webkit-input-placeholder {
+    @content;
+  }
+  &:-moz-placeholder {
+    @content;
+  }
+  &::-moz-placeholder {
+    @content;
+  }
+  &:-ms-input-placeholder {
+    @content;
+  }
+}
+
+/**
+ * 禁用元素
+ */
+@mixin disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/**
+ * 遮罩层
+ */
+@mixin overlay($bg-color: rgba(0, 0, 0, 0.5)) {
+  @include absolute-full;
+  background-color: $bg-color;
+  z-index: 999;
+}
+
+/**
+ * 三角形
+ */
+@mixin triangle($direction, $size, $color) {
+  width: 0;
+  height: 0;
+  border-style: solid;
+
+  @if $direction == 'up' {
+    border-width: 0 $size $size $size;
+    border-color: transparent transparent $color transparent;
+  } @else if $direction == 'down' {
+    border-width: $size $size 0 $size;
+    border-color: $color transparent transparent transparent;
+  } @else if $direction == 'left' {
+    border-width: $size $size $size 0;
+    border-color: transparent $color transparent transparent;
+  } @else if $direction == 'right' {
+    border-width: $size 0 $size $size;
+    border-color: transparent transparent transparent $color;
+  }
+}
+
+/**
+ * 渐变背景
+ */
+@mixin gradient($direction, $start-color, $end-color) {
+  background: linear-gradient($direction, $start-color, $end-color);
+}
+
+/**
+ * 毛玻璃效果
+ */
+@mixin glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/**
+ * 硬件加速
+ */
+@mixin hardware-accelerate {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
