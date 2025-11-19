@@ -4,6 +4,7 @@ import { useAppStore } from '@/stores/app'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getVersion, getBuildDate, getVersionInfo } from '@/utils/version'
+import { Guide } from '@element-plus/icons-vue'
 
 const appStore = useAppStore()
 const router = useRouter()
@@ -11,7 +12,7 @@ const router = useRouter()
 // 设置选项
 const settings = ref({
   // API 设定
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5030',
   apiTimeout: 30000,
   apiRetryCount: 3,
   apiRetryDelay: 1000,
@@ -117,7 +118,7 @@ const testApiConnection = async () => {
       : settings.value.apiBaseUrl
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000)
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
 
     const response = await fetch(`${baseUrl}/api/v1/session?format=json`, {
       method: 'GET',
@@ -139,7 +140,7 @@ const testApiConnection = async () => {
     // 尝试解析 JSON
     try {
       const data = await response.json()
-      
+
       // 检查是否是有效的响应数据
       if (data && (Array.isArray(data) || typeof data === 'object')) {
         ElMessage.success('API 连接成功，响应正常')
@@ -149,7 +150,7 @@ const testApiConnection = async () => {
     } catch (jsonError) {
       ElMessage.error('API 响应格式错误：无法解析 JSON')
     }
-    
+
     testingApi.value = false
   } catch (error: any) {
     testingApi.value = false
@@ -163,7 +164,7 @@ const testApiConnection = async () => {
 
 // 重置 API 设置
 const resetApiSettings = () => {
-  settings.value.apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+  settings.value.apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5030'
   settings.value.apiTimeout = 30000
   settings.value.apiRetryCount = 3
   settings.value.apiRetryDelay = 1000
@@ -175,12 +176,20 @@ const resetApiSettings = () => {
 // 从 localStorage 加载配置
 const loadSettings = () => {
   try {
+    // 优先从独立的 apiBaseUrl key 加载（与 Onboarding 统一）
+    const directApiUrl = localStorage.getItem('apiBaseUrl')
+    if (directApiUrl) {
+      settings.value.apiBaseUrl = directApiUrl
+    }
+
     const savedSettings = localStorage.getItem('chatlog-settings')
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings)
 
-      // 只加载存在的配置项，避免覆盖新增的默认值
-      if (parsed.apiBaseUrl !== undefined) settings.value.apiBaseUrl = parsed.apiBaseUrl
+      // apiBaseUrl 已从独立 key 加载，这里作为备份
+      if (!directApiUrl && parsed.apiBaseUrl !== undefined) {
+        settings.value.apiBaseUrl = parsed.apiBaseUrl
+      }
       if (parsed.apiTimeout !== undefined) settings.value.apiTimeout = parsed.apiTimeout
       if (parsed.apiRetryCount !== undefined) settings.value.apiRetryCount = parsed.apiRetryCount
       if (parsed.apiRetryDelay !== undefined) settings.value.apiRetryDelay = parsed.apiRetryDelay
@@ -249,7 +258,10 @@ const saveSettings = () => {
     settings.value.apiBaseUrl = settings.value.apiBaseUrl.slice(0, -1)
   }
 
-  // 保存到 localStorage
+  // 保存 apiBaseUrl 到独立的 key（与 Onboarding 统一）
+  localStorage.setItem('apiBaseUrl', settings.value.apiBaseUrl)
+
+  // 保存其他设置到 chatlog-settings
   localStorage.setItem('chatlog-settings', JSON.stringify(settings.value))
   ElMessage.success('设置已保存')
 }
@@ -269,7 +281,7 @@ const resetSettings = async () => {
 
     // 重置为默认值
     settings.value = {
-      apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+      apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5030',
       apiTimeout: 30000,
       apiRetryCount: 3,
       apiRetryDelay: 1000,
@@ -329,6 +341,34 @@ const exportData = () => {
 // 检查更新
 const checkUpdate = () => {
   ElMessage.info('当前已是最新版本')
+}
+
+// 重新运行引导
+const restartOnboarding = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '重新运行引导将清除当前的引导完成标记。确定要继续吗？',
+      '重新运行引导',
+      {
+        type: 'info',
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+      }
+    )
+
+    // 清除引导完成标记
+    localStorage.removeItem('onboardingCompleted')
+    localStorage.removeItem('onboardingSkippedAt')
+
+    ElMessage.success('即将打开引导页面')
+
+    // 跳转到引导页面
+    setTimeout(() => {
+      router.push('/onboarding')
+    }, 500)
+  } catch {
+    // 用户取消
+  }
 }
 
 // 返回
@@ -678,6 +718,17 @@ const goBack = () => {
                 </p>
               </div>
 
+              <div class="about-actions">
+                <el-button type="primary" @click="checkUpdate">
+                  <el-icon><Refresh /></el-icon>
+                  检查更新
+                </el-button>
+                <el-button @click="restartOnboarding">
+                  <el-icon><Guide /></el-icon>
+                  重新运行新手引导
+                </el-button>
+              </div>
+
               <el-divider />
 
               <div class="about-details">
@@ -734,13 +785,6 @@ const goBack = () => {
                 </el-descriptions>
               </div>
 
-              <div class="about-actions">
-                <el-button type="primary" @click="checkUpdate">
-                  <el-icon><Refresh /></el-icon>
-                  检查更新
-                </el-button>
-
-              </div>
             </div>
           </div>
         </el-scrollbar>

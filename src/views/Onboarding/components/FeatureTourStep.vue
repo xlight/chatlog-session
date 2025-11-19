@@ -1,0 +1,352 @@
+<template>
+  <div class="feature-tour-step">
+    <div class="feature-tour-step__content">
+      <!-- 标题 -->
+      <h2 class="feature-tour-step__title">快速了解功能</h2>
+      <p class="feature-tour-step__description">
+        让我们快速了解一下 ChatLog Session 的主要功能
+      </p>
+
+      <!-- 功能卡片 -->
+      <div class="feature-tour-step__cards">
+        <div
+          v-for="(feature, index) in features"
+          :key="index"
+          class="feature-tour-step__card"
+          :class="{ 'feature-tour-step__card--active': currentFeature === index }"
+        >
+          <div class="feature-tour-step__card-icon">{{ feature.icon }}</div>
+          <div class="feature-tour-step__card-content">
+            <h3 class="feature-tour-step__card-title">{{ feature.title }}</h3>
+            <p class="feature-tour-step__card-description">{{ feature.description }}</p>
+            <ul class="feature-tour-step__card-list">
+              <li v-for="(tip, i) in feature.tips" :key="i">{{ tip }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 导航指示器 -->
+      <div class="feature-tour-step__indicators">
+        <span
+          v-for="(_feature, index) in features"
+          :key="index"
+          class="feature-tour-step__indicator"
+          :class="{ 'feature-tour-step__indicator--active': currentFeature === index }"
+          @click="currentFeature = index"
+        ></span>
+      </div>
+
+      <!-- 按钮组 -->
+      <div class="feature-tour-step__actions">
+        <el-button size="large" @click="handlePrev">
+          <el-icon><ArrowLeft /></el-icon>
+          上一步
+        </el-button>
+        <el-button
+          v-if="currentFeature < features.length - 1"
+          type="primary"
+          size="large"
+          @click="handleNextFeature"
+        >
+          下一个功能
+          <el-icon><ArrowRight /></el-icon>
+        </el-button>
+        <el-button
+          v-else
+          type="primary"
+          size="large"
+          @click="handleNext"
+        >
+          完成介绍
+          <el-icon><Check /></el-icon>
+        </el-button>
+      </div>
+
+      <!-- 跳过链接 -->
+      <div class="feature-tour-step__skip">
+        <el-link type="info" @click="handleSkip">跳过功能介绍</el-link>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { ArrowLeft, ArrowRight, Check } from '@element-plus/icons-vue'
+
+interface Feature {
+  icon: string
+  title: string
+  description: string
+  tips: string[]
+}
+
+const emit = defineEmits<{
+  prev: []
+  next: []
+  skip: []
+}>()
+
+const currentFeature = ref(0)
+
+const features: Feature[] = [
+  {
+    icon: '📱',
+    title: '会话列表',
+    description: '左侧显示所有会话，点击可查看聊天记录',
+    tips: [
+      '显示联系人头像和名称',
+      '显示最后一条消息时间',
+      '支持搜索和过滤',
+    ],
+  },
+  {
+    icon: '💬',
+    title: '消息查看',
+    description: '选择会话后，中间区域显示完整聊天历史',
+    tips: [
+      '自动加载所有历史消息',
+      '支持文字、图片、视频等多种类型',
+      '保持原有的时间顺序',
+    ],
+  },
+  {
+    icon: '🔍',
+    title: '搜索功能',
+    description: '顶部搜索框可以搜索联系人或消息内容',
+    tips: [
+      '支持联系人名称搜索',
+      '支持消息内容搜索',
+      '快速定位需要的信息',
+    ],
+  },
+  {
+    icon: '⚙️',
+    title: '设置选项',
+    description: '在设置中可以调整各种配置',
+    tips: [
+      '修改 API 服务器地址',
+      '调整每页加载消息数量',
+      '管理联系人信息',
+    ],
+  },
+]
+
+const handleNextFeature = () => {
+  if (currentFeature.value < features.length - 1) {
+    currentFeature.value++
+  }
+}
+
+const handlePrev = () => {
+  emit('prev')
+}
+
+const handleNext = () => {
+  emit('next')
+}
+
+const handleSkip = () => {
+  emit('skip')
+}
+</script>
+
+<style scoped lang="scss">
+.feature-tour-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+  padding: 40px 20px;
+
+  &__content {
+    max-width: 700px;
+    width: 100%;
+  }
+
+  &__title {
+    font-size: 28px;
+    font-weight: 600;
+    color: #303133;
+    margin: 0 0 16px 0;
+    text-align: center;
+  }
+
+  &__description {
+    font-size: 16px;
+    color: #606266;
+    line-height: 1.6;
+    text-align: center;
+    margin: 0 0 40px 0;
+  }
+
+  &__cards {
+    position: relative;
+    min-height: 320px;
+    margin-bottom: 24px;
+  }
+
+  &__card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #f5f7fa;
+    border-radius: 16px;
+    padding: 32px;
+    opacity: 0;
+    transform: translateX(50px);
+    transition: all 0.4s ease;
+    pointer-events: none;
+
+    &--active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  &__card-icon {
+    font-size: 64px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  &__card-content {
+    text-align: center;
+  }
+
+  &__card-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #303133;
+    margin: 0 0 12px 0;
+  }
+
+  &__card-description {
+    font-size: 16px;
+    color: #606266;
+    line-height: 1.6;
+    margin: 0 0 24px 0;
+  }
+
+  &__card-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    display: inline-block;
+
+    li {
+      position: relative;
+      padding-left: 24px;
+      margin-bottom: 12px;
+      font-size: 15px;
+      color: #606266;
+      line-height: 1.6;
+
+      &::before {
+        content: '✓';
+        position: absolute;
+        left: 0;
+        color: var(--el-color-success, #67c23a);
+        font-weight: bold;
+      }
+    }
+  }
+
+  &__indicators {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  &__indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #dcdfe6;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: #c0c4cc;
+    }
+
+    &--active {
+      width: 32px;
+      border-radius: 6px;
+      background: var(--el-color-primary, #409eff);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    .el-button {
+      min-width: 140px;
+      min-height: 44px;
+    }
+  }
+
+  &__skip {
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .feature-tour-step {
+    padding: 20px;
+    min-height: 400px;
+
+    &__title {
+      font-size: 22px;
+    }
+
+    &__description {
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    &__card {
+      padding: 24px;
+    }
+
+    &__card-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    &__card-title {
+      font-size: 20px;
+    }
+
+    &__card-description {
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    &__card-list {
+      li {
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+    }
+
+    &__actions {
+      flex-direction: column;
+
+      .el-button {
+        width: 100%;
+      }
+    }
+  }
+}
+</style>

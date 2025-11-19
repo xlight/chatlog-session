@@ -32,13 +32,34 @@ const getSettings = () => {
 }
 
 /**
+ * 获取 API Base URL
+ * 优先从独立的 apiBaseUrl key 读取，其次从 settings 读取
+ */
+const getApiBaseUrl = (): string => {
+  // 优先使用独立的 apiBaseUrl
+  const directUrl = localStorage.getItem('apiBaseUrl')
+  if (directUrl) {
+    return directUrl
+  }
+  
+  // 其次从 settings 读取
+  const settings = getSettings()
+  if (settings.apiBaseUrl) {
+    return settings.apiBaseUrl
+  }
+  
+  // 最后使用环境变量或默认值
+  return import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5030'
+}
+
+/**
  * 获取动态配置
  */
 const getDynamicConfig = (): AxiosRequestConfig => {
   const settings = getSettings()
   
   return {
-    baseURL: settings.apiBaseUrl || import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5030',
+    baseURL: getApiBaseUrl(),
     timeout: settings.apiTimeout || Number(import.meta.env.VITE_API_TIMEOUT) || 30000,
     headers: {
       'Content-Type': 'application/json',
@@ -73,10 +94,12 @@ service.interceptors.request.use(
     }
     
     // 动态更新 baseURL 和 timeout
-    const settings = getSettings()
-    if (settings.apiBaseUrl) {
-      config.baseURL = settings.apiBaseUrl
+    const apiBaseUrl = getApiBaseUrl()
+    if (apiBaseUrl) {
+      config.baseURL = apiBaseUrl
     }
+    
+    const settings = getSettings()
     if (settings.apiTimeout) {
       config.timeout = settings.apiTimeout
     }

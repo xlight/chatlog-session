@@ -13,6 +13,15 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/index.vue'),
   },
   {
+    path: '/onboarding',
+    name: 'Onboarding',
+    component: () => import('@/views/Onboarding/index.vue'),
+    meta: {
+      title: '欢迎使用',
+      requiresAuth: false,
+    },
+  },
+  {
     path: '/chat',
     name: 'Chat',
     component: () => import('@/views/Chat/index.vue'),
@@ -73,6 +82,22 @@ router.beforeEach((to, _from, next) => {
     document.title = `${title} - Chatlog Session`
   } else {
     document.title = 'Chatlog Session'
+  }
+
+  // 检查是否需要显示 Onboarding
+  const onboardingCompleted = localStorage.getItem('onboardingCompleted')
+  const apiBaseUrl = localStorage.getItem('apiBaseUrl')
+
+  // 如果未完成引导且不在引导页面，重定向到引导页
+  if (!onboardingCompleted && !apiBaseUrl && to.path !== '/onboarding') {
+    next('/onboarding')
+    return
+  }
+
+  // 如果已完成引导但访问引导页，重定向到首页
+  if (onboardingCompleted && apiBaseUrl && to.path === '/onboarding') {
+    next('/')
+    return
   }
 
   next()
