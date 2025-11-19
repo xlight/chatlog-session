@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -144,8 +144,58 @@ const resetApiSettings = () => {
   settings.value.apiRetryCount = 3
   settings.value.apiRetryDelay = 1000
   settings.value.enableApiDebug = false
+  saveSettings()
   ElMessage.success('API 设置已重置')
 }
+
+// 从 localStorage 加载配置
+const loadSettings = () => {
+  try {
+    const savedSettings = localStorage.getItem('chatlog-settings')
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings)
+      
+      // 只加载存在的配置项，避免覆盖新增的默认值
+      if (parsed.apiBaseUrl !== undefined) settings.value.apiBaseUrl = parsed.apiBaseUrl
+      if (parsed.apiTimeout !== undefined) settings.value.apiTimeout = parsed.apiTimeout
+      if (parsed.apiRetryCount !== undefined) settings.value.apiRetryCount = parsed.apiRetryCount
+      if (parsed.apiRetryDelay !== undefined) settings.value.apiRetryDelay = parsed.apiRetryDelay
+      if (parsed.enableApiDebug !== undefined) settings.value.enableApiDebug = parsed.enableApiDebug
+      
+      if (parsed.theme !== undefined) settings.value.theme = parsed.theme
+      if (parsed.language !== undefined) settings.value.language = parsed.language
+      if (parsed.fontSize !== undefined) settings.value.fontSize = parsed.fontSize
+      
+      if (parsed.enableNotifications !== undefined) settings.value.enableNotifications = parsed.enableNotifications
+      if (parsed.enableSound !== undefined) settings.value.enableSound = parsed.enableSound
+      if (parsed.notificationPreview !== undefined) settings.value.notificationPreview = parsed.notificationPreview
+      
+      if (parsed.enterToSend !== undefined) settings.value.enterToSend = parsed.enterToSend
+      if (parsed.showTimestamp !== undefined) settings.value.showTimestamp = parsed.showTimestamp
+      if (parsed.showAvatar !== undefined) settings.value.showAvatar = parsed.showAvatar
+      if (parsed.messageGrouping !== undefined) settings.value.messageGrouping = parsed.messageGrouping
+      
+      if (parsed.saveHistory !== undefined) settings.value.saveHistory = parsed.saveHistory
+      if (parsed.autoDownloadMedia !== undefined) settings.value.autoDownloadMedia = parsed.autoDownloadMedia
+      if (parsed.compressImages !== undefined) settings.value.compressImages = parsed.compressImages
+      
+      if (parsed.enableDebug !== undefined) settings.value.enableDebug = parsed.enableDebug
+      if (parsed.cacheSize !== undefined) settings.value.cacheSize = parsed.cacheSize
+      
+      console.log('[Settings] 已加载保存的配置')
+    } else {
+      console.log('[Settings] 未找到保存的配置，使用默认值')
+    }
+  } catch (error) {
+    console.error('[Settings] 加载配置失败:', error)
+    ElMessage.warning('加载配置失败，使用默认配置')
+  }
+}
+
+// 组件挂载时加载配置
+onMounted(() => {
+  loadSettings()
+})
 
 // 切换主题
 const handleThemeChange = (theme: string) => {
