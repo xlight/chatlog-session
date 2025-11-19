@@ -231,18 +231,18 @@ graph TB
 
 ### 文档相关问题
 如果您在阅读文档时遇到问题或发现错误：
-- 提交 [Issue](https://github.com/Rupert333/chatlog-session/issues)
-- 在 [Discussions](https://github.com/Rupert333/chatlog-session/discussions) 中讨论
+- 提交 [Issue](https://github.com/xlight/chatlog-session/issues)
+- 在 [Discussions](https://github.com/xlight/chatlog-session/discussions) 中讨论
 - 提交 PR 帮助改进文档
 
 ### 使用中的问题
 - 查看 [常见问题](./USER_GUIDE.md#4-常见问题)
-- 搜索 [已关闭的 Issues](https://github.com/Rupert333/chatlog-session/issues?q=is%3Aissue+is%3Aclosed)
+- 搜索 [已关闭的 Issues](https://github.com/xlight/chatlog-session/issues?q=is%3Aissue+is%3Aclosed)
 - 提交新的 Issue 描述您的问题
 
 ### 功能建议
 我们欢迎各种建议和反馈：
-- 在 [Discussions](https://github.com/Rupert333/chatlog-session/discussions) 发起讨论
+- 在 [Discussions](https://github.com/xlight/chatlog-session/discussions) 发起讨论
 - 提交功能请求 Issue
 - 查看 [产品路线图](./PRODUCT_DESIGN.md#10-迭代规划)
 
@@ -263,10 +263,10 @@ graph TB
 ## 🔗 相关资源
 
 ### 项目链接
-- [GitHub 仓库](https://github.com/Rupert333/chatlog-session)
-- [Chatlog 后端项目](https://github.com/Rupert333/chatlog)
-- [问题追踪](https://github.com/Rupert333/chatlog-session/issues)
-- [讨论区](https://github.com/Rupert333/chatlog-session/discussions)
+- [GitHub 仓库](https://github.com/xlight/chatlog-session)
+- [Chatlog 后端项目](https://github.com/sjzar/chatlog)
+- [问题追踪](https://github.com/xlight/chatlog-session/issues)
+- [讨论区](https://github.com/xlight/chatlog-session/discussions)
 
 ### 外部资源
 - [Vue.js 官方文档](https://vuejs.org/)

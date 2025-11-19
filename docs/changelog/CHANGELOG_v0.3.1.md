@@ -348,9 +348,9 @@ await contactStore.loadContacts()  // 加载全部
 
 ## 🔗 Links (相关链接)
 
-- [GitHub Repository](https://github.com/Rupert333/chatlog-session)
-- [Issue Tracker](https://github.com/Rupert333/chatlog-session/issues)
-- [Documentation](https://github.com/Rupert333/chatlog-session/tree/main/docs)
+- [GitHub Repository](https://github.com/xlight/chatlog-session)
+- [Issue Tracker](https://github.com/xlight/chatlog-session/issues)
+- [Documentation](https://github.com/xlight/chatlog-session/tree/main/docs)
 
 ---
 

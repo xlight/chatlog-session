@@ -957,9 +957,9 @@ sessions = api.get_sessions()
 
 ## 13. 联系我们
 
-- **GitHub Issues**: https://github.com/Rupert333/chatlog-session/issues
-- **讨论区**: https://github.com/Rupert333/chatlog-session/discussions
-- **Chatlog 项目**: https://github.com/Rupert333/chatlog
+- **GitHub Issues**: https://github.com/xlight/chatlog-session/issues
+- **讨论区**: https://github.com/xlight/chatlog-session/discussions
+- **Chatlog 项目**: https://github.com/sjzar/chatlog
 
 ---
 

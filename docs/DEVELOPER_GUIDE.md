@@ -31,7 +31,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/Rupert333/chatlog-session.git
+git clone https://github.com/xlight/chatlog-session.git
 cd chatlog-session
 
 # 安装依赖
@@ -1252,9 +1252,9 @@ npm publish
 
 ### C. 相关链接
 
-- [项目仓库](https://github.com/Rupert333/chatlog-session)
-- [Issue 追踪](https://github.com/Rupert333/chatlog-session/issues)
-- [讨论区](https://github.com/Rupert333/chatlog-session/discussions)
+- [项目仓库](https://github.com/xlight/chatlog-session)
+- [Issue 追踪](https://github.com/xlight/chatlog-session/issues)
+- [讨论区](https://github.com/xlight/chatlog-session/discussions)
 
 ---
 

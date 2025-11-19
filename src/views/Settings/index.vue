@@ -13,23 +13,23 @@ const settings = ref({
   theme: appStore.isDark ? 'dark' : 'light',
   language: 'zh-CN',
   fontSize: 'medium',
-  
+
   // 通知设置
   enableNotifications: true,
   enableSound: true,
   notificationPreview: true,
-  
+
   // 聊天设置
   enterToSend: true,
   showTimestamp: true,
   showAvatar: true,
   messageGrouping: true,
-  
+
   // 隐私设置
   saveHistory: true,
   autoDownloadMedia: true,
   compressImages: true,
-  
+
   // 高级设置
   enableDebug: false,
   cacheSize: '100MB',
@@ -114,7 +114,7 @@ const resetSettings = async () => {
         cancelButtonText: '取消'
       }
     )
-    
+
     // 重置为默认值
     settings.value = {
       theme: 'light',
@@ -134,7 +134,7 @@ const resetSettings = async () => {
       cacheSize: '100MB',
       apiTimeout: 30000
     }
-    
+
     localStorage.removeItem('chatlog-settings')
     ElMessage.success('设置已重置')
   } catch {
@@ -154,11 +154,11 @@ const clearCache = async () => {
         cancelButtonText: '取消'
       }
     )
-    
+
     // 清除缓存
     localStorage.clear()
     sessionStorage.clear()
-    
+
     ElMessage.success('缓存已清除')
   } catch {
     // 用户取消
@@ -429,7 +429,7 @@ const goBack = () => {
                   </el-descriptions-item>
                   <el-descriptions-item label="项目仓库">
                     <el-link
-                      href="https://github.com/Rupert333/chatlog-session"
+                      href="https://github.com/xlight/chatlog-session"
                       target="_blank"
                       type="primary"
                     >

@@ -49,10 +49,10 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Rupert333/chatlog-session.git"
+    "url": "https://github.com/xlight/chatlog-session.git"
   },
   "bugs": {
-    "url": "https://github.com/Rupert333/chatlog-session/issues"
+    "url": "https://github.com/xlight/chatlog-session/issues"
   },
-  "homepage": "https://github.com/Rupert333/chatlog-session#readme"
+  "homepage": "https://github.com/xlight/chatlog-session#readme"
 }

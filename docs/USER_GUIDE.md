@@ -17,7 +17,7 @@
 
 在使用 Chatlog Session 之前，请确保：
 
-1. ✅ 已安装并启动 [Chatlog](https://github.com/Rupert333/chatlog) 服务
+1. ✅ 已安装并启动 [Chatlog](https://github.com/sjzar/chatlog) 服务
 2. ✅ Chatlog 服务运行在默认地址 `http://127.0.0.1:5030`
 3. ✅ 已成功解密微信数据库
 
@@ -577,8 +577,8 @@ A:
 
 如果您遇到问题或有建议，请：
 
-1. **GitHub Issues**: https://github.com/Rupert333/chatlog-session/issues
-2. **讨论区**: https://github.com/Rupert333/chatlog-session/discussions
+1. **GitHub Issues**: https://github.com/xlight/chatlog-session/issues
+2. **讨论区**: https://github.com/xlight/chatlog-session/discussions
 3. **邮件**: 发送至项目维护者
 
 ### 参与贡献
@@ -592,7 +592,7 @@ A:
 
 ### 相关资源
 
-- [Chatlog 项目](https://github.com/Rupert333/chatlog)
+- [Chatlog 项目](https://github.com/sjzar/chatlog)
 - [产品设计文档](./PRODUCT_DESIGN.md)
 - [开发者指南](./DEVELOPER_GUIDE.md)
 - [API 文档](./API_REFERENCE.md)

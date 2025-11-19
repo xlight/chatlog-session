@@ -1298,7 +1298,7 @@ gantt
 ### B. 参考资源
 
 - [Vue.js 官方文档](https://vuejs.org/)
-- [Chatlog API 文档](https://github.com/Rupert333/chatlog)
+- [Chatlog API 文档](https://github.com/sjzar/chatlog)
 - [微信设计规范](https://weui.io/)
 - [Material Design](https://material.io/)
 

@@ -423,8 +423,8 @@ API 接口: ~15 个
 
 ## 🔗 相关链接
 
-- [GitHub 仓库](https://github.com/Rupert333/chatlog-session)
-- [Chatlog 后端](https://github.com/Rupert333/chatlog)
+- [GitHub 仓库](https://github.com/xlight/chatlog-session)
+- [Chatlog 后端](https://github.com/sjzar/chatlog)
 - [开发快速开始](./GETTING_STARTED.md)
 - [产品设计文档](./docs/PRODUCT_DESIGN.md)
 - [开发者指南](./docs/DEVELOPER_GUIDE.md)

@@ -304,8 +304,8 @@ git commit -m "fix(api): 修复聊天记录加载问题"
 - 💻 [开发者指南](./docs/DEVELOPER_GUIDE.md)
 - 🎨 [产品设计文档](./docs/PRODUCT_DESIGN.md)
 - 🔌 [API 参考文档](./docs/API_REFERENCE.md)
-- 🐛 [提交 Issue](https://github.com/Rupert333/chatlog-session/issues)
-- 💬 [讨论区](https://github.com/Rupert333/chatlog-session/discussions)
+- 🐛 [提交 Issue](https://github.com/xlight/chatlog-session/issues)
+- 💬 [讨论区](https://github.com/xlight/chatlog-session/discussions)
 
 ---
 

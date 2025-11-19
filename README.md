@@ -5,7 +5,7 @@
 *基于 Chatlog API 的微信聊天记录查看器*
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Chatlog API](https://img.shields.io/badge/backend-chatlog-green.svg)](https://github.com/Rupert333/chatlog)
+[![Chatlog API](https://img.shields.io/badge/backend-chatlog-green.svg)](https://github.com/sjzar/chatlog)
 
 一个现代化的 Web 应用，提供类似微信的界面来查看和管理您的聊天记录。
 
@@ -21,7 +21,7 @@
 
 ## 📖 简介
 
-Chatlog Session 是一个基于 [Chatlog](https://github.com/Rupert333/chatlog) API 的前端应用，旨在为用户提供一个熟悉、易用的聊天记录查看界面。通过模仿微信的 UI/UX 设计，让用户能够轻松浏览、搜索和管理自己的历史聊天记录。
+Chatlog Session 是一个基于 [Chatlog](https://github.com/sjzar/chatlog) API 的前端应用，旨在为用户提供一个熟悉、易用的聊天记录查看界面。通过模仿微信的 UI/UX 设计，让用户能够轻松浏览、搜索和管理自己的历史聊天记录。
 
 ## ✨ 功能特性
 
@@ -38,7 +38,7 @@ Chatlog Session 是一个基于 [Chatlog](https://github.com/Rupert333/chatlog) 
 | 类型 | 技术 |
 |------|------|
 | **前端框架** | Vue.js |
-| **后端 API** | [Chatlog](https://github.com/Rupert333/chatlog) |
+| **后端 API** | [Chatlog](https://github.com/sjzar/chatlog) |
 | **数据存储** | SQLite (通过 Chatlog API) |
 
 ## 🚀 快速开始
@@ -47,7 +47,7 @@ Chatlog Session 是一个基于 [Chatlog](https://github.com/Rupert333/chatlog) 
 
 在开始之前，请确保您已经：
 
-1. ✅ 安装了 [Chatlog](https://github.com/Rupert333/chatlog) 并成功启动 HTTP 服务
+1. ✅ 安装了 [Chatlog](https://github.com/sjzar/chatlog) 并成功启动 HTTP 服务
 2. ✅ 安装了 [Node.js](https://nodejs.org/) (推荐 v16 或更高版本)
 3. ✅ 安装了包管理器 (npm 或 yarn)
 
@@ -55,7 +55,7 @@ Chatlog Session 是一个基于 [Chatlog](https://github.com/Rupert333/chatlog) 
 
 ```bash
 # 克隆项目
-git clone https://github.com/Rupert333/chatlog-session.git
+git clone https://github.com/xlight/chatlog-session.git
 cd chatlog-session
 
 # 安装依赖
@@ -81,7 +81,7 @@ chatlog server
 本项目使用 Chatlog 提供的 HTTP API，详细的 API 文档请参考：
 
 - [Chatlog API 完整文档](./chatlog-api.md)
-- [Chatlog 官方仓库](https://github.com/Rupert333/chatlog)
+- [Chatlog 官方仓库](https://github.com/sjzar/chatlog)
 
 ### 主要 API 端点
 
@@ -182,8 +182,8 @@ chatlog server
 ### 更多问题
 
 如遇到其他问题，请查看：
-- [Issues](https://github.com/Rupert333/chatlog-session/issues) - 已知问题列表
-- [Chatlog 文档](https://github.com/Rupert333/chatlog) - 后端 API 文档
+- [Issues](https://github.com/xlight/chatlog-session/issues) - 已知问题列表
+- [Chatlog 文档](https://github.com/sjzar/chatlog) - 后端 API 文档
 
 ## ⚠️ 免责声明
 
@@ -202,14 +202,14 @@ chatlog server
 
 ## 🙏 致谢
 
-- [Chatlog](https://github.com/Rupert333/chatlog) - 提供强大的后端 API 支持
+- [Chatlog](https://github.com/sjzar/chatlog) - 提供强大的后端 API 支持
 - [Vue.js](https://vuejs.org/) - 渐进式 JavaScript 框架
 - 所有贡献者和支持者
 
 ## 📞 联系方式
 
-- 提交 Issue: [GitHub Issues](https://github.com/Rupert333/chatlog-session/issues)
-- 讨论交流: [GitHub Discussions](https://github.com/Rupert333/chatlog-session/discussions)
+- 提交 Issue: [GitHub Issues](https://github.com/xlight/chatlog-session/issues)
+- 讨论交流: [GitHub Discussions](https://github.com/xlight/chatlog-session/discussions)
 
 ---
 
