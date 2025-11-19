@@ -85,7 +85,7 @@ function transformSession(apiData: SessionApiResponse): Session {
       // 根据会话类型处理名称
       switch (session_type) {
         case 'group':
-          return apiData.nickName || `群聊(${apiData.userName})`
+          return apiData.userName || `群聊(${apiData.nickName})` || `群聊()`
         case 'official':
           return apiData.nickName || `公众号(${apiData.userName})`
         case 'private':

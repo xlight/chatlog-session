@@ -1,12 +1,12 @@
 /**
  * 工具函数统一导出
- * 统一管理所有工具函数模块
  */
 
 export * from './request'
-export * from './date'
 export * from './storage'
+export * from './date'
 export * from './format'
+export { db } from './db'
 
 // 默认导出
 export { default as request } from './request'

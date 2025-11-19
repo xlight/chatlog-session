@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Session } from '@/types'
 import { formatSessionTime } from '@/utils'
+import { useContactStore } from '@/stores/contact'
 import Avatar from '@/components/common/Avatar.vue'
 
 interface Props {
@@ -16,6 +17,25 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   click: [session: Session]
 }>()
+
+const contactStore = useContactStore()
+
+// 显示名称（从缓存获取）
+const displayName = ref(props.session.name)
+
+// 异步加载显示名称
+watch(() => props.session.id, async (newId) => {
+  if (newId) {
+    try {
+      const name = await contactStore.getContactDisplayName(newId)
+      if (name && name !== newId) {
+        displayName.value = name
+      }
+    } catch (err) {
+      console.warn('获取联系人显示名称失败:', newId, err)
+    }
+  }
+}, { immediate: true })
 
 // 格式化最后消息时间
 const lastMessageTime = computed(() => {
@@ -102,7 +122,7 @@ const handleClick = () => {
           <el-icon v-if="session.isPinned" size="14" class="pin-icon">
             <Paperclip />
           </el-icon>
-          <span class="name-text ellipsis">{{ session.name }}</span>
+          <span class="name-text ellipsis">{{ displayName }}</span>
         </div>
         <span class="session-item__time">{{ lastMessageTime }}</span>
       </div>

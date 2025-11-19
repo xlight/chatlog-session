@@ -6,6 +6,8 @@ import { ref, computed } from 'vue'
 import { contactAPI } from '@/api'
 import type { Contact } from '@/types/contact'
 import { useAppStore } from './app'
+import { db } from '@/utils/db'
+import { createBackgroundLoader, type BackgroundLoader, type LoadProgress } from '@/utils/background-loader'
 
 export const useContactStore = defineStore('contact', () => {
   const appStore = useAppStore()
@@ -56,6 +58,21 @@ export const useContactStore = defineStore('contact', () => {
    * 错误信息
    */
   const error = ref<Error | null>(null)
+
+  /**
+   * 后台加载器
+   */
+  let backgroundLoader: BackgroundLoader<Contact> | null = null
+
+  /**
+   * 后台加载进度
+   */
+  const loadProgress = ref<LoadProgress | null>(null)
+
+  /**
+   * 是否正在后台加载
+   */
+  const isBackgroundLoading = ref(false)
 
   // ==================== Getters ====================
 
@@ -191,7 +208,7 @@ export const useContactStore = defineStore('contact', () => {
   // ==================== Actions ====================
 
   /**
-   * 加载联系人列表
+   * 加载联系人列表（快速模式：先从缓存加载）
    */
   async function loadContacts(keyword?: string) {
     try {
@@ -199,9 +216,29 @@ export const useContactStore = defineStore('contact', () => {
       error.value = null
       appStore.setLoading('contacts', true)
 
+      // 先尝试从缓存加载
+      const cachedCount = await db.getContactCount()
+      if (cachedCount > 0 && !keyword) {
+        const cached = await db.getAllContacts()
+        contacts.value = cached
+        totalContacts.value = cached.length
+        
+        if (appStore.isDebug) {
+          console.log('📦 从缓存加载联系人', { count: cached.length })
+        }
+      }
+
+      // 从 API 加载
       const result = await contactAPI.getContacts(keyword ? { keyword } : undefined)
       contacts.value = result
       totalContacts.value = result.length
+
+      // 保存到缓存（仅在无关键词时）
+      if (!keyword && result.length > 0) {
+        await db.saveContacts(result).catch(err => {
+          console.error('保存联系人到缓存失败:', err)
+        })
+      }
 
       if (appStore.isDebug) {
         console.log('👥 Contacts loaded', {
@@ -212,12 +249,152 @@ export const useContactStore = defineStore('contact', () => {
 
       return result
     } catch (err) {
+      // 如果 API 失败，尝试使用缓存
+      if (!keyword) {
+        const cached = await db.getAllContacts().catch(() => [])
+        if (cached.length > 0) {
+          contacts.value = cached
+          totalContacts.value = cached.length
+          console.warn('⚠️ API 失败，使用缓存数据')
+          return cached
+        }
+      }
+      
       error.value = err as Error
       appStore.setError(err as Error)
       throw err
     } finally {
       loading.value = false
       appStore.setLoading('contacts', false)
+    }
+  }
+
+  /**
+   * 后台逐步加载联系人（分批加载，不阻塞 UI）
+   */
+  async function loadContactsInBackground(options?: {
+    batchSize?: number
+    batchDelay?: number
+    useCache?: boolean
+  }) {
+    // 如果已经在后台加载，先停止
+    if (backgroundLoader) {
+      backgroundLoader.cancel()
+    }
+
+    const batchSize = options?.batchSize || 50
+    const batchDelay = options?.batchDelay || 100
+    const useCache = options?.useCache ?? true
+
+    // 先从缓存快速加载（如果启用）
+    if (useCache) {
+      const cached = await db.getAllContacts().catch(() => [])
+      if (cached.length > 0) {
+        contacts.value = cached
+        totalContacts.value = cached.length
+        
+        if (appStore.isDebug) {
+          console.log('📦 从缓存快速加载联系人', { count: cached.length })
+        }
+      }
+    }
+
+    // 创建后台加载器
+    backgroundLoader = createBackgroundLoader<Contact>({
+      batchSize,
+      batchDelay,
+      useIdleCallback: true,
+      loadFn: async (offset, limit) => {
+        // 调用 API 分页加载
+        const result = await contactAPI.getContacts({ 
+          limit, 
+          offset 
+        })
+        return result
+      },
+      onBatchLoaded: async (batch, progress) => {
+        // 合并到现有列表（去重）
+        const existingIds = new Set(contacts.value.map(c => c.wxid))
+        const newContacts = batch.filter(c => !existingIds.has(c.wxid))
+        
+        if (newContacts.length > 0) {
+          contacts.value = [...contacts.value, ...newContacts]
+          totalContacts.value = contacts.value.length
+          
+          // 保存到缓存
+          await db.saveContacts(newContacts).catch(err => {
+            console.error('保存批次到缓存失败:', err)
+          })
+        }
+        
+        // 更新进度
+        loadProgress.value = progress
+        
+        if (appStore.isDebug) {
+          console.log('📥 后台加载批次', {
+            batchSize: batch.length,
+            loaded: progress.loaded,
+            percentage: progress.percentage.toFixed(1) + '%',
+          })
+        }
+      },
+      onCompleted: (items) => {
+        isBackgroundLoading.value = false
+        loadProgress.value = null
+        
+        if (appStore.isDebug) {
+          console.log('✅ 后台加载完成', {
+            total: items.length,
+            time: (Date.now() - (backgroundLoader?.getState().running ? 0 : 0)) + 'ms'
+          })
+        }
+      },
+      onError: (err) => {
+        isBackgroundLoading.value = false
+        error.value = err
+        console.error('❌ 后台加载失败:', err)
+      },
+      onProgress: (progress) => {
+        loadProgress.value = progress
+      }
+    })
+
+    try {
+      isBackgroundLoading.value = true
+      await backgroundLoader.start()
+    } catch (err) {
+      isBackgroundLoading.value = false
+      console.error('后台加载联系人失败:', err)
+      throw err
+    }
+  }
+
+  /**
+   * 暂停后台加载
+   */
+  function pauseBackgroundLoading() {
+    if (backgroundLoader) {
+      backgroundLoader.pause()
+    }
+  }
+
+  /**
+   * 恢复后台加载
+   */
+  function resumeBackgroundLoading() {
+    if (backgroundLoader) {
+      backgroundLoader.resume()
+    }
+  }
+
+  /**
+   * 取消后台加载
+   */
+  function cancelBackgroundLoading() {
+    if (backgroundLoader) {
+      backgroundLoader.cancel()
+      isBackgroundLoading.value = false
+      loadProgress.value = null
     }
   }
 
@@ -260,6 +437,19 @@ export const useContactStore = defineStore('contact', () => {
    */
   async function getContactDetail(wxid: string) {
     try {
+      // 先尝试从缓存获取
+      const cached = await db.getContact(wxid)
+      if (cached) {
+        // 更新到内存列表
+        const index = contacts.value.findIndex(c => c.wxid === wxid)
+        if (index !== -1) {
+          contacts.value[index] = cached
+        } else {
+          contacts.value.push(cached)
+        }
+      }
+
+      // 从 API 获取最新数据
       const contact = await contactAPI.getContactDetail(wxid)
 
       // 更新或添加到列表
@@ -270,8 +460,20 @@ export const useContactStore = defineStore('contact', () => {
         contacts.value.push(contact)
       }
 
+      // 保存到缓存
+      await db.saveContact(contact).catch(err => {
+        console.error('保存联系人到缓存失败:', err)
+      })
+
       return contact
     } catch (err) {
+      // API 失败时，返回缓存数据
+      const cached = await db.getContact(wxid).catch(() => null)
+      if (cached) {
+        console.warn('⚠️ API 失败，使用缓存数据:', wxid)
+        return cached
+      }
+      
       error.value = err as Error
       throw err
     }
@@ -405,9 +607,29 @@ export const useContactStore = defineStore('contact', () => {
   }
 
   /**
-   * 获取联系人显示名称
+   * 获取联系人显示名称（优先使用缓存）
    */
-  function getContactDisplayName(wxid: string): string {
+  async function getContactDisplayName(wxid: string): Promise<string> {
+    // 先从内存查找
+    const contact = contacts.value.find(c => c.wxid === wxid)
+    if (contact) {
+      return contactAPI.getDisplayName(contact)
+    }
+
+    // 从缓存查找
+    const cached = await db.getContact(wxid).catch(() => null)
+    if (cached) {
+      return contactAPI.getDisplayName(cached)
+    }
+
+    // 返回 wxid
+    return wxid
+  }
+
+  /**
+   * 同步获取联系人显示名称（仅内存）
+   */
+  function getContactDisplayNameSync(wxid: string): string {
     const contact = contacts.value.find(c => c.wxid === wxid)
     if (!contact) return wxid
     return contactAPI.getDisplayName(contact)
@@ -444,19 +666,51 @@ export const useContactStore = defineStore('contact', () => {
   async function getBatchContactDetails(wxids: string[]) {
     try {
       loading.value = true
-      const result = await contactAPI.getBatchContactDetails(wxids)
-
-      // 合并到列表
-      result.forEach(contact => {
-        const index = contacts.value.findIndex(c => c.wxid === contact.wxid)
-        if (index !== -1) {
-          contacts.value[index] = contact
+      
+      // 先从缓存获取
+      const cachedMap = await db.getContacts(wxids).catch(() => new Map())
+      const needFetch: string[] = []
+      
+      wxids.forEach(wxid => {
+        const cached = cachedMap.get(wxid)
+        if (cached) {
+          // 合并缓存数据到内存
+          const index = contacts.value.findIndex(c => c.wxid === wxid)
+          if (index !== -1) {
+            contacts.value[index] = cached
+          } else {
+            contacts.value.push(cached)
+          }
         } else {
-          contacts.value.push(contact)
+          needFetch.push(wxid)
         }
       })
 
-      return result
+      // 从 API 获取未缓存的数据
+      let result: Contact[] = []
+      if (needFetch.length > 0) {
+        result = await contactAPI.getBatchContactDetails(needFetch)
+
+        // 合并到列表并保存到缓存
+        result.forEach(contact => {
+          const index = contacts.value.findIndex(c => c.wxid === contact.wxid)
+          if (index !== -1) {
+            contacts.value[index] = contact
+          } else {
+            contacts.value.push(contact)
+          }
+        })
+
+        // 批量保存到缓存
+        if (result.length > 0) {
+          await db.saveContacts(result).catch(err => {
+            console.error('批量保存联系人到缓存失败:', err)
+          })
+        }
+      }
+
+      // 返回所有联系人（缓存 + 新获取）
+      return contacts.value.filter(c => wxids.includes(c.wxid))
     } catch (err) {
       error.value = err as Error
       throw err
@@ -541,6 +795,18 @@ export const useContactStore = defineStore('contact', () => {
   }
 
   /**
+   * 清除缓存
+   */
+  async function clearCache() {
+    try {
+      await db.clearContacts()
+      console.log('🗑️ 联系人缓存已清空')
+    } catch (err) {
+      console.error('清空缓存失败:', err)
+    }
+  }
+
+  /**
    * 重置状态
    */
   function $reset() {
@@ -568,6 +834,8 @@ export const useContactStore = defineStore('contact', () => {
     showLetterIndex,
     loading,
     error,
+    loadProgress,
+    isBackgroundLoading,
 
     // Getters
     currentContact,
@@ -584,6 +852,10 @@ export const useContactStore = defineStore('contact', () => {
 
     // Actions
     loadContacts,
+    loadContactsInBackground,
+    pauseBackgroundLoading,
+    resumeBackgroundLoading,
+    cancelBackgroundLoading,
     refreshContacts,
     loadFriends,
     loadChatrooms,
@@ -602,6 +874,7 @@ export const useContactStore = defineStore('contact', () => {
     deleteContact,
     addContacts,
     getContactDisplayName,
+    getContactDisplayNameSync,
     getContactAvatar,
     getChatroomMembers,
     getBatchContactDetails,
@@ -610,6 +883,7 @@ export const useContactStore = defineStore('contact', () => {
     clearSearch,
     clearFilter,
     clearError,
+    clearCache,
     $reset,
   }
 })
