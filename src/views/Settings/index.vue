@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getVersion, getBuildDate, getVersionInfo } from '@/utils/version'
 
 const appStore = useAppStore()
 const router = useRouter()
@@ -42,9 +43,12 @@ const settings = ref({
   cacheSize: '100MB'
 })
 
-// 版本信息
-const version = ref('1.0.0-dev')
-const buildDate = ref('2025-11-17')
+// 版本信息（从构建时注入）
+const version = ref(getVersion())
+const buildDate = ref(getBuildDate())
+
+// 完整版本信息（可选，用于更详细的显示）
+const versionInfo = getVersionInfo()
 
 // 当前活动菜单
 const activeMenu = ref('api')
@@ -590,6 +594,9 @@ const goBack = () => {
                 <h2>Chatlog Session</h2>
                 <p class="version">版本 {{ version }}</p>
                 <p class="build-date">构建日期: {{ buildDate }}</p>
+                <p v-if="versionInfo.gitHash && versionInfo.gitHash !== 'unknown'" class="git-info">
+                  提交: {{ versionInfo.gitHash }}
+                </p>
               </div>
 
               <el-divider />
@@ -605,11 +612,36 @@ const goBack = () => {
                   <el-descriptions-item label="构建日期">
                     {{ buildDate }}
                   </el-descriptions-item>
+                  <el-descriptions-item 
+                    v-if="versionInfo.buildTime && versionInfo.buildTime !== buildDate"
+                    label="构建时间"
+                  >
+                    {{ versionInfo.buildTime }}
+                  </el-descriptions-item>
+                  <el-descriptions-item 
+                    v-if="versionInfo.gitHash && versionInfo.gitHash !== 'unknown'"
+                    label="Git Hash"
+                  >
+                    <el-tag size="small" type="info">{{ versionInfo.gitHash }}</el-tag>
+                  </el-descriptions-item>
+                  <el-descriptions-item 
+                    v-if="versionInfo.gitBranch && versionInfo.gitBranch !== 'unknown'"
+                    label="Git 分支"
+                  >
+                    <el-tag size="small" :type="versionInfo.gitBranch === 'main' ? 'success' : 'warning'">
+                      {{ versionInfo.gitBranch }}
+                    </el-tag>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="环境">
+                    <el-tag size="small" :type="versionInfo.isDev ? 'warning' : 'success'">
+                      {{ versionInfo.isDev ? '开发版本' : '生产版本' }}
+                    </el-tag>
+                  </el-descriptions-item>
                   <el-descriptions-item label="技术栈">
                     Vue 3 + TypeScript + Vite
                   </el-descriptions-item>
                   <el-descriptions-item label="开源协议">
-                    MIT License
+                    Apache-2.0 License
                   </el-descriptions-item>
                   <el-descriptions-item label="项目仓库">
                     <el-link
@@ -758,6 +790,17 @@ const goBack = () => {
           margin: 4px 0;
           font-size: 12px;
           color: var(--el-text-color-placeholder);
+        }
+
+        .git-info {
+          margin: 4px 0;
+          font-size: 11px;
+          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+          color: var(--el-text-color-placeholder);
+          background-color: var(--el-fill-color-light);
+          padding: 2px 8px;
+          border-radius: 4px;
+          display: inline-block;
         }
       }
 
