@@ -4,8 +4,48 @@
  */
 
 import { request } from '@/utils/request'
-import type { Message } from '@/types/message'
+import type { Message, MessageResponse } from '@/types/message'
 import type { ChatlogParams, SearchParams, PaginatedResponse } from '@/types/api'
+
+/**
+ * 将后端返回的消息数据转换为前端使用的 Message 格式
+ */
+function transformMessage(response: MessageResponse): Message {
+  // 将 ISO 8601 时间字符串转换为 Unix 时间戳（秒）
+  const createTime = Math.floor(new Date(response.time).getTime() / 1000)
+  
+  // 生成消息 ID（使用 seq 作为 ID）
+  const id = response.seq
+  
+  return {
+    id,
+    seq: response.seq,
+    time: response.time,
+    createTime,
+    talker: response.talker,
+    talkerName: response.talkerName,
+    talkerAvatar: undefined,
+    sender: response.sender,
+    senderName: response.senderName,
+    isSelf: response.isSelf,
+    isSend: response.isSelf ? 1 : 0,
+    isChatRoom: response.isChatRoom,
+    type: response.type,
+    subType: response.subType,
+    content: response.content,
+    contents: response.contents,
+    // 根据 contents 设置对应的 URL 和文件信息
+    fileName: response.contents?.title,
+    fileUrl: response.contents?.url,
+  }
+}
+
+/**
+ * 批量转换消息数据
+ */
+function transformMessages(responses: MessageResponse[]): Message[] {
+  return responses.map(transformMessage)
+}
 
 /**
  * 格式化日期为 YYYY-MM-DD
@@ -45,8 +85,9 @@ class ChatlogAPI {
    * @param params 查询参数
    * @returns 消息列表
    */
-  getChatlog(params: ChatlogParams): Promise<Message[]> {
-    return request.get<Message[]>('/api/v1/chatlog', params)
+  async getChatlog(params: ChatlogParams): Promise<Message[]> {
+    const responses = await request.get<MessageResponse[]>('/api/v1/chatlog', params)
+    return transformMessages(responses)
   }
 
   /**
@@ -56,8 +97,12 @@ class ChatlogAPI {
    * @param params 搜索参数
    * @returns 搜索结果
    */
-  searchMessages(params: SearchParams): Promise<PaginatedResponse<Message>> {
-    return request.get<PaginatedResponse<Message>>('/api/v1/chatlog/search', params)
+  async searchMessages(params: SearchParams): Promise<PaginatedResponse<Message>> {
+    const response = await request.get<PaginatedResponse<MessageResponse>>('/api/v1/chatlog/search', params)
+    return {
+      ...response,
+      items: transformMessages(response.items),
+    }
   }
 
   /**
@@ -67,11 +112,12 @@ class ChatlogAPI {
    * @param params 查询参数
    * @returns JSON 格式的聊天记录
    */
-  exportJSON(params: ChatlogParams): Promise<Message[]> {
-    return request.get<Message[]>('/api/v1/chatlog', {
+  async exportJSON(params: ChatlogParams): Promise<Message[]> {
+    const responses = await request.get<MessageResponse[]>('/api/v1/chatlog', {
       ...params,
       format: 'json',
     })
+    return transformMessages(responses)
   }
 
   /**

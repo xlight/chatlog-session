@@ -13,7 +13,30 @@ export enum MessageType {
 }
 
 /**
- * 消息接口
+ * 后端返回的消息数据结构
+ */
+export interface MessageResponse {
+  seq: number
+  time: string
+  talker: string
+  talkerName: string
+  isChatRoom: boolean
+  sender: string
+  senderName: string
+  isSelf: boolean
+  type: number
+  subType: number
+  content: string
+  contents?: {
+    md5?: string
+    title?: string
+    url?: string
+    [key: string]: any
+  }
+}
+
+/**
+ * 前端使用的消息接口
  */
 export interface Message {
   id: number
@@ -31,6 +54,12 @@ export interface Message {
   type: MessageType
   subType: number
   content: string
+  contents?: {
+    md5?: string
+    title?: string
+    url?: string
+    [key: string]: any
+  }
   imageUrl?: string
   videoUrl?: string
   voiceUrl?: string

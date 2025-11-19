@@ -95,7 +95,28 @@ export const useChatStore = defineStore('chat', () => {
     const grouped: Record<string, Message[]> = {}
     
     currentMessages.value.forEach(message => {
-      const date = formatMessageDate(message.createTime)
+      // 优先使用 time（ISO 字符串），回退到 createTime（Unix 秒）
+      const timestamp = message.time || message.createTime
+      
+      // 调试日志
+      if (appStore.isDebug && (!message.time && !message.createTime)) {
+        console.warn('⚠️ Message missing time fields:', {
+          id: message.id,
+          seq: message.seq,
+          time: message.time,
+          createTime: message.createTime,
+        })
+      }
+      
+      const date = formatMessageDate(timestamp)
+      
+      if (appStore.isDebug && date === '未知日期') {
+        console.warn('⚠️ Invalid date format:', {
+          timestamp,
+          message,
+        })
+      }
+      
       if (!grouped[date]) {
         grouped[date] = []
       }
@@ -181,6 +202,21 @@ export const useChatStore = defineStore('chat', () => {
           count: result.length,
           hasMore: hasMore.value,
         })
+        
+        // 调试：输出第一条消息的时间信息
+        if (result.length > 0) {
+          const firstMsg = result[0]
+          console.log('📝 First message debug:', {
+            id: firstMsg.id,
+            seq: firstMsg.seq,
+            time: firstMsg.time,
+            createTime: firstMsg.createTime,
+            timeType: typeof firstMsg.time,
+            createTimeType: typeof firstMsg.createTime,
+            timeValid: firstMsg.time ? !isNaN(new Date(firstMsg.time).getTime()) : false,
+            createTimeValid: firstMsg.createTime ? !isNaN(new Date(firstMsg.createTime * 1000).getTime()) : false,
+          })
+        }
       }
 
       return result
@@ -432,9 +468,24 @@ export const useChatStore = defineStore('chat', () => {
 
   /**
    * 格式化消息日期
+   * @param timestamp Unix 时间戳（秒）或 ISO 8601 字符串
    */
-  function formatMessageDate(timestamp: number): string {
-    const date = new Date(timestamp * 1000)
+  function formatMessageDate(timestamp: number | string): string {
+    // 处理无效值
+    if (!timestamp) {
+      return '未知日期'
+    }
+
+    // 如果是字符串，解析为 Date；如果是数字，假设是秒级时间戳
+    const date = typeof timestamp === 'string' 
+      ? new Date(timestamp) 
+      : new Date(timestamp * 1000)
+    
+    // 检查日期是否有效
+    if (isNaN(date.getTime())) {
+      return '未知日期'
+    }
+    
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)

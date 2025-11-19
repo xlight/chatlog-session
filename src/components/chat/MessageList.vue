@@ -138,10 +138,12 @@ const shouldShowAvatar = (index: number, messages: Message[]) => {
   const next = messages[index + 1]
   
   // 不同发送者显示头像
-  if (current.talker !== next.talker) return true
+  if (current.sender !== next.sender) return true
   
   // 时间间隔超过5分钟显示头像
-  const timeDiff = new Date(next.createTime).getTime() - new Date(current.createTime).getTime()
+  const currentTime = current.createTime ? current.createTime * 1000 : new Date(current.time).getTime()
+  const nextTime = next.createTime ? next.createTime * 1000 : new Date(next.time).getTime()
+  const timeDiff = nextTime - currentTime
   if (timeDiff > 5 * 60 * 1000) return true
   
   return false
@@ -155,7 +157,10 @@ const shouldShowTime = (index: number, messages: Message[]) => {
   const prev = messages[index - 1]
   
   // 时间间隔超过5分钟显示时间
-  const timeDiff = new Date(current.createTime).getTime() - new Date(prev.createTime).getTime()
+  // 使用 createTime（Unix 时间戳秒）或 time（ISO 字符串）
+  const currentTime = current.createTime ? current.createTime * 1000 : new Date(current.time).getTime()
+  const prevTime = prev.createTime ? prev.createTime * 1000 : new Date(prev.time).getTime()
+  const timeDiff = currentTime - prevTime
   return timeDiff > 5 * 60 * 1000
 }
 
@@ -167,7 +172,7 @@ const shouldShowName = (index: number, messages: Message[]) => {
   const prev = messages[index - 1]
   
   // 不同发送者显示名称
-  return current.talker !== prev.talker
+  return current.sender !== prev.sender
 }
 
 // 监听会话ID变化

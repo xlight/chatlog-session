@@ -18,11 +18,15 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // 是否是自己发送的消息
-const isSelf = computed(() => props.message.isSend === 1)
+const isSelf = computed(() => props.message.isSelf)
 
 // 格式化消息时间
 const messageTime = computed(() => {
-  return formatMessageTime(props.message.createTime)
+  // 支持 createTime（Unix 时间戳秒）或 time（ISO 字符串）
+  if (props.message.createTime) {
+    return formatMessageTime(props.message.createTime)
+  }
+  return formatMessageTime(new Date(props.message.time).getTime() / 1000)
 })
 
 // 消息内容类型判断
@@ -33,6 +37,22 @@ const isVideoMessage = computed(() => props.message.type === 43)
 const isEmojiMessage = computed(() => props.message.type === 47)
 const isFileMessage = computed(() => props.message.type === 49)
 const isSystemMessage = computed(() => props.message.type === 10000)
+const isReferMessage = computed(() => props.message.type === 49 && props.message.subType === 57)
+
+// 文件名（从 contents 获取）
+const fileName = computed(() => {
+  return props.message.contents?.title || props.message.fileName || '未知文件'
+})
+
+// 文件 URL
+const fileUrl = computed(() => {
+  return props.message.contents?.url || props.message.fileUrl
+})
+
+// 引用消息内容
+const referMessage = computed(() => {
+  return props.message.contents?.refer
+})
 
 // 消息气泡类名
 const bubbleClass = computed(() => {
@@ -58,7 +78,16 @@ const handleVideoClick = () => {
 // 处理文件点击
 const handleFileClick = () => {
   // 下载文件逻辑
-  console.log('下载文件:', props.message.content)
+  console.log('下载文件:', fileName.value, fileUrl.value)
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
 </script>
 
@@ -75,7 +104,7 @@ const handleFileClick = () => {
       <div v-if="showAvatar && !isSelf" class="message-bubble__avatar">
         <Avatar
           :src="message.talkerAvatar"
-          :name="message.talker"
+          :name="message.senderName"
           :size="36"
         />
       </div>
@@ -83,7 +112,7 @@ const handleFileClick = () => {
       <div class="message-bubble__content">
         <!-- 发送者名称 (群聊中显示) -->
         <div v-if="showName && !isSelf" class="message-bubble__name">
-          {{ message.talker }}
+          {{ message.senderName || message.sender }}
         </div>
 
         <!-- 消息时间 -->
@@ -135,12 +164,22 @@ const handleFileClick = () => {
             <img :src="message.content" alt="emoji" class="emoji-image" />
           </div>
 
+          <!-- 引用消息 (type=49, subType=57) -->
+          <div v-else-if="isReferMessage" class="message-refer">
+            <div v-if="referMessage" class="refer-content">
+              <div class="refer-sender">{{ referMessage.senderName || referMessage.sender }}</div>
+              <div class="refer-text">{{ referMessage.content }}</div>
+            </div>
+            <div class="message-text">{{ message.content }}</div>
+          </div>
+
           <!-- 文件消息 -->
           <div v-else-if="isFileMessage" class="message-file" @click="handleFileClick">
             <el-icon class="file-icon"><Document /></el-icon>
             <div class="file-info">
-              <div class="file-name ellipsis">{{ message.content || '文件' }}</div>
-              <div class="file-size">未知大小</div>
+              <div class="file-name ellipsis">{{ fileName }}</div>
+              <div v-if="message.fileSize" class="file-size">{{ formatFileSize(message.fileSize) }}</div>
+              <div v-else class="file-size">未知大小</div>
             </div>
           </div>
 

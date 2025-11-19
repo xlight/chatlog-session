@@ -133,11 +133,13 @@ export function formatRelativeTime(date: Date): string {
  * 格式化消息时间
  * 用于消息列表中的时间显示
  */
-export function formatMessageTime(timestamp: number): string {
+export function formatMessageTime(timestamp: number | string): string {
   if (!timestamp) return ''
 
-  const ms = timestamp < 10000000000 ? timestamp * 1000 : timestamp
-  const date = new Date(ms)
+  // 支持 ISO 8601 字符串或 Unix 时间戳
+  const date = typeof timestamp === 'string' 
+    ? new Date(timestamp) 
+    : new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp)
   const now = new Date()
 
   // 今天：只显示时间
