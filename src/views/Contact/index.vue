@@ -69,7 +69,7 @@ const filteredContacts = computed(() => {
 // 扁平化列表用于虚拟滚动
 const flattenedContacts = computed(() => {
   const result: Array<{ type: 'header' | 'item', key: string, data?: Contact, header?: string }> = []
-  
+
   if (sortBy.value === 'name') {
     // 不分组，直接返回联系人列表
     filteredContacts.value.forEach(contact => {
@@ -89,14 +89,14 @@ const flattenedContacts = computed(() => {
       }
       grouped[initial].push(contact)
     })
-    
+
     // 按字母排序
     const sortedLetters = Object.keys(grouped).sort((a, b) => {
       if (a === '#') return 1
       if (b === '#') return -1
       return a.localeCompare(b)
     })
-    
+
     // 构建扁平化列表
     sortedLetters.forEach(letter => {
       // 添加分组头
@@ -115,21 +115,21 @@ const flattenedContacts = computed(() => {
       })
     })
   }
-  
+
   return result
 })
 
 // 获取字母索引列表
 const letterIndexList = computed(() => {
   if (sortBy.value !== 'pinyin') return []
-  
+
   const letters = new Set<string>()
   flattenedContacts.value.forEach(item => {
     if (item.type === 'header' && item.header) {
       letters.add(item.header)
     }
   })
-  
+
   return Array.from(letters).sort((a, b) => {
     if (a === '#') return 1
     if (b === '#') return -1
@@ -139,10 +139,10 @@ const letterIndexList = computed(() => {
 
 // 统计信息
 const stats = computed(() => {
-  const allContacts = Array.isArray(contactStore.contacts) 
-    ? contactStore.contacts 
+  const allContacts = Array.isArray(contactStore.contacts)
+    ? contactStore.contacts
     : []
-  
+
   return {
     total: allContacts.length,
     friends: allContacts.filter(c => c.type === ContactType.Friend).length,
@@ -154,7 +154,7 @@ const stats = computed(() => {
 // 处理滚动到底部
 const handleScroll = (event: any) => {
   const { scrollTop } = event.target
-  
+
   // 显示回到顶部按钮
   showBackTop.value = scrollTop > 300
 }
@@ -176,7 +176,7 @@ const jumpToLetter = (letter: string) => {
     const scrollElement = scrollerRef.value.$el.querySelector('.vue-recycle-scroller__item-wrapper')
     const scrollerRect = scrollElement?.getBoundingClientRect()
     const elementRect = element.getBoundingClientRect()
-    
+
     if (scrollElement && scrollerRect) {
       const offset = elementRect.top - scrollerRect.top + scrollElement.scrollTop
       scrollElement.scrollTo({ top: offset, behavior: 'smooth' })
@@ -197,9 +197,9 @@ const handleTouchStart = (_event: TouchEvent) => {
 
 const handleTouchMove = (event: TouchEvent) => {
   if (!isPulling.value) return
-  
+
   const startY = event.touches[0].clientY
-  
+
   if (startY > 0) {
     pullDistance.value = Math.min(startY / 2, 100)
     if (pullDistance.value > 0) {
@@ -210,18 +210,18 @@ const handleTouchMove = (event: TouchEvent) => {
 
 const handleTouchEnd = async () => {
   if (!isPulling.value) return
-  
+
   isPulling.value = false
-  
+
   if (pullDistance.value > 50) {
     // 触发刷新
     refreshing.value = true
     pullDistance.value = 0
-    
+
     try {
       // 重新加载
       await loadContacts()
-      
+
       ElMessage.success('刷新成功')
     } catch (err) {
       ElMessage.error('刷新失败')
@@ -240,10 +240,10 @@ const startBackgroundRefresh = async () => {
     ElMessage.warning('正在后台刷新中，请稍候...')
     return
   }
-  
+
   try {
     await contactStore.loadContactsInBackground({
-      batchSize: 50,
+      batchSize: 500,
       batchDelay: 100,
       useCache: true
     })
@@ -257,12 +257,12 @@ const startBackgroundRefresh = async () => {
 const loadContacts = async () => {
   loading.value = true
   error.value = null
-  
+
   try {
     // 只从数据库加载联系人
     const { db } = await import('@/utils/db')
     const cached = await db.getAllContacts()
-    
+
     if (cached.length > 0) {
       contactStore.contacts = cached
       contactStore.totalContacts = cached.length
@@ -325,9 +325,9 @@ onMounted(() => {
               {{ stats.total }}
             </el-tag>
             <!-- 后台刷新按钮 -->
-            <el-button 
-              type="primary" 
-              size="small" 
+            <el-button
+              type="primary"
+              size="small"
               :loading="contactStore.isBackgroundLoading"
               @click="startBackgroundRefresh"
             >
@@ -335,7 +335,7 @@ onMounted(() => {
               {{ contactStore.isBackgroundLoading ? '刷新中...' : '后台刷新' }}
             </el-button>
           </div>
-          
+
           <!-- 后台加载进度条 -->
           <LoadingProgress
             :progress="contactStore.loadProgress"
@@ -413,16 +413,16 @@ onMounted(() => {
         </Empty>
 
         <!-- 联系人列表 - 虚拟滚动 -->
-        <div 
-          v-else 
+        <div
+          v-else
           class="contact-list-container"
           @touchstart="handleTouchStart"
           @touchmove="handleTouchMove"
           @touchend="handleTouchEnd"
         >
           <!-- 下拉刷新提示 -->
-          <div 
-            v-if="pullDistance > 0 || refreshing" 
+          <div
+            v-if="pullDistance > 0 || refreshing"
             class="pull-refresh-indicator"
             :style="{ height: `${pullDistance}px` }"
           >
@@ -447,9 +447,9 @@ onMounted(() => {
           >
             <template #default="{ item }">
               <!-- 分组头 -->
-              <div 
-                v-if="item.type === 'header'" 
-                :key="`header-${item.header}`" 
+              <div
+                v-if="item.type === 'header'"
+                :key="`header-${item.header}`"
                 :data-letter="item.header"
                 class="group-header"
               >

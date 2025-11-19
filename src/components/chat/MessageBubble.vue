@@ -184,12 +184,14 @@ const formatFileSize = (bytes: number): string => {
     <!-- 普通消息 -->
     <template v-else>
       <!-- 头像 (对方消息显示在左边) -->
-      <div v-if="showAvatar && !isSelf" class="message-bubble__avatar">
+      <div v-if="!isSelf" class="message-bubble__avatar">
         <Avatar
+          v-if="showAvatar"
           :src="message.talkerAvatar"
           :name="message.senderName"
           :size="36"
         />
+        <div v-else class="avatar-placeholder"></div>
       </div>
 
       <div class="message-bubble__content">
@@ -340,12 +342,14 @@ const formatFileSize = (bytes: number): string => {
       </div>
 
       <!-- 头像 (自己的消息显示在右边) -->
-      <div v-if="showAvatar && isSelf" class="message-bubble__avatar">
+      <div v-if="isSelf" class="message-bubble__avatar">
         <Avatar
+          v-if="showAvatar"
           :src="message.talkerAvatar"
           :name="message.talker"
           :size="36"
         />
+        <div v-else class="avatar-placeholder"></div>
       </div>
     </template>
 
@@ -458,6 +462,11 @@ const formatFileSize = (bytes: number): string => {
   &__avatar {
     flex-shrink: 0;
     margin: 0 12px;
+
+    .avatar-placeholder {
+      width: 36px;
+      height: 36px;
+    }
   }
 
   &__content {

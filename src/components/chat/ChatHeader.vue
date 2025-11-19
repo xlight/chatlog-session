@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Session, SessionDetail } from '@/types'
+import { useContactStore } from '@/stores/contact'
+import { useChatStore } from '@/stores/chat'
 
 interface Props {
   session?: Session | SessionDetail | null
@@ -22,10 +24,37 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+const contactStore = useContactStore()
+const chatStore = useChatStore()
+
+// 显示名称（从缓存获取）
+const displayName = ref(props.session?.name || '')
+
+// 异步加载显示名称
+watch(() => props.session?.id, async (newId) => {
+  if (newId) {
+    try {
+      const name = await contactStore.getContactDisplayName(newId)
+      if (name && name !== newId) {
+        displayName.value = name
+      }
+    } catch (err) {
+      console.warn('获取联系人显示名称失败:', newId, err)
+    }
+  }
+}, { immediate: true })
+
+// 当 session 变化时更新默认名称
+watch(() => props.session?.name, (newName) => {
+  if (newName) {
+    displayName.value = newName
+  }
+}, { immediate: true })
+
 // 会话类型显示文本
 const sessionTypeText = computed(() => {
   if (!props.session) return ''
-  
+
   switch (props.session.type) {
     case 'private':
       return '私聊'
@@ -43,9 +72,9 @@ const sessionTypeText = computed(() => {
 // 会话副标题
 const sessionSubtitle = computed(() => {
   if (!props.session) return ''
-  
+
   const parts: string[] = [sessionTypeText.value]
-  
+
   // 群聊显示成员数
   if (props.session.type === 'group') {
     const detail = props.session as SessionDetail
@@ -53,7 +82,13 @@ const sessionSubtitle = computed(() => {
       parts.push(`${detail.memberCount}人`)
     }
   }
-  
+
+  // 显示消息总数
+  const messageCount = chatStore.messages.length
+  if (messageCount > 0) {
+    parts.push(`${messageCount}条消息`)
+  }
+
   return parts.join(' · ')
 })
 
@@ -82,7 +117,7 @@ const handleRefresh = () => {
 
       <!-- 会话信息 -->
       <div v-if="session" class="header-info">
-        <h3 class="header-title">{{ session.name }}</h3>
+        <h3 class="header-title">{{ displayName }}</h3>
         <p v-if="sessionSubtitle" class="header-subtitle">{{ sessionSubtitle }}</p>
       </div>
     </div>

@@ -7,17 +7,17 @@ import type { UserSettings, AppConfig } from '@/types'
 
 export const useAppStore = defineStore('app', () => {
   // ==================== State ====================
-  
+
   /**
    * 应用配置
    */
   const config = ref<AppConfig>({
     title: import.meta.env.VITE_APP_TITLE || 'Chatlog Session',
-    version: import.meta.env.VITE_APP_VERSION || '1.0.0',
+    version: import.meta.env.VITE_APP_VERSION || 'dev',
     apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5030',
     apiTimeout: Number(import.meta.env.VITE_API_TIMEOUT) || 30000,
-    pageSize: Number(import.meta.env.VITE_PAGE_SIZE) || 50,
-    maxPageSize: Number(import.meta.env.VITE_MAX_PAGE_SIZE) || 100,
+    pageSize: Number(import.meta.env.VITE_PAGE_SIZE) || 500,
+    maxPageSize: Number(import.meta.env.VITE_MAX_PAGE_SIZE) || 5000,
     enableDebug: import.meta.env.VITE_ENABLE_DEBUG === 'true',
     enableMock: import.meta.env.VITE_ENABLE_MOCK === 'true',
   })
@@ -104,21 +104,21 @@ export const useAppStore = defineStore('app', () => {
   function init() {
     // 从 localStorage 加载设置
     loadSettings()
-    
+
     // 检测移动端
     checkMobile()
-    
+
     // 监听窗口大小变化
     window.addEventListener('resize', checkMobile)
-    
+
     // 监听系统主题变化
     if (settings.value.theme === 'auto') {
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme)
     }
-    
+
     // 应用主题
     applyTheme()
-    
+
     if (isDebug.value) {
       console.log('📱 App initialized', {
         config: config.value,
@@ -160,7 +160,7 @@ export const useAppStore = defineStore('app', () => {
   function updateSettings(newSettings: Partial<UserSettings>) {
     settings.value = { ...settings.value, ...newSettings }
     saveSettings()
-    
+
     // 如果更新了主题，应用主题
     if (newSettings.theme) {
       applyTheme()
@@ -264,13 +264,13 @@ export const useAppStore = defineStore('app', () => {
     isMobile,
     activeNav,
     error,
-    
+
     // Getters
     isDark,
     isDebug,
     hasError,
     isLoading,
-    
+
     // Actions
     init,
     loadSettings,

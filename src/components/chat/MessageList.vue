@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import type { Message } from '@/types'
 import MessageBubble from './MessageBubble.vue'
@@ -48,14 +48,19 @@ const loadMessages = async (loadMore = false) => {
   } else {
     loading.value = true
   }
-  
+
   error.value = null
 
   try {
     const page = loadMore ? chatStore.currentPage + 1 : 1
+    const beforeCount = messages.value.length
+
     await chatStore.loadMessages(props.sessionId, page, loadMore)
 
     hasMore.value = chatStore.hasMore
+
+    // 计算本次实际加载的消息数
+    const loadedCount = messages.value.length - beforeCount
 
     // 如果是首次加载，滚动到底部
     if (!loadMore) {
@@ -66,8 +71,16 @@ const loadMessages = async (loadMore = false) => {
         // 再次确保滚动到底部（处理图片等异步加载）
         setTimeout(() => {
           scrollToBottom()
+          // 检查是否需要继续加载
+          checkAndLoadMore(loadedCount)
         }, 200)
       }, 50)
+    } else {
+      // 加载更多后也检查是否需要继续
+      await nextTick()
+      setTimeout(() => {
+        checkAndLoadMore(loadedCount)
+      }, 100)
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载消息失败'
@@ -96,6 +109,32 @@ const handleLoadMore = async () => {
   }
 }
 
+// 检查并自动加载更多（如果本次加载数量等于pageSize）
+const checkAndLoadMore = async (loadedCount: number) => {
+  if (!hasMore.value || loadingMore.value || loading.value) {
+    return
+  }
+
+  // 策略：如果本次加载的消息数等于pageSize，说明可能还有更多消息，继续加载
+  const pageSize = chatStore.pageSize
+  if (loadedCount === pageSize) {
+    console.log('🔄 Auto loading more messages...', {
+      loadedCount,
+      pageSize,
+      totalMessages: messages.value.length
+    })
+
+    await handleLoadMore()
+  } else {
+    console.log('✅ Loading complete', {
+      loadedCount,
+      pageSize,
+      totalMessages: messages.value.length,
+      reason: loadedCount < pageSize ? 'Reached end' : 'Manual stop'
+    })
+  }
+}
+
 // 滚动到底部
 const scrollToBottom = (smooth = false) => {
   if (!messageListRef.value) return
@@ -103,12 +142,12 @@ const scrollToBottom = (smooth = false) => {
   // 使用一个很大的数值确保滚动到底部
   const containerScrollHeight = messageListRef.value.scrollHeight
   const maxScroll = containerScrollHeight + 10000
-  
+
   messageListRef.value.scrollTo({
     top: maxScroll,
     behavior: smooth ? 'smooth' : 'auto'
   })
-  
+
   // 双保险：直接设置 scrollTop
   if (!smooth) {
     messageListRef.value.scrollTop = maxScroll
@@ -134,8 +173,8 @@ const handleScroll = () => {
 
   const { scrollTop } = messageListRef.value
 
-  // 接近顶部时自动加载更多
-  if (scrollTop < 100 && hasMore.value && !loadingMore.value) {
+  // 接近顶部时自动加载更多（增大触发距离到 300px）
+  if (scrollTop < 300 && hasMore.value && !loadingMore.value) {
     handleLoadMore()
   }
 }
@@ -148,30 +187,34 @@ const handleRefresh = () => {
 
 // 判断是否显示头像（连续消息优化）
 const shouldShowAvatar = (index: number, messages: Message[]) => {
+  // 选项1：每条消息都显示头像
+  // return true
+
+  // 选项2：连续消息优化（当前使用）
   if (index === messages.length - 1) return true
-  
+
   const current = messages[index]
   const next = messages[index + 1]
-  
+
   // 不同发送者显示头像
   if (current.sender !== next.sender) return true
-  
+
   // 时间间隔超过5分钟显示头像
   const currentTime = current.createTime ? current.createTime * 1000 : new Date(current.time).getTime()
   const nextTime = next.createTime ? next.createTime * 1000 : new Date(next.time).getTime()
   const timeDiff = nextTime - currentTime
   if (timeDiff > 5 * 60 * 1000) return true
-  
+
   return false
 }
 
 // 判断是否显示时间
 const shouldShowTime = (index: number, messages: Message[]) => {
   if (index === 0) return true
-  
+
   const current = messages[index]
   const prev = messages[index - 1]
-  
+
   // 时间间隔超过5分钟显示时间
   // 使用 createTime（Unix 时间戳秒）或 time（ISO 字符串）
   const currentTime = current.createTime ? current.createTime * 1000 : new Date(current.time).getTime()
@@ -182,13 +225,19 @@ const shouldShowTime = (index: number, messages: Message[]) => {
 
 // 判断是否显示名称（群聊中）
 const shouldShowName = (index: number, messages: Message[]) => {
-  if (index === 0) return true
-  
+  //if (index === 0) return true
+  if (index === messages.length - 1) return true
+
   const current = messages[index]
-  const prev = messages[index - 1]
-  
-  // 不同发送者显示名称
-  return current.sender !== prev.sender
+  // const prev = messages[index - 1]
+
+  // // 不同发送者显示名称
+  // return current.sender !== prev.sender
+  //
+  const next = messages[index + 1]
+
+  // 不同发送者显示头像
+  if (current.sender !== next.sender) return true
 }
 
 // 监听会话ID变化
@@ -198,13 +247,6 @@ watch(() => props.sessionId, (newId, oldId) => {
     loadMessages(false)
   }
 }, { immediate: true })
-
-// 组件挂载
-onMounted(() => {
-  if (props.sessionId) {
-    loadMessages(false)
-  }
-})
 
 // 暴露方法给父组件
 defineExpose({
@@ -397,7 +439,7 @@ defineExpose({
   &__no-more {
     .el-divider {
       margin: 0;
-      
+
       :deep(.el-divider__text) {
         font-size: 12px;
         color: var(--el-text-color-secondary);

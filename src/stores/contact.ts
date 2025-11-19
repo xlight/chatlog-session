@@ -222,7 +222,7 @@ export const useContactStore = defineStore('contact', () => {
         const cached = await db.getAllContacts()
         contacts.value = cached
         totalContacts.value = cached.length
-        
+
         if (appStore.isDebug) {
           console.log('📦 从缓存加载联系人', { count: cached.length })
         }
@@ -259,7 +259,7 @@ export const useContactStore = defineStore('contact', () => {
           return cached
         }
       }
-      
+
       error.value = err as Error
       appStore.setError(err as Error)
       throw err
@@ -282,7 +282,7 @@ export const useContactStore = defineStore('contact', () => {
       backgroundLoader.cancel()
     }
 
-    const batchSize = options?.batchSize || 50
+    const batchSize = options?.batchSize || 500
     const batchDelay = options?.batchDelay || 100
     const useCache = options?.useCache ?? true
 
@@ -292,7 +292,7 @@ export const useContactStore = defineStore('contact', () => {
       if (cached.length > 0) {
         contacts.value = cached
         totalContacts.value = cached.length
-        
+
         if (appStore.isDebug) {
           console.log('📦 从缓存快速加载联系人', { count: cached.length })
         }
@@ -306,9 +306,9 @@ export const useContactStore = defineStore('contact', () => {
       useIdleCallback: true,
       loadFn: async (offset, limit) => {
         // 调用 API 分页加载
-        const result = await contactAPI.getContacts({ 
-          limit, 
-          offset 
+        const result = await contactAPI.getContacts({
+          limit,
+          offset
         })
         return result
       },
@@ -316,20 +316,20 @@ export const useContactStore = defineStore('contact', () => {
         // 合并到现有列表（去重）
         const existingIds = new Set(contacts.value.map(c => c.wxid))
         const newContacts = batch.filter(c => !existingIds.has(c.wxid))
-        
+
         if (newContacts.length > 0) {
           contacts.value = [...contacts.value, ...newContacts]
           totalContacts.value = contacts.value.length
-          
+
           // 保存到缓存
           await db.saveContacts(newContacts).catch(err => {
             console.error('保存批次到缓存失败:', err)
           })
         }
-        
+
         // 更新进度
         loadProgress.value = progress
-        
+
         if (appStore.isDebug) {
           console.log('📥 后台加载批次', {
             batchSize: batch.length,
@@ -341,7 +341,7 @@ export const useContactStore = defineStore('contact', () => {
       onCompleted: (items) => {
         isBackgroundLoading.value = false
         loadProgress.value = null
-        
+
         if (appStore.isDebug) {
           console.log('✅ 后台加载完成', {
             total: items.length,
@@ -473,7 +473,7 @@ export const useContactStore = defineStore('contact', () => {
         console.warn('⚠️ API 失败，使用缓存数据:', wxid)
         return cached
       }
-      
+
       error.value = err as Error
       throw err
     }
@@ -597,12 +597,12 @@ export const useContactStore = defineStore('contact', () => {
     // 去重：只添加不存在的联系人
     const existingIds = new Set(contacts.value.map(c => c.wxid))
     const uniqueContacts = newContacts.filter(c => !existingIds.has(c.wxid))
-    
+
     if (uniqueContacts.length > 0) {
       contacts.value.push(...uniqueContacts)
       totalContacts.value = contacts.value.length
     }
-    
+
     return uniqueContacts.length
   }
 
@@ -666,11 +666,11 @@ export const useContactStore = defineStore('contact', () => {
   async function getBatchContactDetails(wxids: string[]) {
     try {
       loading.value = true
-      
+
       // 先从缓存获取
       const cachedMap = await db.getContacts(wxids).catch(() => new Map())
       const needFetch: string[] = []
-      
+
       wxids.forEach(wxid => {
         const cached = cachedMap.get(wxid)
         if (cached) {

@@ -138,7 +138,7 @@ export class BackgroundLoader<T = any> {
 
   constructor(options: BackgroundLoaderOptions<T>) {
     this.options = {
-      batchSize: options.batchSize || 50,
+      batchSize: options.batchSize || 500,
       batchDelay: options.batchDelay || 100,
       useIdleCallback: options.useIdleCallback ?? true,
       maxConcurrent: options.maxConcurrent || 1,

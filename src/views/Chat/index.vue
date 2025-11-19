@@ -59,13 +59,13 @@ onMounted(async () => {
   try {
     const { db } = await import('@/utils/db')
     const contactCount = await db.getContactCount()
-    
+
     if (contactCount === 0 && !contactStore.isBackgroundLoading) {
       console.log('📦 数据库为空，自动启动后台加载联系人...')
-      
+
       // 启动后台加载
       contactStore.loadContactsInBackground({
-        batchSize: 50,
+        batchSize: 500,
         batchDelay: 100,
         useCache: true
       }).catch(err => {
