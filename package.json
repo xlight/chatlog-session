@@ -1,6 +1,6 @@
 {
   "name": "chatlog-session",
-  "version": "1.0.0",
+  "version": "0.5.0",
   "description": "基于 Chatlog API 的微信聊天记录查看器",
   "type": "module",
   "scripts": {

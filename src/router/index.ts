@@ -49,15 +49,6 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
-    path: '/test',
-    name: 'Test',
-    component: () => import('@/views/Test/index.vue'),
-    meta: {
-      title: 'API 测试',
-      icon: 'Monitor',
-    },
-  },
-  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     redirect: '/chat',
