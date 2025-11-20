@@ -5,6 +5,26 @@ import { formatMessageTime } from '@/utils'
 import Avatar from '@/components/common/Avatar.vue'
 import { useAppStore } from '@/stores/app'
 
+// 获取 API Base URL
+const getApiBaseUrl = (): string => {
+  const directUrl = localStorage.getItem('apiBaseUrl')
+  if (directUrl) {
+    return directUrl
+  }
+  const settings = localStorage.getItem('chatlog-settings')
+  if (settings) {
+    try {
+      const parsed = JSON.parse(settings)
+      if (parsed.apiBaseUrl) {
+        return parsed.apiBaseUrl
+      }
+    } catch (err) {
+      console.error('解析设置失败:', err)
+    }
+  }
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:5030'
+}
+
 interface Props {
   message: Message
   showAvatar?: boolean
@@ -75,8 +95,44 @@ const imageUrl = computed(() => {
     return props.message.content
   }
   if (props.message.contents?.md5) {
-    // TODO: 根据实际图片服务配置路径
-    return `/api/images/${props.message.contents.md5}`
+    const apiBaseUrl = getApiBaseUrl()
+    return `${apiBaseUrl}/image/${props.message.contents.md5}`
+  }
+  return ''
+})
+
+// 视频相关
+const videoUrl = computed(() => {
+  if (props.message.content) {
+    return props.message.content
+  }
+  if (props.message.contents?.md5) {
+    const apiBaseUrl = getApiBaseUrl()
+    return `${apiBaseUrl}/video/${props.message.contents.md5}`
+  }
+  return ''
+})
+
+// 表情相关
+const emojiUrl = computed(() => {
+  if (props.message.content) {
+    return props.message.content
+  }
+  if (props.message.contents?.md5) {
+    const apiBaseUrl = getApiBaseUrl()
+    return `${apiBaseUrl}/image/${props.message.contents.md5}`
+  }
+  return ''
+})
+
+// 文件相关
+const fileUrl = computed(() => {
+  if (props.message.content) {
+    return props.message.content
+  }
+  if (props.message.contents?.md5) {
+    const apiBaseUrl = getApiBaseUrl()
+    return `${apiBaseUrl}/file/${props.message.contents.md5}`
   }
   return ''
 })
@@ -136,7 +192,10 @@ const handleVideoClick = () => {
 // 处理文件点击
 const handleFileClick = () => {
   // 下载文件逻辑
-  console.log('下载文件:', fileName.value, linkUrl.value)
+  if (fileUrl.value) {
+    window.open(fileUrl.value, '_blank')
+  }
+  console.log('下载文件:', fileName.value, fileUrl.value)
 }
 
 // 处理链接点击
@@ -273,16 +332,28 @@ const formatFileSize = (bytes: number): string => {
 
           <!-- 视频消息 -->
           <div v-else-if="isVideoMessage" class="message-video" @click="handleVideoClick">
-            <div v-if="showMediaResources" class="video-cover">
-              <el-icon class="play-icon"><VideoPlay /></el-icon>
-              <span class="video-duration">{{ message.content }}</span>
-            </div>
+            <template v-if="showMediaResources">
+              <div v-if="videoUrl" class="video-cover">
+                <el-icon class="play-icon"><VideoPlay /></el-icon>
+                <span class="video-duration">{{ message.content }}</span>
+              </div>
+              <div v-else class="video-placeholder">
+                <el-icon><VideoCamera /></el-icon>
+                <span>视频 (MD5: {{ message.contents?.md5?.substring(0, 8) }}...)</span>
+              </div>
+            </template>
             <span v-else class="media-placeholder">{{ getMediaPlaceholder(43) }}</span>
           </div>
 
           <!-- 表情消息 -->
           <div v-else-if="isEmojiMessage" class="message-emoji">
-            <img v-if="showMediaResources" :src="message.content" alt="emoji" class="emoji-image" />
+            <template v-if="showMediaResources">
+              <img v-if="emojiUrl" :src="emojiUrl" alt="emoji" class="emoji-image" />
+              <div v-else class="emoji-placeholder">
+                <el-icon><HappyFilled /></el-icon>
+                <span>表情 (MD5: {{ message.contents?.md5?.substring(0, 8) }}...)</span>
+              </div>
+            </template>
             <span v-else class="media-placeholder">{{ getMediaPlaceholder(47) }}</span>
           </div>
 
@@ -350,6 +421,9 @@ const formatFileSize = (bytes: number): string => {
               <div class="file-info">
                 <div class="file-name ellipsis">{{ fileName }}</div>
                 <div v-if="message.fileSize" class="file-size">{{ formatFileSize(message.fileSize) }}</div>
+                <div v-else-if="message.contents?.md5" class="file-size">
+                  MD5: {{ message.contents.md5.substring(0, 8) }}...
+                </div>
                 <div v-else class="file-size">未知大小</div>
               </div>
             </template>
