@@ -78,6 +78,16 @@ export const useChatStore = defineStore('chat', () => {
    */
   const error = ref<Error | null>(null)
 
+  /**
+   * 历史消息加载状态
+   */
+  const loadingHistory = ref(false)
+
+  /**
+   * 历史消息加载提示信息
+   */
+  const historyLoadMessage = ref('')
+
   // ==================== Getters ====================
 
   /**
@@ -93,11 +103,11 @@ export const useChatStore = defineStore('chat', () => {
    */
   const messagesByDate = computed(() => {
     const grouped: Record<string, Message[]> = {}
-    
+
     currentMessages.value.forEach(message => {
       // 优先使用 time（ISO 字符串），回退到 createTime（Unix 秒）
       const timestamp = message.time || message.createTime
-      
+
       // 调试日志
       if (appStore.isDebug && (!message.time && !message.createTime)) {
         console.warn('⚠️ Message missing time fields:', {
@@ -107,22 +117,22 @@ export const useChatStore = defineStore('chat', () => {
           createTime: message.createTime,
         })
       }
-      
+
       const date = formatMessageDate(timestamp)
-      
+
       if (appStore.isDebug && date === '未知日期') {
         console.warn('⚠️ Invalid date format:', {
           timestamp,
           message,
         })
       }
-      
+
       if (!grouped[date]) {
         grouped[date] = []
       }
       grouped[date].push(message)
     })
-    
+
     return grouped
   })
 
@@ -203,7 +213,7 @@ export const useChatStore = defineStore('chat', () => {
           count: result.length,
           hasMore: hasMore.value,
         })
-        
+
         // 调试：输出第一条消息的时间信息
         if (result.length > 0) {
           const firstMsg = result[0]
@@ -241,6 +251,218 @@ export const useChatStore = defineStore('chat', () => {
 
     const nextPage = currentPage.value + 1
     await loadMessages(currentTalker.value, nextPage, true)
+  }
+
+  /**
+   * 加载历史消息（下拉加载）
+   * @param talker 会话 ID
+   * @param beforeTime 最早消息的时间（ISO 8601 字符串或 Unix 秒时间戳）
+   * @param offset 偏移量，用于同一时间范围内的分页
+   * @returns 加载的历史消息列表和元数据
+   */
+  async function loadHistoryMessages(
+    talker: string,
+    beforeTime: string | number,
+    offset: number = 0
+  ): Promise<{ messages: Message[], hasMore: boolean, timeRange: string, offset: number }> {
+    if (loadingHistory.value) {
+      return { messages: [], hasMore: false, timeRange: '', offset: 0 }
+    }
+
+    try {
+      loadingHistory.value = true
+      historyLoadMessage.value = ''
+      appStore.setLoading('history', true)
+
+      const limit = pageSize.value  // 使用配置的 pageSize
+
+      // 将 beforeTime 转换为 Date 对象
+      const beforeDate = typeof beforeTime === 'string'
+        ? new Date(beforeTime)
+        : new Date(beforeTime * 1000)
+
+      // 计算消息密度
+      /**
+       * 计算消息密度（条/天）
+       * 基于已加载的消息分析时间分布
+       */
+      const calculateMessageDensity = (): number => {
+        const msgs = messages.value.filter(m => m.talker === talker)
+        if (msgs.length < 2) return 0 // 无法计算密度
+
+        const oldest = msgs[0]
+        const newest = msgs[msgs.length - 1]
+        const oldestTime = oldest.time ? new Date(oldest.time).getTime() : oldest.createTime * 1000
+        const newestTime = newest.time ? new Date(newest.time).getTime() : newest.createTime * 1000
+
+        const timeSpanDays = (newestTime - oldestTime) / (1000 * 60 * 60 * 24)
+        if (timeSpanDays < 0.01) return msgs.length * 100 // 消息集中在很短时间内，认为超高密度
+
+        const density = msgs.length / timeSpanDays
+        return density
+      }
+
+      /**
+       * 根据消息密度和 pageSize 确定初始时间范围（天数）
+       * 目标：时间范围内的消息数接近 pageSize，但不超过太多
+       *
+       * 计算公式：daysRange = pageSize / density
+       * 例如：pageSize=50, density=10条/天 → daysRange=5天
+       */
+      const getInitialDaysRange = (): number => {
+        const density = calculateMessageDensity()
+
+        if (density <= 0) {
+          // 无法计算密度，使用默认值
+          // 默认假设中等密度（5条/天），返回 pageSize/5 天
+          return Math.max(Math.ceil(limit / 5), 7) // 至少 7 天
+        }
+
+        // 基于密度和 pageSize 计算理想的天数
+        // 目标：daysRange * density ≈ pageSize
+        let daysRange = Math.ceil(limit / density)
+
+        // 设置合理的边界
+        const minDays = 0.5   // 最少 3 天
+        const maxDays = 90  // 最多 90 天
+
+        // 确保在合理范围内
+        daysRange = Math.max(minDays, Math.min(maxDays, daysRange))
+
+        if (appStore.isDebug) {
+          console.log('📐 Calculate days range:', {
+            density: density.toFixed(2),
+            pageSize: limit,
+            calculatedDays: Math.ceil(limit / density),
+            finalDays: daysRange,
+            estimatedMessages: Math.round(daysRange * density)
+          })
+        }
+
+        return daysRange
+      }
+
+      const density = calculateMessageDensity()
+      let daysRange = getInitialDaysRange()
+      let result: Message[] = []
+      let retryCount = 0
+      const maxRetries = 3
+      let finalTimeRange = ''
+
+      if (appStore.isDebug) {
+        console.log('📊 Message density:', {
+          density: density.toFixed(2),
+          initialDaysRange: daysRange,
+          beforeTime,
+          beforeDate: beforeDate.toISOString(),
+          offset
+        })
+      }
+
+      // 智能加倍策略：最多重试 3 次
+      while (result.length === 0 && retryCount < maxRetries) {
+        const startDate = new Date(beforeDate)
+        startDate.setDate(startDate.getDate() - daysRange)
+
+        // 使用完整的 ISO 8601 格式（包含时间和时区）
+        const endStr = beforeDate.toISOString()
+        const startStr = startDate.toISOString()
+        const timeRange = `${startStr}~${endStr}`
+        finalTimeRange = timeRange
+
+        if (appStore.isDebug) {
+          console.log(`🔄 Loading history attempt ${retryCount + 1}/${maxRetries}:`, {
+            timeRange,
+            daysRange,
+            density: density.toFixed(2),
+            offset,
+            limit
+          })
+        }
+
+        // 调用 API，使用配置的 pageSize 和传入的 offset
+        result = await chatlogAPI.getSessionMessages(talker, timeRange, limit, offset)
+
+        if (result.length === 0) {
+          daysRange *= 2  // 加倍：3→6→12, 7→14→28, 14→28→56, 21→42→84, 30→60→120
+          retryCount++
+        }
+      }
+
+      // 如果 3 次尝试后仍然没有消息
+      if (result.length === 0) {
+        const startDate = new Date(beforeDate)
+        startDate.setDate(startDate.getDate() - (daysRange / 2)) // 使用上一次的范围
+        const message = `${formatDateYMD(startDate)} 至 ${formatDateYMD(beforeDate)} 没有消息，再次下拉尝试加载更早信息`
+        historyLoadMessage.value = message
+
+        if (appStore.isDebug) {
+          console.log('ℹ️ No messages found after retries:', message)
+        }
+
+        return { messages: [], hasMore: true, timeRange: finalTimeRange, offset: 0 }
+      }
+
+      // 成功加载到消息
+      if (appStore.isDebug) {
+        console.log('✅ History messages loaded:', {
+          count: result.length,
+          retryCount,
+          finalDaysRange: daysRange / 2,
+          timeRange: finalTimeRange,
+          offset,
+          nextOffset: offset + result.length
+        })
+      }
+
+      // 追加到消息列表头部（历史消息在前）
+      messages.value = [...result, ...messages.value]
+
+      // 清除提示信息
+      historyLoadMessage.value = ''
+
+      // 判断是否还有更多历史消息
+      // 如果返回的消息数等于 limit，说明可能还有更多（在同一时间范围内）
+      const hasMoreHistory = result.length >= limit
+
+      if (appStore.isDebug) {
+        console.log('📊 History loading result:', {
+          loaded: result.length,
+          limit: limit,
+          hasMore: hasMoreHistory,
+          currentOffset: offset,
+          nextOffset: offset + result.length
+        })
+      }
+
+      // 注意：不修改 hasMore 状态，因为它是用于分页加载的
+      // 历史消息加载的状态由组件层的 hasMoreHistory 管理
+
+      return {
+        messages: result,
+        hasMore: hasMoreHistory,
+        timeRange: finalTimeRange,
+        offset: offset + result.length  // 返回下一页的 offset
+      }
+    } catch (err) {
+      error.value = err as Error
+      appStore.setError(err as Error)
+      historyLoadMessage.value = '加载历史消息失败，请重试'
+      return { messages: [], hasMore: false, timeRange: '', offset: 0 }
+    } finally {
+      loadingHistory.value = false
+      appStore.setLoading('history', false)
+    }
+  }
+
+  /**
+   * 格式化日期为 YYYY-MM-DD
+   */
+  function formatDateYMD(date: Date): string {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
   /**
@@ -416,7 +638,7 @@ export const useChatStore = defineStore('chat', () => {
     if (selected.length === 0) return
 
     const ids = selected.map(msg => msg.id).join(',')
-    
+
     // TODO: 根据格式导出消息
     console.log('Exporting messages:', format, ids)
   }
@@ -478,15 +700,15 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     // 如果是字符串，解析为 Date；如果是数字，假设是秒级时间戳
-    const date = typeof timestamp === 'string' 
-      ? new Date(timestamp) 
+    const date = typeof timestamp === 'string'
+      ? new Date(timestamp)
       : new Date(timestamp * 1000)
-    
+
     // 检查日期是否有效
     if (isNaN(date.getTime())) {
       return '未知日期'
     }
-    
+
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
@@ -536,6 +758,8 @@ export const useChatStore = defineStore('chat', () => {
     loading.value = false
     searchLoading.value = false
     error.value = null
+    loadingHistory.value = false
+    historyLoadMessage.value = ''
   }
 
   // ==================== Return ====================
@@ -555,6 +779,8 @@ export const useChatStore = defineStore('chat', () => {
     loading,
     searchLoading,
     error,
+    loadingHistory,
+    historyLoadMessage,
 
     // Getters
     currentMessages,
@@ -570,6 +796,7 @@ export const useChatStore = defineStore('chat', () => {
     // Actions
     loadMessages,
     loadMoreMessages,
+    loadHistoryMessages,
     refreshMessages,
     switchSession,
     searchMessages,

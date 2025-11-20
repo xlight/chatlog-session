@@ -22,8 +22,17 @@ const chatStore = useChatStore()
 const messageListRef = ref<HTMLElement | null>(null)
 const loading = ref(false)
 const loadingMore = ref(false)
-const hasMore = ref(true)
+const loadingHistory = ref(false)
+const hasMoreHistory = ref(true)
 const error = ref<string | null>(null)
+const historyLoadMessage = ref('')
+
+// 历史消息加载的上下文（用于同一时间范围内的分页）
+const historyLoadContext = ref<{
+  timeRange: string
+  offset: number
+  beforeTime: string | number
+} | null>(null)
 
 // 当前消息列表
 const messages = computed(() => {
@@ -38,7 +47,7 @@ const messagesByDate = computed(() => {
 
 // 是否显示"加载更多"
 const showLoadMore = computed(() => {
-  return hasMore.value && messages.value.length > 0 && !loading.value
+  return hasMoreHistory.value && messages.value.length > 0 && !loading.value
 })
 
 // 加载消息
@@ -58,8 +67,6 @@ const loadMessages = async (loadMore = false) => {
     const beforeCount = messages.value.length
 
     await chatStore.loadMessages(props.sessionId, page, loadMore, props.initialTime)
-
-    hasMore.value = chatStore.hasMore
 
     // 计算本次实际加载的消息数
     const loadedCount = messages.value.length - beforeCount
@@ -93,27 +100,123 @@ const loadMessages = async (loadMore = false) => {
   }
 }
 
-// 加载更多消息
+// 加载更多消息（加载更旧的历史消息）
 const handleLoadMore = async () => {
-  if (loadingMore.value || !hasMore.value) return
+  if (loadingHistory.value || !hasMoreHistory.value || messages.value.length === 0) {
+    return
+  }
 
-  // 保存当前滚动位置
-  const scrollTop = messageListRef.value?.scrollTop || 0
-  const scrollHeight = messageListRef.value?.scrollHeight || 0
+  loadingHistory.value = true
 
-  await loadMessages(true)
+  try {
+    // 保存当前滚动位置
+    const scrollTop = messageListRef.value?.scrollTop || 0
+    const scrollHeight = messageListRef.value?.scrollHeight || 0
 
-  // 恢复滚动位置（加载历史消息后保持当前位置）
-  await nextTick()
-  if (messageListRef.value) {
-    const newScrollHeight = messageListRef.value.scrollHeight
-    messageListRef.value.scrollTop = scrollTop + (newScrollHeight - scrollHeight)
+    // 判断是继续在同一时间范围内加载，还是加载更早的时间范围
+    let beforeTime: string | number
+    let offset: number = 0
+
+    if (historyLoadContext.value && historyLoadContext.value.timeRange) {
+      // 继续在同一时间范围内加载下一页
+      beforeTime = historyLoadContext.value.beforeTime
+      offset = historyLoadContext.value.offset
+      console.log('📄 Continue loading in same time range:', {
+        timeRange: historyLoadContext.value.timeRange,
+        offset
+      })
+    } else {
+      // 首次加载或加载更早的时间范围
+      const oldestMessage = messages.value[0]
+      beforeTime = oldestMessage.time || oldestMessage.createTime
+
+      if (!beforeTime) {
+        console.warn('无法获取最早消息时间')
+        return
+      }
+
+      offset = 0
+      console.log('🔍 Load new time range, beforeTime:', beforeTime)
+    }
+
+    // 调用 store 的历史消息加载方法
+    const result = await chatStore.loadHistoryMessages(props.sessionId, beforeTime, offset)
+
+    // 更新历史加载提示消息
+    historyLoadMessage.value = chatStore.historyLoadMessage
+
+    // 如果加载到消息，恢复滚动位置
+    if (result.messages.length > 0) {
+      await nextTick()
+      if (messageListRef.value) {
+        const newScrollHeight = messageListRef.value.scrollHeight
+        const heightDiff = newScrollHeight - scrollHeight
+        messageListRef.value.scrollTop = scrollTop + heightDiff
+      }
+    }
+
+    // 更新 hasMoreHistory 状态和加载上下文
+    if (result.messages.length === 0 && !chatStore.historyLoadMessage) {
+      // 确实没有更多消息了（多次重试后仍无消息）
+      hasMoreHistory.value = false
+      historyLoadContext.value = null
+    } else if (chatStore.historyLoadMessage) {
+      // 有提示信息时，清空上下文，允许用户继续下拉加载更早的时间范围
+      hasMoreHistory.value = true
+      historyLoadContext.value = null
+    } else {
+      // 加载到了消息
+      // 注意：即使当前时间范围加载完了，仍然可以加载更早的时间范围
+      // 所以 hasMoreHistory 应该始终为 true（除非真的到了最早的消息）
+      hasMoreHistory.value = true
+
+      if (result.hasMore && result.timeRange) {
+        // 当前时间范围还有更多，保存上下文用于继续分页
+        historyLoadContext.value = {
+          timeRange: result.timeRange,
+          offset: result.offset,
+          beforeTime: beforeTime
+        }
+        console.log('💾 Save context for pagination:', {
+          timeRange: result.timeRange,
+          offset: result.offset
+        })
+      } else {
+        // 当前时间范围已加载完毕，清空上下文
+        // 下次触发时会加载更早的时间范围
+        historyLoadContext.value = null
+        console.log('🔚 Current time range completed, ready for earlier range')
+      }
+    }
+
+    // 如果返回了满载（等于 pageSize），自动继续加载同一时间范围的下一页
+    if (result.messages.length > 0 && result.hasMore && result.messages.length >= chatStore.pageSize) {
+      console.log('🔄 Auto continuing in same time range...', {
+        loaded: result.messages.length,
+        pageSize: chatStore.pageSize,
+        nextOffset: result.offset,
+        timeRange: result.timeRange
+      })
+      
+      // 等待一小段时间后继续加载
+      await nextTick()
+      setTimeout(() => {
+        if (!loadingHistory.value && hasMoreHistory.value && historyLoadContext.value) {
+          handleLoadMore()
+        }
+      }, 100)
+    }
+  } catch (err) {
+    console.error('加载历史消息失败:', err)
+    historyLoadContext.value = null
+  } finally {
+    loadingHistory.value = false
   }
 }
 
 // 检查并自动加载更多（如果本次加载数量等于pageSize）
 const checkAndLoadMore = async (loadedCount: number) => {
-  if (!hasMore.value || loadingMore.value || loading.value) {
+  if (!chatStore.hasMore || loadingMore.value || loading.value) {
     return
   }
 
@@ -169,21 +272,30 @@ const scrollToMessage = (messageId: string) => {
   }
 }
 
-// 处理滚动事件
+// 处理滚动事件（防抖）
+let scrollTimer: ReturnType<typeof setTimeout> | null = null
 const handleScroll = () => {
   if (!messageListRef.value) return
 
-  const { scrollTop } = messageListRef.value
-
-  // 接近顶部时自动加载更多（增大触发距离到 300px）
-  if (scrollTop < 300 && hasMore.value && !loadingMore.value) {
-    handleLoadMore()
+  if (scrollTimer) {
+    clearTimeout(scrollTimer)
   }
+
+  scrollTimer = setTimeout(() => {
+    if (!messageListRef.value) return
+
+    const { scrollTop } = messageListRef.value
+
+    // 接近顶部时自动加载历史消息（触发距离 300px）
+    if (scrollTop < 300 && hasMoreHistory.value && !loadingHistory.value && !loading.value) {
+      handleLoadMore()
+    }
+  }, 100) // 100ms 防抖
 }
 
 // 刷新消息列表
 const handleRefresh = () => {
-  hasMore.value = true
+  hasMoreHistory.value = true
   loadMessages(false)
 }
 
@@ -245,7 +357,9 @@ const shouldShowName = (index: number, messages: Message[]) => {
 // 监听会话ID变化
 watch(() => props.sessionId, (newId, oldId) => {
   if (newId && newId !== oldId) {
-    hasMore.value = true
+    hasMoreHistory.value = true
+    historyLoadMessage.value = ''
+    historyLoadContext.value = null  // 重置加载上下文
     loadMessages(false)
   }
 }, { immediate: true })
@@ -297,19 +411,34 @@ defineExpose({
       class="message-list__content"
       @scroll="handleScroll"
     >
-      <!-- 加载更多按钮 -->
-      <div v-if="showLoadMore" class="message-list__load-more">
+      <!-- 顶部加载历史消息指示器 -->
+      <div v-if="loadingHistory" class="message-list__loading-history">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <span>加载历史消息中...</span>
+      </div>
+
+      <!-- 历史消息加载提示 -->
+      <div v-else-if="historyLoadMessage" class="message-list__history-message">
+        <el-alert
+          :title="historyLoadMessage"
+          type="info"
+          :closable="false"
+          center
+        />
+      </div>
+
+      <!-- 手动加载更多按钮（备用） -->
+      <div v-else-if="showLoadMore && !loadingHistory" class="message-list__load-more">
         <el-button
           text
-          :loading="loadingMore"
           @click="handleLoadMore"
         >
-          {{ loadingMore ? '加载中...' : '加载更多消息' }}
+          加载更多历史消息
         </el-button>
       </div>
 
       <!-- 没有更多消息提示 -->
-      <div v-else-if="messages.length > 0 && !hasMore" class="message-list__no-more">
+      <div v-else-if="messages.length > 0 && !hasMoreHistory && !historyLoadMessage" class="message-list__no-more">
         <el-divider>没有更多消息了</el-divider>
       </div>
 
@@ -422,9 +551,33 @@ defineExpose({
   }
 
   &__load-more,
-  &__no-more {
+  &__no-more,
+  &__loading-history,
+  &__history-message {
     text-align: center;
     padding: 16px;
+  }
+
+  &__loading-history {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+
+    .el-icon {
+      font-size: 16px;
+    }
+  }
+
+  &__history-message {
+    padding: 12px 16px;
+
+    :deep(.el-alert) {
+      padding: 8px 12px;
+      font-size: 12px;
+    }
   }
 
   &__load-more {

@@ -45,6 +45,7 @@ export const useAppStore = defineStore('app', () => {
     messages: false,
     contacts: false,
     search: false,
+    history: false,
   })
 
   /**

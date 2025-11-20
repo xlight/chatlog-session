@@ -11,7 +11,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   loading: true,
-  text: '加载中...',
+  text: '', //加载中...
   size: 'default',
   fullscreen: false,
   background: 'rgba(255, 255, 255, 0.9)'
