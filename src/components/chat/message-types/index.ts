@@ -1,0 +1,13 @@
+// 消息类型组件导出
+export { default as TextMessage } from './TextMessage.vue'
+export { default as ImageMessage } from './ImageMessage.vue'
+export { default as VideoMessage } from './VideoMessage.vue'
+export { default as EmojiMessage } from './EmojiMessage.vue'
+export { default as FileMessage } from './FileMessage.vue'
+export { default as LinkMessage } from './LinkMessage.vue'
+export { default as MiniProgramMessage } from './MiniProgramMessage.vue'
+export { default as ShoppingMiniProgramMessage } from './ShoppingMiniProgramMessage.vue'
+export { default as ShortVideoMessage } from './ShortVideoMessage.vue'
+export { default as PatMessage } from './PatMessage.vue'
+export { default as ForwardedMessage } from './ForwardedMessage.vue'
+export { default as ForwardedDialog } from './ForwardedDialog.vue'

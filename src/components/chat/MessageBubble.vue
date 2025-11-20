@@ -4,26 +4,22 @@ import type { Message } from '@/types'
 import { formatMessageTime } from '@/utils'
 import Avatar from '@/components/common/Avatar.vue'
 import { useAppStore } from '@/stores/app'
+import { useMessageContent } from './composables/useMessageContent'
+import { useMessageUrl } from './composables/useMessageUrl'
 
-// 获取 API Base URL
-const getApiBaseUrl = (): string => {
-  const directUrl = localStorage.getItem('apiBaseUrl')
-  if (directUrl) {
-    return directUrl
-  }
-  const settings = localStorage.getItem('chatlog-settings')
-  if (settings) {
-    try {
-      const parsed = JSON.parse(settings)
-      if (parsed.apiBaseUrl) {
-        return parsed.apiBaseUrl
-      }
-    } catch (err) {
-      console.error('解析设置失败:', err)
-    }
-  }
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:5030'
-}
+// 消息类型组件
+import TextMessage from './message-types/TextMessage.vue'
+import ImageMessage from './message-types/ImageMessage.vue'
+import VideoMessage from './message-types/VideoMessage.vue'
+import EmojiMessage from './message-types/EmojiMessage.vue'
+import FileMessage from './message-types/FileMessage.vue'
+import LinkMessage from './message-types/LinkMessage.vue'
+import MiniProgramMessage from './message-types/MiniProgramMessage.vue'
+import ShoppingMiniProgramMessage from './message-types/ShoppingMiniProgramMessage.vue'
+import ShortVideoMessage from './message-types/ShortVideoMessage.vue'
+import PatMessage from './message-types/PatMessage.vue'
+import ForwardedMessage from './message-types/ForwardedMessage.vue'
+import ForwardedDialog from './message-types/ForwardedDialog.vue'
 
 interface Props {
   message: Message
@@ -44,128 +40,56 @@ const appStore = useAppStore()
 // 是否显示媒体资源
 const showMediaResources = computed(() => appStore.settings.showMediaResources)
 
-// 获取媒体消息的文本描述
-const getMediaPlaceholder = (type: number, subType?: number, fileName?: string) => {
-  if (type === 3) return '[图片]'
-  if (type === 34) return '[语音]'
-  if (type === 43) return '[视频]'
-  if (type === 47) return '[表情]'
-  if (type === 49) {
-    if (subType === 5) {
-      const title = props.message.contents?.title
-      return title ? `[链接] ${title}` : '[链接]'
-    }
-    if (subType === 6) return fileName ? `[文件] ${fileName}` : '[文件]'
-    if (subType === 19) return '[聊天记录]'
-  }
-  return '[媒体]'
-}
+// 使用消息内容判断逻辑
+const {
+  isTextMessage,
+  isImageMessage,
+  isVoiceMessage,
+  isVideoMessage,
+  isEmojiMessage,
+  isSystemMessage,
+  isReferMessage,
+  isLinkMessage,
+  isForwardedMessage,
+  isFileMessage,
+  isMiniProgramMessage,
+  isShoppingMiniProgramMessage,
+  isShortVideoMessage,
+  isPatMessage,
+  isOtherRichMessage,
+  referMessage,
+  referMessageType,
+  isSelf
+} = useMessageContent(props.message)
 
-// 是否是自己发送的消息
-const isSelf = computed(() => props.message.isSelf)
+// 使用 URL 处理逻辑
+const {
+  imageUrl,
+  videoUrl,
+  emojiUrl,
+  fileUrl,
+  fileName,
+  linkTitle,
+  linkUrl,
+  forwardedTitle,
+  forwardedDesc,
+  forwardedCount,
+  miniProgramTitle,
+  miniProgramUrl,
+  shoppingMiniProgramTitle,
+  shoppingMiniProgramUrl,
+  shoppingMiniProgramDesc,
+  shoppingMiniProgramThumb,
+  shortVideoTitle,
+  shortVideoUrl
+} = useMessageUrl(props.message)
 
 // 格式化消息时间
 const messageTime = computed(() => {
-  // 支持 createTime（Unix 时间戳秒）或 time（ISO 字符串）
   if (props.message.createTime) {
     return formatMessageTime(props.message.createTime)
   }
   return formatMessageTime(new Date(props.message.time).getTime() / 1000)
-})
-
-// 消息内容类型判断
-const isTextMessage = computed(() => props.message.type === 1)
-const isImageMessage = computed(() => props.message.type === 3)
-const isVoiceMessage = computed(() => props.message.type === 34)
-const isVideoMessage = computed(() => props.message.type === 43)
-const isEmojiMessage = computed(() => props.message.type === 47)
-const isSystemMessage = computed(() => props.message.type === 10000)
-
-// type=49 的各种子类型
-const isReferMessage = computed(() => props.message.type === 49 && props.message.subType === 57)
-const isLinkMessage = computed(() => props.message.type === 49 && props.message.subType === 5)
-const isForwardedMessage = computed(() => props.message.type === 49 && props.message.subType === 19)
-const isFileMessage = computed(() => props.message.type === 49 && props.message.subType === 6)
-const isOtherRichMessage = computed(() => props.message.type === 49 && !isReferMessage.value && !isLinkMessage.value && !isForwardedMessage.value && !isFileMessage.value)
-
-// 图片相关
-const imageUrl = computed(() => {
-  // 优先使用 content 字段，如果没有则使用 MD5（需要配合图片服务）
-  if (props.message.content) {
-    return props.message.content
-  }
-  if (props.message.contents?.md5) {
-    const apiBaseUrl = getApiBaseUrl()
-    return `${apiBaseUrl}/image/${props.message.contents.md5}`
-  }
-  return ''
-})
-
-// 视频相关
-const videoUrl = computed(() => {
-  if (props.message.content) {
-    return props.message.content
-  }
-  if (props.message.contents?.md5) {
-    const apiBaseUrl = getApiBaseUrl()
-    return `${apiBaseUrl}/video/${props.message.contents.md5}`
-  }
-  return ''
-})
-
-// 表情相关
-const emojiUrl = computed(() => {
-  if (props.message.content) {
-    return props.message.content
-  }
-  if (props.message.contents?.md5) {
-    const apiBaseUrl = getApiBaseUrl()
-    return `${apiBaseUrl}/image/${props.message.contents.md5}`
-  }
-  return ''
-})
-
-// 文件相关
-const fileUrl = computed(() => {
-  if (props.message.content) {
-    return props.message.content
-  }
-  if (props.message.contents?.md5) {
-    const apiBaseUrl = getApiBaseUrl()
-    return `${apiBaseUrl}/file/${props.message.contents.md5}`
-  }
-  return ''
-})
-
-// 文件名（从 contents 获取）
-const fileName = computed(() => {
-  return props.message.contents?.title || props.message.fileName || '未知文件'
-})
-
-// 链接相关
-const linkTitle = computed(() => props.message.contents?.title || '链接')
-const linkUrl = computed(() => props.message.contents?.url || props.message.fileUrl || '')
-
-// 转发消息包相关
-const forwardedTitle = computed(() => props.message.contents?.title || '聊天记录')
-const forwardedDesc = computed(() => props.message.contents?.desc || '')
-const forwardedCount = computed(() => {
-  const count = props.message.contents?.recordInfo?.DataList?.Count
-  return count ? parseInt(count) : 0
-})
-
-// 引用消息内容
-const referMessage = computed(() => {
-  return props.message.contents?.refer
-})
-
-// 判断引用消息的类型
-const referMessageType = computed(() => {
-  if (!referMessage.value) return null
-  const refer = referMessage.value
-  if (refer.type === 3) return 'image'
-  if (refer.type === 49 && refer.subType === 5) return 'link'
-  return 'text'
 })
 
 // 消息气泡类名
@@ -179,19 +103,16 @@ const bubbleClass = computed(() => {
 
 // 处理图片点击
 const handleImageClick = () => {
-  // 预览图片逻辑
   console.log('预览图片:', imageUrl.value)
 }
 
 // 处理视频点击
 const handleVideoClick = () => {
-  // 播放视频逻辑
   console.log('播放视频:', props.message.content)
 }
 
 // 处理文件点击
 const handleFileClick = () => {
-  // 下载文件逻辑
   if (fileUrl.value) {
     window.open(fileUrl.value, '_blank')
   }
@@ -203,6 +124,30 @@ const handleLinkClick = () => {
   if (linkUrl.value) {
     window.open(linkUrl.value, '_blank')
   }
+}
+
+// 处理小程序点击
+const handleMiniProgramClick = () => {
+  if (miniProgramUrl.value) {
+    window.open(miniProgramUrl.value, '_blank')
+  }
+  console.log('打开小程序:', miniProgramTitle.value)
+}
+
+// 处理购物小程序点击
+const handleShoppingMiniProgramClick = () => {
+  if (shoppingMiniProgramUrl.value) {
+    window.open(shoppingMiniProgramUrl.value, '_blank')
+  }
+  console.log('打开购物小程序:', shoppingMiniProgramTitle.value)
+}
+
+// 处理小视频点击
+const handleShortVideoClick = () => {
+  if (shortVideoUrl.value) {
+    window.open(shortVideoUrl.value, '_blank')
+  }
+  console.log('播放小视频:', shortVideoTitle.value)
 }
 
 // 转发消息 Dialog
@@ -221,39 +166,11 @@ const forwardedMessages = computed(() => {
   return dataItems
 })
 
-// 格式化转发消息的类型
-const getForwardedMessageType = (dataType: string) => {
-  const typeMap: Record<string, string> = {
-    '1': '文本',
-    '2': '图片',
-    '3': '图片',
-    '8': '文件',
-    '34': '语音',
-    '43': '视频'
-  }
-  return typeMap[dataType] || '未知'
-}
-
-// 格式化转发消息的图标
-const getForwardedMessageIcon = (dataType: string) => {
-  const iconMap: Record<string, string> = {
-    '1': 'ChatLineSquare',
-    '2': 'Picture',
-    '3': 'Picture',
-    '8': 'Document',
-    '34': 'Microphone',
-    '43': 'VideoPlay'
-  }
-  return iconMap[dataType] || 'QuestionFilled'
-}
-
-// 格式化文件大小
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+// 获取媒体消息的占位文本
+const getMediaPlaceholder = (type: number) => {
+  if (type === 34) return '[语音]'
+  if (type === 47) return '[表情]'
+  return '[媒体]'
 }
 </script>
 
@@ -263,6 +180,13 @@ const formatFileSize = (bytes: number): string => {
     <div v-if="isSystemMessage" class="message-bubble__system">
       <span class="system-text">{{ message.content }}</span>
     </div>
+
+    <!-- 拍一拍消息 (type=49, subType=62) -->
+    <PatMessage
+      v-else-if="isPatMessage"
+      :content="message.content"
+      :show-media-resources="showMediaResources"
+    />
 
     <!-- 普通消息 -->
     <template v-else>
@@ -291,35 +215,16 @@ const formatFileSize = (bytes: number): string => {
         <!-- 消息主体 -->
         <div class="message-bubble__body">
           <!-- 文本消息 -->
-          <div v-if="isTextMessage" class="message-text">
-            {{ message.content }}
-          </div>
+          <TextMessage v-if="isTextMessage" :content="message.content" />
 
           <!-- 图片消息 -->
-          <div v-else-if="isImageMessage" class="message-image" @click="handleImageClick">
-            <template v-if="showMediaResources">
-              <el-image
-                v-if="imageUrl"
-                :src="imageUrl"
-                fit="cover"
-                lazy
-                :preview-src-list="[imageUrl]"
-                class="image-content"
-              >
-                <template #error>
-                  <div class="image-error">
-                    <el-icon><Picture /></el-icon>
-                    <span>图片加载失败</span>
-                  </div>
-                </template>
-              </el-image>
-              <div v-else class="image-placeholder">
-                <el-icon><Picture /></el-icon>
-                <span>图片 (MD5: {{ message.contents?.md5?.substring(0, 8) }}...)</span>
-              </div>
-            </template>
-            <span v-else class="media-placeholder">{{ getMediaPlaceholder(3) }}</span>
-          </div>
+          <ImageMessage
+            v-else-if="isImageMessage"
+            :image-url="imageUrl"
+            :show-media-resources="showMediaResources"
+            :md5="message.contents?.md5"
+            @click="handleImageClick"
+          />
 
           <!-- 语音消息 -->
           <div v-else-if="isVoiceMessage" class="message-voice">
@@ -331,38 +236,31 @@ const formatFileSize = (bytes: number): string => {
           </div>
 
           <!-- 视频消息 -->
-          <div v-else-if="isVideoMessage" class="message-video" @click="handleVideoClick">
-            <template v-if="showMediaResources">
-              <div v-if="videoUrl" class="video-cover">
-                <el-icon class="play-icon"><VideoPlay /></el-icon>
-                <span class="video-duration">{{ message.content }}</span>
-              </div>
-              <div v-else class="video-placeholder">
-                <el-icon><VideoCamera /></el-icon>
-                <span>视频 (MD5: {{ message.contents?.md5?.substring(0, 8) }}...)</span>
-              </div>
-            </template>
-            <span v-else class="media-placeholder">{{ getMediaPlaceholder(43) }}</span>
-          </div>
+          <VideoMessage
+            v-else-if="isVideoMessage"
+            :video-url="videoUrl"
+            :show-media-resources="showMediaResources"
+            :content="message.content"
+            :md5="message.contents?.md5"
+            @click="handleVideoClick"
+          />
 
           <!-- 表情消息 -->
-          <div v-else-if="isEmojiMessage" class="message-emoji">
-            <template v-if="showMediaResources">
-              <img v-if="emojiUrl" :src="emojiUrl" alt="emoji" class="emoji-image" />
-              <div v-else class="emoji-placeholder">
-                <el-icon><HappyFilled /></el-icon>
-                <span>表情 (MD5: {{ message.contents?.md5?.substring(0, 8) }}...)</span>
-              </div>
-            </template>
-            <span v-else class="media-placeholder">{{ getMediaPlaceholder(47) }}</span>
-          </div>
+          <EmojiMessage
+            v-else-if="isEmojiMessage"
+            :emoji-url="emojiUrl"
+            :show-media-resources="showMediaResources"
+            :cdnurl="message.contents?.cdnurl"
+          />
 
           <!-- 引用消息 (type=49, subType=57) -->
           <div v-else-if="isReferMessage" class="message-refer">
             <div v-if="referMessage" class="refer-content">
               <div class="refer-header">
                 <el-icon class="refer-icon"><ChatLineSquare /></el-icon>
-                <span class="refer-sender">{{ referMessage.senderName || referMessage.sender }}</span>
+                <span class="refer-sender">{{
+                  referMessage.senderName || referMessage.sender
+                }}</span>
               </div>
 
               <!-- 被引用的文本消息 -->
@@ -390,45 +288,62 @@ const formatFileSize = (bytes: number): string => {
           </div>
 
           <!-- 链接分享 (type=49, subType=5) -->
-          <div v-else-if="isLinkMessage" class="message-link" @click="handleLinkClick">
-            <template v-if="showMediaResources">
-              <div class="link-content">
-                <div class="link-title">{{ linkTitle }}</div>
-                <div v-if="linkUrl" class="link-url">{{ linkUrl }}</div>
-              </div>
-              <el-icon class="link-arrow"><Right /></el-icon>
-            </template>
-            <span v-else class="media-placeholder">{{ getMediaPlaceholder(49, 5) }}</span>
-          </div>
+          <LinkMessage
+            v-else-if="isLinkMessage"
+            :link-title="linkTitle"
+            :link-url="linkUrl"
+            :show-media-resources="showMediaResources"
+            @click="handleLinkClick"
+          />
+
+          <!-- 小程序消息 (type=49, subType=33) -->
+          <MiniProgramMessage
+            v-else-if="isMiniProgramMessage"
+            :title="miniProgramTitle"
+            :url="miniProgramUrl"
+            :show-media-resources="showMediaResources"
+            @click="handleMiniProgramClick"
+          />
+
+          <!-- 购物小程序消息 (type=49, subType=36) -->
+          <ShoppingMiniProgramMessage
+            v-else-if="isShoppingMiniProgramMessage"
+            :title="shoppingMiniProgramTitle"
+            :url="shoppingMiniProgramUrl"
+            :desc="shoppingMiniProgramDesc"
+            :thumb-url="shoppingMiniProgramThumb"
+            :show-media-resources="showMediaResources"
+            @click="handleShoppingMiniProgramClick"
+          />
+
+          <!-- 小视频消息 (type=49, subType=51) -->
+          <ShortVideoMessage
+            v-else-if="isShortVideoMessage"
+            :title="shortVideoTitle"
+            :video-url="shortVideoUrl"
+            :show-media-resources="showMediaResources"
+            @click="handleShortVideoClick"
+          />
 
           <!-- 转发消息包 (type=49, subType=19) -->
-          <div v-else-if="isForwardedMessage" class="message-forwarded" @click="handleForwardedClick">
-              <div class="forwarded-header">
-                <el-icon class="forwarded-icon"><ChatDotSquare /></el-icon>
-                <span class="forwarded-title">{{ forwardedTitle }}</span>
-              </div>
-              <div v-if="forwardedDesc" class="forwarded-desc">{{ forwardedDesc }}</div>
-              <div class="forwarded-footer">
-                <span v-if="forwardedCount > 0" class="forwarded-count">共{{ forwardedCount }}条消息</span>
-                <span v-else class="forwarded-hint">点击查看聊天记录</span>
-              </div>
-          </div>
+          <ForwardedMessage
+            v-else-if="isForwardedMessage"
+            :forwarded-title="forwardedTitle"
+            :forwarded-desc="forwardedDesc"
+            :forwarded-count="forwardedCount"
+            @click="handleForwardedClick"
+          />
 
           <!-- 文件消息 (type=49, subType=6) -->
-          <div v-else-if="isFileMessage" class="message-file" @click="handleFileClick">
-            <template v-if="showMediaResources">
-              <el-icon class="file-icon"><Document /></el-icon>
-              <div class="file-info">
-                <div class="file-name ellipsis">{{ fileName }}</div>
-                <div v-if="message.fileSize" class="file-size">{{ formatFileSize(message.fileSize) }}</div>
-                <div v-else-if="message.contents?.md5" class="file-size">
-                  MD5: {{ message.contents.md5.substring(0, 8) }}...
-                </div>
-                <div v-else class="file-size">未知大小</div>
-              </div>
-            </template>
-            <span v-else class="media-placeholder">{{ getMediaPlaceholder(49, 6, fileName) }}</span>
-          </div>
+          <FileMessage
+            v-else-if="isFileMessage"
+            :file-url="fileUrl"
+            :file-name="fileName"
+            :file-size="message.fileSize"
+            :show-media-resources="showMediaResources"
+            :md5="message.contents?.md5"
+            @click="handleFileClick"
+          />
 
           <!-- 其他富文本消息 (type=49, 其他subType) -->
           <div v-else-if="isOtherRichMessage" class="message-rich">
@@ -442,7 +357,11 @@ const formatFileSize = (bytes: number): string => {
           <!-- 未知类型 -->
           <div v-else class="message-unknown">
             <el-icon><QuestionFilled /></el-icon>
-            <span>暂不支持的消息类型 (type={{ message.type }}, subType={{ message.subType }})</span>
+            <span
+              >暂不支持的消息类型 (type={{ message.type }}, subType={{
+                message.subType
+              }})</span
+            >
           </div>
         </div>
 
@@ -459,79 +378,17 @@ const formatFileSize = (bytes: number): string => {
 
       <!-- 头像 (自己的消息显示在右边) -->
       <div v-if="isSelf" class="message-bubble__avatar">
-        <Avatar
-          v-if="showAvatar"
-          :src="message.talkerAvatar"
-          :name="'我'"
-          :size="36"
-        />
+        <Avatar v-if="showAvatar" :src="message.talkerAvatar" :name="'我'" :size="36" />
         <div v-else class="avatar-placeholder"></div>
       </div>
     </template>
 
     <!-- 转发消息详情对话框 -->
-    <el-dialog
-      v-model="forwardedDialogVisible"
+    <ForwardedDialog
+      v-model:visible="forwardedDialogVisible"
       :title="forwardedTitle"
-      width="600px"
-      :close-on-click-modal="true"
-    >
-      <div class="forwarded-dialog">
-        <div v-if="forwardedMessages.length > 0" class="forwarded-list">
-          <div
-            v-for="(item, index) in forwardedMessages"
-            :key="index"
-            class="forwarded-item"
-          >
-            <div class="forwarded-item-header">
-              <Avatar
-                :name="item.SourceName"
-                :size="32"
-              />
-              <div class="forwarded-item-info">
-                <div class="forwarded-item-sender">{{ item.SourceName }}</div>
-                <div class="forwarded-item-time">{{ item.SourceTime }}</div>
-              </div>
-            </div>
-
-            <div class="forwarded-item-content">
-              <!-- 文本消息 -->
-              <div v-if="item.DataType === '1'" class="forwarded-text">
-                {{ item.DataDesc }}
-              </div>
-
-              <!-- 图片消息 -->
-              <div v-else-if="item.DataType === '2' || item.DataType === '3'" class="forwarded-media">
-                <el-icon><Picture /></el-icon>
-                <span>[图片]</span>
-                <span v-if="item.DataSize" class="media-size">{{ formatFileSize(parseInt(item.DataSize)) }}</span>
-              </div>
-
-              <!-- 文件消息 -->
-              <div v-else-if="item.DataType === '8'" class="forwarded-file">
-                <el-icon><Document /></el-icon>
-                <div class="file-details">
-                  <div class="file-name">{{ item.DataTitle }}</div>
-                  <div v-if="item.DataSize" class="file-size">{{ formatFileSize(parseInt(item.DataSize)) }}</div>
-                </div>
-              </div>
-
-              <!-- 其他类型 -->
-              <div v-else class="forwarded-other">
-                <el-icon><component :is="getForwardedMessageIcon(item.DataType)" /></el-icon>
-                <span>[{{ getForwardedMessageType(item.DataType) }}]</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <el-empty v-else description="暂无消息内容" />
-      </div>
-
-      <template #footer>
-        <el-button @click="forwardedDialogVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
+      :messages="forwardedMessages"
+    />
   </div>
 </template>
 
@@ -637,43 +494,7 @@ const formatFileSize = (bytes: number): string => {
   }
 }
 
-// 消息内容样式
-.message-text {
-  font-size: 14px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.message-image {
-  cursor: pointer;
-  border-radius: 4px;
-  overflow: hidden;
-  max-width: 300px;
-
-  .image-content {
-    display: block;
-    width: 100%;
-    max-height: 300px;
-    object-fit: cover;
-  }
-
-  .image-error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px;
-    background-color: var(--el-fill-color-light);
-    color: var(--el-text-color-secondary);
-    font-size: 12px;
-
-    .el-icon {
-      font-size: 32px;
-      margin-bottom: 8px;
-    }
-  }
-}
-
+// 语音消息样式
 .message-voice {
   display: flex;
   align-items: center;
@@ -690,57 +511,9 @@ const formatFileSize = (bytes: number): string => {
   }
 }
 
-.message-video {
-  cursor: pointer;
-  border-radius: 4px;
-  overflow: hidden;
-  position: relative;
-  max-width: 300px;
 
-  .video-cover {
-    width: 100%;
-    height: 200px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
 
-    .play-icon {
-      font-size: 48px;
-      color: #fff;
-      opacity: 0.9;
-    }
-
-    .video-duration {
-      position: absolute;
-      bottom: 8px;
-      right: 8px;
-      background-color: rgba(0, 0, 0, 0.6);
-      color: #fff;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-  }
-
-  &:hover .play-icon {
-    opacity: 1;
-  }
-}
-
-.message-emoji {
-  background: transparent !important;
-  padding: 0 !important;
-  box-shadow: none !important;
-
-  .emoji-image {
-    width: 80px;
-    height: 80px;
-    object-fit: contain;
-  }
-}
-
+// 引用消息样式
 .message-refer {
   .refer-content {
     background-color: rgba(0, 0, 0, 0.05);
@@ -794,138 +567,12 @@ const formatFileSize = (bytes: number): string => {
 
   .message-text {
     font-size: 14px;
-  }
-}
-
-.message-link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  cursor: pointer;
-  min-width: 240px;
-
-  .link-content {
-    flex: 1;
-    min-width: 0;
-
-    .link-title {
-      font-size: 14px;
-      font-weight: 500;
-      margin-bottom: 4px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-    }
-
-    .link-url {
-      font-size: 12px;
-      color: var(--el-text-color-secondary);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .link-arrow {
-    font-size: 18px;
-    color: var(--el-text-color-secondary);
-    flex-shrink: 0;
-  }
-
-  &:hover {
-    opacity: 0.8;
-  }
-}
-
-.message-forwarded {
-  cursor: pointer;
-
-
-  .forwarded-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-
-    .forwarded-icon {
-      font-size: 20px;
-      color: var(--el-color-primary);
-    }
-
-    .forwarded-title {
-      font-size: 14px;
-      font-weight: 500;
-    }
-  }
-
-  .forwarded-desc {
-    font-size: 13px;
-    color: var(--el-text-color-secondary);
-    line-height: 1.5;
-    margin-bottom: 8px;
-    max-height: 60px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
+    line-height: 1.6;
     white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .forwarded-footer {
-    padding-top: 8px;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-
-    .forwarded-count,
-    .forwarded-hint {
-      font-size: 12px;
-      color: var(--el-color-primary);
-    }
-  }
-
-  &:hover {
-    opacity: 0.9;
   }
 }
 
-.message-file {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  min-width: 200px;
-
-  .file-icon {
-    font-size: 32px;
-    color: var(--el-color-primary);
-    flex-shrink: 0;
-  }
-
-  .file-info {
-    flex: 1;
-    min-width: 0;
-
-    .file-name {
-      font-size: 14px;
-      font-weight: 500;
-      margin-bottom: 4px;
-    }
-
-    .file-size {
-      font-size: 12px;
-      color: var(--el-text-color-secondary);
-    }
-  }
-
-  &:hover {
-    opacity: 0.8;
-  }
-}
-
+// 其他富文本消息样式
 .message-rich {
   display: flex;
   align-items: center;
@@ -954,23 +601,7 @@ const formatFileSize = (bytes: number): string => {
   }
 }
 
-.image-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  background-color: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
-  border-radius: 4px;
-
-  .el-icon {
-    font-size: 32px;
-    margin-bottom: 8px;
-  }
-}
-
+// 未知类型样式
 .message-unknown {
   display: flex;
   align-items: center;
@@ -983,6 +614,7 @@ const formatFileSize = (bytes: number): string => {
   }
 }
 
+// 媒体占位符
 .media-placeholder {
   display: inline-block;
   padding: 8px 12px;
@@ -1025,10 +657,7 @@ const formatFileSize = (bytes: number): string => {
     }
   }
 
-  .message-image .image-error,
-  .image-placeholder {
-    background-color: rgba(255, 255, 255, 0.05);
-  }
+
 
   .message-refer .refer-content {
     background-color: rgba(255, 255, 255, 0.05);
@@ -1037,127 +666,6 @@ const formatFileSize = (bytes: number): string => {
   .media-placeholder {
     background: var(--el-fill-color-dark);
     border-color: var(--el-border-color-darker);
-  }
-
-  .message-forwarded .forwarded-footer {
-    border-top-color: rgba(255, 255, 255, 0.1);
-  }
-}
-
-// 工具类
-.ellipsis {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-// 转发消息对话框
-.forwarded-dialog {
-  max-height: 500px;
-  overflow-y: auto;
-
-  .forwarded-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .forwarded-item {
-    padding: 12px;
-    background-color: var(--el-fill-color-lighter);
-    border-radius: 8px;
-
-    &-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    &-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    &-sender {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--el-text-color-primary);
-      margin-bottom: 2px;
-    }
-
-    &-time {
-      font-size: 12px;
-      color: var(--el-text-color-secondary);
-    }
-
-    &-content {
-      padding-left: 44px;
-    }
-  }
-
-  .forwarded-text {
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--el-text-color-primary);
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .forwarded-media,
-  .forwarded-other {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    color: var(--el-text-color-secondary);
-
-    .el-icon {
-      font-size: 20px;
-    }
-
-    .media-size {
-      font-size: 12px;
-      color: var(--el-text-color-placeholder);
-    }
-  }
-
-  .forwarded-file {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-
-    .el-icon {
-      font-size: 32px;
-      color: var(--el-color-primary);
-    }
-
-    .file-details {
-      flex: 1;
-      min-width: 0;
-
-      .file-name {
-        font-size: 14px;
-        color: var(--el-text-color-primary);
-        margin-bottom: 4px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .file-size {
-        font-size: 12px;
-        color: var(--el-text-color-secondary);
-      }
-    }
-  }
-}
-
-.dark-mode {
-  .forwarded-dialog {
-    .forwarded-item {
-      background-color: rgba(255, 255, 255, 0.05);
-    }
   }
 }
 </style>
