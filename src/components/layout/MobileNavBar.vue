@@ -6,6 +6,7 @@ interface Props {
   subtitle?: string
   showBack?: boolean
   showRefresh?: boolean
+  showSearch?: boolean
   showMore?: boolean
 }
 
@@ -14,12 +15,14 @@ withDefaults(defineProps<Props>(), {
   subtitle: '',
   showBack: true,
   showRefresh: false,
+  showSearch: false,
   showMore: false
 })
 
 const emit = defineEmits<{
   back: []
   refresh: []
+  search: []
   more: []
 }>()
 
@@ -34,6 +37,11 @@ const handleBack = () => {
 // 处理刷新
 const handleRefresh = () => {
   emit('refresh')
+}
+
+// 处理搜索
+const handleSearch = () => {
+  emit('search')
 }
 
 // 处理更多
@@ -75,6 +83,18 @@ const handleMore = () => {
       >
         <el-icon :size="18">
           <Refresh />
+        </el-icon>
+      </el-button>
+      
+      <el-button
+        v-if="showSearch"
+        class="action-button"
+        text
+        circle
+        @click="handleSearch"
+      >
+        <el-icon :size="18">
+          <Search />
         </el-icon>
       </el-button>
       

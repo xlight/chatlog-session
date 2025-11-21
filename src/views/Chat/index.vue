@@ -8,8 +8,9 @@ import SessionList from '@/components/chat/SessionList.vue'
 import MessageList from '@/components/chat/MessageList.vue'
 import ChatHeader from '@/components/chat/ChatHeader.vue'
 import MobileNavBar from '@/components/layout/MobileNavBar.vue'
+import SearchDialog from '@/components/chat/SearchDialog.vue'
 import { useDisplayName } from '@/components/chat/composables'
-import type { Session } from '@/types'
+import type { Session, Message } from '@/types'
 import { ElMessage } from 'element-plus'
 
 const appStore = useAppStore()
@@ -90,9 +91,41 @@ const handleSessionSelect = (session: Session) => {
   // MessageList 会自动监听 sessionId 变化并加载消息
 }
 
-// 处理搜索
+// 处理会话列表搜索
 const handleSearch = (value: string) => {
   searchText.value = value
+}
+
+// 搜索对话框
+const searchDialogVisible = ref(false)
+
+// 处理搜索消息（打开搜索对话框）
+const handleSearchMessages = () => {
+  if (!currentSession.value) {
+    ElMessage.warning('请先选择一个会话')
+    return
+  }
+
+  // 打开搜索对话框
+  searchDialogVisible.value = true
+}
+
+// 处理搜索结果中的消息点击
+const handleSearchMessageClick = (message: Message) => {
+  // 如果点击的消息来自不同的会话，先切换会话
+  if (message.talker && message.talker !== currentSession.value?.talker) {
+    const targetSession = sessionStore.sessions.find((s: Session) => s.talker === message.talker)
+    if (targetSession) {
+      handleSessionSelect(targetSession)
+    }
+  }
+  
+  // 定位到消息
+  if (message.id) {
+    setTimeout(() => {
+      messageListComponent.value?.scrollToMessage(message.id)
+    }, 300)
+  }
 }
 
 
@@ -453,8 +486,10 @@ onUnmounted(() => {
           :subtitle="mobileSubtitle"
           :show-back="true"
           :show-refresh="true"
+          :show-search="true"
           @back="handleMobileBack"
           @refresh="handleRefreshMessages"
+          @search="handleSearchMessages"
         />
 
         <!-- 未选中会话时的欢迎页 -->
@@ -494,9 +529,17 @@ onUnmounted(() => {
             :show-back="false"
             @back="toggleSidebar"
             @refresh="handleRefresh"
-            @search="() => {}"
+            @search="handleSearchMessages"
             @export="() => {}"
             @info="() => {}"
+          />
+
+          <!-- 搜索对话框 -->
+          <SearchDialog
+            v-model="searchDialogVisible"
+            :session-id="currentSession?.talker"
+            :session-name="currentSession?.name || currentSession?.talkerName || ''"
+            @message-click="handleSearchMessageClick"
           />
 
           <!-- 消息列表 -->

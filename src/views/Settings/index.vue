@@ -388,9 +388,9 @@ const goBack = () => {
       <!-- 侧边栏菜单 -->
       <div class="settings-sidebar">
         <div class="sidebar-header">
-          <el-button text size="large" @click="goBack">
+          <!-- <el-button text size="large" @click="goBack">
             <el-icon><ArrowLeft /></el-icon>
-          </el-button>
+          </el-button> -->
           <h2>设置</h2>
         </div>
 

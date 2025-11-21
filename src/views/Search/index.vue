@@ -2,7 +2,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useSearchStore } from '@/stores/search'
 import { useSessionStore } from '@/stores/session'
-import { useRouter } from 'vue-router'
+import { useContactStore } from '@/stores/contact'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import Avatar from '@/components/common/Avatar.vue'
@@ -10,17 +11,23 @@ import SearchBar from '@/components/common/SearchBar.vue'
 import Loading from '@/components/common/Loading.vue'
 import Empty from '@/components/common/Empty.vue'
 import MessageBubble from '@/components/chat/MessageBubble.vue'
+import SessionOption from '@/components/search/SessionOption.vue'
 import type { SearchType } from '@/stores/search'
-import type { Message, Contact } from '@/types'
+import type { Message, Contact, Session } from '@/types'
 
 const searchStore = useSearchStore()
 const sessionStore = useSessionStore()
+const contactStore = useContactStore()
 const router = useRouter()
+const route = useRoute()
 
 // 状态
 const searchText = ref('')
 const searchType = ref<SearchType>('chatroom')
 const selectedSessionId = ref<string>('')
+
+// 会话显示名称缓存
+const sessionDisplayNames = ref<Map<string, string>>(new Map())
 
 // 初始化默认时间范围（最近一年）
 const getDefaultDateRange = (): [Date, Date] => {
@@ -40,6 +47,70 @@ const hasResults = computed(() => searchStore.hasResults)
 
 // 可用的会话列表（用于会话内搜索）
 const availableSessions = computed(() => sessionStore.sessions)
+
+// 获取会话的显示名称
+const getSessionDisplayName = async (session: Session): Promise<string> => {
+  // 先从缓存中获取
+  if (sessionDisplayNames.value.has(session.id)) {
+    return sessionDisplayNames.value.get(session.id)!
+  }
+
+  // 尝试从 contact store 获取
+  try {
+    const displayName = await contactStore.getContactDisplayName(session.id)
+    if (displayName && displayName !== session.id) {
+      sessionDisplayNames.value.set(session.id, displayName)
+      return displayName
+    }
+  } catch (err) {
+    console.warn('获取会话显示名称失败:', session.id, err)
+  }
+
+  // 使用默认名称
+  const defaultName = session.name || session.talkerName || session.id
+  sessionDisplayNames.value.set(session.id, defaultName)
+  return defaultName
+}
+
+// 会话筛选的查询文本
+const sessionFilterQuery = ref('')
+
+// 筛选后的会话列表
+const filteredSessions = computed(() => {
+  if (!sessionFilterQuery.value) {
+    return availableSessions.value
+  }
+
+  const lowerQuery = sessionFilterQuery.value.toLowerCase().trim()
+
+  return availableSessions.value.filter((session: Session) => {
+    // 从缓存中获取显示名称
+    const displayName = sessionDisplayNames.value.get(session.id) || session.name || session.talkerName || ''
+
+    // 匹配 displayName
+    return displayName.toLowerCase().includes(lowerQuery)
+  })
+})
+
+// 处理远程搜索
+const handleSessionFilter = (query: string) => {
+  sessionFilterQuery.value = query
+}
+
+// 预加载会话显示名称
+const preloadSessionNames = async () => {
+  const sessions = availableSessions.value
+  if (sessions.length === 0) return
+
+  // 批量加载显示名称（限制并发数）
+  const batchSize = 10
+  for (let i = 0; i < sessions.length; i += batchSize) {
+    const batch = sessions.slice(i, i + batchSize)
+    await Promise.allSettled(
+      batch.map(session => getSessionDisplayName(session))
+    )
+  }
+}
 
 // 执行搜索
 const performSearch = async () => {
@@ -156,9 +227,36 @@ watch(dateRange, (newRange) => {
   }
 })
 
-// 组件挂载时重置搜索状态
-onMounted(() => {
-  searchStore.reset()
+// 组件挂载时处理 URL 参数和预加载
+onMounted(async () => {
+  // 预加载会话显示名称
+  await preloadSessionNames()
+
+  // 从 URL 参数中获取搜索条件
+  const queryType = route.query.type as SearchType | undefined
+  const queryTalker = route.query.talker as string | undefined
+  const querySessionName = route.query.sessionName as string | undefined
+
+  // 如果有 URL 参数，设置搜索条件
+  if (queryType) {
+    searchType.value = queryType
+    searchStore.setSearchType(queryType)
+  }
+
+  if (queryTalker) {
+    selectedSessionId.value = queryTalker
+    searchStore.setSelectedTalker(queryTalker)
+
+    // 显示提示消息
+    if (querySessionName) {
+      ElMessage.success(`已选择会话：${querySessionName}`)
+    }
+  }
+
+  // 如果没有参数，重置状态
+  if (!queryType && !queryTalker) {
+    searchStore.reset()
+  }
 })
 </script>
 
@@ -168,13 +266,13 @@ onMounted(() => {
       <!-- 搜索头部 -->
       <div class="search-header">
         <div class="header-top">
-          <el-button
+          <!-- <el-button
             text
             size="large"
             @click="$router.back()"
           >
             <el-icon><ArrowLeft /></el-icon>
-          </el-button>
+          </el-button> -->
           <h2>搜索</h2>
         </div>
 
@@ -208,18 +306,17 @@ onMounted(() => {
                 size="small"
                 filterable
                 clearable
+                remote
+                :remote-method="handleSessionFilter"
                 style="width: 100%;"
               >
               <el-option
-                v-for="session in availableSessions"
+                v-for="session in filteredSessions"
                 :key="session.id"
-                :label="session.name"
+                :label="sessionDisplayNames.get(session.id) || session.name || session.talkerName"
                 :value="session.talker"
               >
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <Avatar :src="session.avatar" :name="session.name" :size="24" />
-                  <span>{{ session.name }}</span>
-                </div>
+                <SessionOption :session="session" />
               </el-option>
               </el-select>
               <span v-if="searchType === 'message'" style="font-size: 12px; color: var(--el-color-warning);">
@@ -351,9 +448,9 @@ onMounted(() => {
                       {{ contact.nickname || contact.remark || contact.wxid }}
                     </div>
                     <div class="item-desc">
-                      <el-tag 
-                        size="small" 
-                        :type="contact.type === 'friend' ? 'success' : 'info'" 
+                      <el-tag
+                        size="small"
+                        :type="contact.type === 'friend' ? 'success' : 'info'"
                         effect="plain"
                       >
                         {{ contact.type === 'friend' ? '好友' : '其他' }}

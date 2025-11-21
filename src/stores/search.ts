@@ -245,15 +245,19 @@ export const useSearchStore = defineStore('search', () => {
    * GET /api/v1/chatlog?time=2020-01-01~2025-09-09&talker=xxx&sender=xxx&keyword=xxx&limit=500&offset=0&format=json
    * 注意：time 和 talker 参数是必填项
    */
-  async function searchMessages(options: Omit<SearchOptions, 'type'>) {
+  async function searchMessages(options: Omit<SearchOptions, 'type'>, appendMode = false) {
     // talker 是必填项，如果没有指定则不执行搜索
     if (!options.talker) {
-      messageResults.value = []
+      if (!appendMode) {
+        messageResults.value = []
+      }
       return []
     }
 
     if (!options.keyword.trim() && !options.timeRange) {
-      messageResults.value = []
+      if (!appendMode) {
+        messageResults.value = []
+      }
       return []
     }
 
@@ -286,21 +290,42 @@ export const useSearchStore = defineStore('search', () => {
       }
 
       const result = await chatlogAPI.searchMessages(params)
-      messageResults.value = result || []
-      totalCount.value = messageResults.value.length
-      hasMore.value = messageResults.value.length >= (options.limit || pageSize.value)
+      
+      if (appendMode) {
+        // 追加模式：去重后追加到现有结果
+        const existingIds = new Set(messageResults.value.map(m => m.id))
+        const uniqueNewMessages = (result || []).filter(m => !existingIds.has(m.id))
+        messageResults.value.push(...uniqueNewMessages)
+        hasMore.value = uniqueNewMessages.length >= (options.limit || pageSize.value)
+        
+        if (appStore.isDebug) {
+          console.log('🔍 Message search (append) completed', {
+            keyword: options.keyword,
+            offset: options.offset,
+            newCount: uniqueNewMessages.length,
+            totalCount: messageResults.value.length,
+          })
+        }
+        
+        return uniqueNewMessages
+      } else {
+        // 替换模式：直接替换结果
+        messageResults.value = result || []
+        totalCount.value = messageResults.value.length
+        hasMore.value = messageResults.value.length >= (options.limit || pageSize.value)
 
-      if (appStore.isDebug) {
-        console.log('🔍 Message search completed', {
-          keyword: options.keyword,
-          talker: options.talker,
-          timeRange: options.timeRange,
-          count: messageResults.value.length,
-          total: totalCount.value,
-        })
+        if (appStore.isDebug) {
+          console.log('🔍 Message search completed', {
+            keyword: options.keyword,
+            talker: options.talker,
+            timeRange: options.timeRange,
+            count: messageResults.value.length,
+            total: totalCount.value,
+          })
+        }
+
+        return messageResults.value
       }
-
-      return messageResults.value
     } catch (err) {
       console.error('搜索消息失败:', err)
       error.value = err as Error
@@ -383,22 +408,10 @@ export const useSearchStore = defineStore('search', () => {
         offset: nextOffset,
       }
 
-      const newMessages = await searchMessages(options)
-      
-      // 去重并追加
-      const existingIds = new Set(messageResults.value.map(m => m.id))
-      const uniqueNewMessages = newMessages.filter(m => !existingIds.has(m.id))
-      messageResults.value.push(...uniqueNewMessages)
+      // 使用追加模式调用 searchMessages
+      await searchMessages(options, true)
 
       currentPage.value++
-      
-      if (appStore.isDebug) {
-        console.log('🔍 Load more messages', {
-          offset: nextOffset,
-          newCount: uniqueNewMessages.length,
-          totalCount: messageResults.value.length,
-        })
-      }
     } catch (err) {
       console.error('加载更多消息失败:', err)
       throw err
