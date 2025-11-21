@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useContactStore } from '@/stores/contact'
+import { useChatroomStore } from '@/stores/chatroom'
+import { useDisplayName } from '@/components/chat/composables/useDisplayName'
 import MobileNavBar from '@/components/layout/MobileNavBar.vue'
 import Avatar from '@/components/common/Avatar.vue'
 import type { Contact } from '@/types'
+import type { Chatroom, ChatroomMember } from '@/types/contact'
 
 interface Props {
   contactId?: string
@@ -14,14 +17,49 @@ const props = defineProps<Props>()
 
 const appStore = useAppStore()
 const contactStore = useContactStore()
+const chatroomStore = useChatroomStore()
 
 // 当前联系人
 const contact = ref<Contact | null>(null)
 
+// 群聊详情
+const chatroomDetail = ref<Chatroom | null>(null)
+const chatroomLoading = ref(false)
+
+// 群主显示名称
+const { displayName: ownerDisplayName } = useDisplayName({
+  id: computed(() => chatroomDetail.value?.owner),
+  defaultName: computed(() => chatroomDetail.value?.owner),
+})
+
 // 加载联系人详情
-const loadContact = () => {
+const loadContact = async () => {
   if (props.contactId) {
     contact.value = contactStore.contacts.find(c => c.wxid === props.contactId) || null
+    
+    // 如果是群聊，加载群聊详情
+    if (contact.value && contact.value.type === 'chatroom') {
+      await loadChatroomDetail()
+    } else {
+      chatroomDetail.value = null
+    }
+  }
+}
+
+// 加载群聊详情
+const loadChatroomDetail = async () => {
+  if (!props.contactId) return
+  
+  chatroomLoading.value = true
+  try {
+    chatroomDetail.value = await chatroomStore.getChatroomDetail(props.contactId)
+    // 加载成员显示名称
+    await loadMemberDisplayNames()
+  } catch (err) {
+    console.error('加载群聊详情失败:', err)
+    chatroomDetail.value = null
+  } finally {
+    chatroomLoading.value = false
   }
 }
 
@@ -62,6 +100,67 @@ const typeText = computed(() => {
       return '未知'
   }
 })
+
+// 是否为群聊
+const isChatroom = computed(() => contact.value?.type === 'chatroom')
+
+// 群成员显示列表（最多显示前10个）
+const displayMembers = computed(() => {
+  if (!chatroomDetail.value?.members) return []
+  return chatroomDetail.value.members.slice(0, 10)
+})
+
+// 剩余成员数量
+const remainingMemberCount = computed(() => {
+  if (!chatroomDetail.value?.members) return 0
+  const total = chatroomDetail.value.members.length
+  return total > 10 ? total - 10 : 0
+})
+
+// 获取成员显示名称（使用 contactStore）
+const getMemberDisplayName = async (wxid: string) => {
+  try {
+    const name = await contactStore.getContactDisplayName(wxid)
+    return name || wxid
+  } catch (err) {
+    console.warn('获取成员显示名称失败:', wxid, err)
+    return wxid
+  }
+}
+
+// 成员显示名称映射
+const memberDisplayNames = ref<Map<string, string>>(new Map())
+
+// 加载成员显示名称
+const loadMemberDisplayNames = async () => {
+  if (!chatroomDetail.value?.members) return
+  
+  memberDisplayNames.value.clear()
+  
+  // 批量获取成员显示名称
+  const promises = chatroomDetail.value.members.slice(0, 10).map(async (member) => {
+    const name = await getMemberDisplayName(member.wxid)
+    memberDisplayNames.value.set(member.wxid, name)
+  })
+  
+  await Promise.all(promises)
+}
+
+// 获取成员显示名称（同步）
+const getMemberDisplayNameSync = (member: ChatroomMember) => {
+  return memberDisplayNames.value.get(member.wxid) || 
+         member.displayName || 
+         member.nickname || 
+         member.wxid
+}
+
+// 刷新群聊详情
+const refreshChatroomDetail = async () => {
+  if (!props.contactId) return
+  await chatroomStore.refreshCache(props.contactId)
+  await loadChatroomDetail()
+  await loadMemberDisplayNames()
+}
 </script>
 
 <template>
@@ -129,6 +228,81 @@ const typeText = computed(() => {
         <div v-if="contact.signature" class="detail-item">
           <div class="detail-item__label">个性签名</div>
           <div class="detail-item__value">{{ contact.signature }}</div>
+        </div>
+      </div>
+
+      <!-- 群聊详细信息 -->
+      <div v-if="isChatroom" class="chatroom-section">
+        <div class="section-header">
+          <h3 class="section-title">群聊信息</h3>
+          <el-button 
+            v-if="chatroomDetail"
+            text 
+            type="primary" 
+            size="small"
+            :loading="chatroomLoading"
+            @click="refreshChatroomDetail"
+          >
+            <el-icon><Refresh /></el-icon>
+            刷新
+          </el-button>
+        </div>
+
+        <div v-if="chatroomLoading" class="chatroom-loading">
+          <el-skeleton :rows="3" animated />
+        </div>
+
+        <div v-else-if="chatroomDetail" class="detail-list">
+          <div class="detail-item">
+            <div class="detail-item__label">群聊名称</div>
+            <div class="detail-item__value">{{ chatroomDetail.name || '-' }}</div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-item__label">群主</div>
+            <div class="detail-item__value">{{ ownerDisplayName || chatroomDetail.owner || '-' }}</div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-item__label">成员数量</div>
+            <div class="detail-item__value">
+              <el-tag type="success" size="small">
+                {{ chatroomDetail.memberCount }} 人
+              </el-tag>
+            </div>
+          </div>
+
+          <div v-if="chatroomDetail.members && chatroomDetail.members.length > 0" class="detail-item members-item">
+            <div class="detail-item__label">群成员</div>
+            <div class="detail-item__value">
+              <div class="members-list">
+                <el-tag
+                  v-for="member in displayMembers"
+                  :key="member.wxid"
+                  size="small"
+                  class="member-tag"
+                  :type="member.wxid === chatroomDetail.owner ? 'warning' : 'info'"
+                >
+                  {{ getMemberDisplayNameSync(member) }}
+                  <span v-if="member.wxid === chatroomDetail.owner" class="owner-badge">群主</span>
+                </el-tag>
+                <el-tag v-if="remainingMemberCount > 0" size="small" type="info" class="member-tag">
+                  +{{ remainingMemberCount }} 人
+                </el-tag>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="chatroom-empty">
+          <el-empty 
+            description="未找到群聊详情" 
+            :image-size="60"
+          >
+            <el-button type="primary" size="small" @click="loadChatroomDetail">
+              重新加载
+            </el-button>
+          </el-empty>
         </div>
       </div>
     </div>
@@ -236,6 +410,63 @@ const typeText = computed(() => {
       color: var(--el-text-color-regular);
     }
   }
+
+  &.members-item {
+    align-items: flex-start;
+
+    .detail-item__value {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+}
+
+// 群聊信息区域
+.chatroom-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--el-fill-color-lighter);
+  border-radius: 8px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    margin: 0;
+  }
+}
+
+.chatroom-loading {
+  padding: 16px;
+}
+
+.chatroom-empty {
+  padding: 24px 16px;
+}
+
+// 成员列表
+.members-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  .member-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    .owner-badge {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+  }
 }
 
 // 空状态
@@ -273,6 +504,23 @@ const typeText = computed(() => {
 
     &__value {
       padding-left: 0;
+    }
+  }
+
+  .chatroom-section {
+    margin-top: 12px;
+    padding: 12px;
+  }
+
+  .section-header {
+    .section-title {
+      font-size: 14px;
+    }
+  }
+
+  .members-list {
+    .member-tag {
+      font-size: 12px;
     }
   }
 }

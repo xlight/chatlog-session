@@ -1,14 +1,15 @@
 /**
  * IndexedDB 工具类
- * 用于缓存联系人数据
+ * 用于缓存联系人和群聊数据
  */
 
-import type { Contact } from '@/types/contact'
+import type { Contact, Chatroom } from '@/types/contact'
 import { ensureContactIndex } from './contact-grouping'
 
 const DB_NAME = 'ChatlogSessionDB'
-const DB_VERSION = 2  // 升级版本以支持拼音索引字段
+const DB_VERSION = 3  // 升级版本以支持群聊存储
 const CONTACT_STORE = 'contacts'
+const CHATROOM_STORE = 'chatrooms'
 
 /**
  * IndexedDB 数据库类
@@ -51,10 +52,13 @@ class Database {
         const oldVersion = event.oldVersion
 
         // 如果是旧版本升级，直接删除旧的对象存储重建
-        if (oldVersion > 0 && oldVersion < DB_VERSION) {
+        if (oldVersion > 0 && oldVersion < 3) {
           console.log(`数据库升级 v${oldVersion} → v${DB_VERSION}，清空旧数据`)
           if (db.objectStoreNames.contains(CONTACT_STORE)) {
             db.deleteObjectStore(CONTACT_STORE)
+          }
+          if (db.objectStoreNames.contains(CHATROOM_STORE)) {
+            db.deleteObjectStore(CHATROOM_STORE)
           }
         }
 
@@ -69,6 +73,16 @@ class Database {
           contactStore.createIndex('alias', 'alias', { unique: false })
           contactStore.createIndex('pinyinInitial', 'pinyinInitial', { unique: false })
           contactStore.createIndex('isStarred', 'isStarred', { unique: false })
+        }
+
+        // 创建群聊对象存储
+        if (!db.objectStoreNames.contains(CHATROOM_STORE)) {
+          const chatroomStore = db.createObjectStore(CHATROOM_STORE, { keyPath: 'chatroomId' })
+          
+          // 创建索引
+          chatroomStore.createIndex('name', 'name', { unique: false })
+          chatroomStore.createIndex('owner', 'owner', { unique: false })
+          chatroomStore.createIndex('memberCount', 'memberCount', { unique: false })
         }
       }
     })
@@ -377,6 +391,231 @@ class Database {
     })
     
     return result
+  }
+
+  /**
+   * 保存单个群聊
+   */
+  async saveChatroom(chatroom: Chatroom): Promise<void> {
+    const db = await this.getDB()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([CHATROOM_STORE], 'readwrite')
+      const store = transaction.objectStore(CHATROOM_STORE)
+      const request = store.put(chatroom)
+
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * 批量保存群聊
+   */
+  async saveChatrooms(chatrooms: Chatroom[]): Promise<void> {
+    const db = await this.getDB()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([CHATROOM_STORE], 'readwrite')
+      const store = transaction.objectStore(CHATROOM_STORE)
+
+      let completed = 0
+      const total = chatrooms.length
+
+      if (total === 0) {
+        resolve()
+        return
+      }
+
+      chatrooms.forEach(chatroom => {
+        const request = store.put(chatroom)
+        
+        request.onsuccess = () => {
+          completed++
+          if (completed === total) {
+            resolve()
+          }
+        }
+        
+        request.onerror = () => {
+          console.error('保存群聊失败:', chatroom.chatroomId, request.error)
+          completed++
+          if (completed === total) {
+            resolve()
+          }
+        }
+      })
+
+      transaction.onerror = () => {
+        console.error('批量保存群聊事务失败:', transaction.error)
+        reject(transaction.error)
+      }
+    })
+  }
+
+  /**
+   * 根据 chatroomId 获取群聊
+   */
+  async getChatroom(chatroomId: string): Promise<Chatroom | null> {
+    const db = await this.getDB()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([CHATROOM_STORE], 'readonly')
+      const store = transaction.objectStore(CHATROOM_STORE)
+      const request = store.get(chatroomId)
+
+      request.onsuccess = () => {
+        resolve(request.result || null)
+      }
+
+      request.onerror = () => {
+        console.error('获取群聊失败:', chatroomId, request.error)
+        reject(request.error)
+      }
+    })
+  }
+
+  /**
+   * 批量获取群聊
+   */
+  async getChatrooms(chatroomIds: string[]): Promise<Map<string, Chatroom>> {
+    const db = await this.getDB()
+    const result = new Map<string, Chatroom>()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([CHATROOM_STORE], 'readonly')
+      const store = transaction.objectStore(CHATROOM_STORE)
+
+      let completed = 0
+      const total = chatroomIds.length
+
+      if (total === 0) {
+        resolve(result)
+        return
+      }
+
+      chatroomIds.forEach(chatroomId => {
+        const request = store.get(chatroomId)
+        
+        request.onsuccess = () => {
+          if (request.result) {
+            result.set(chatroomId, request.result)
+          }
+          completed++
+          if (completed === total) {
+            resolve(result)
+          }
+        }
+        
+        request.onerror = () => {
+          completed++
+          if (completed === total) {
+            resolve(result)
+          }
+        }
+      })
+
+      transaction.onerror = () => {
+        reject(transaction.error)
+      }
+    })
+  }
+
+  /**
+   * 获取所有群聊
+   */
+  async getAllChatrooms(): Promise<Chatroom[]> {
+    const db = await this.getDB()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([CHATROOM_STORE], 'readonly')
+      const store = transaction.objectStore(CHATROOM_STORE)
+      const request = store.getAll()
+
+      request.onsuccess = () => {
+        resolve(request.result || [])
+      }
+
+      request.onerror = () => {
+        console.error('获取所有群聊失败:', request.error)
+        reject(request.error)
+      }
+    })
+  }
+
+  /**
+   * 搜索群聊
+   */
+  async searchChatrooms(keyword: string): Promise<Chatroom[]> {
+    const allChatrooms = await this.getAllChatrooms()
+    const lowerKeyword = keyword.toLowerCase()
+    
+    return allChatrooms.filter(chatroom => {
+      const name = (chatroom.name || '').toLowerCase()
+      const chatroomId = (chatroom.chatroomId || '').toLowerCase()
+      
+      return name.includes(lowerKeyword) || chatroomId.includes(lowerKeyword)
+    })
+  }
+
+  /**
+   * 删除群聊
+   */
+  async deleteChatroom(chatroomId: string): Promise<void> {
+    const db = await this.getDB()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([CHATROOM_STORE], 'readwrite')
+      const store = transaction.objectStore(CHATROOM_STORE)
+      const request = store.delete(chatroomId)
+
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * 清空群聊数据
+   */
+  async clearChatrooms(): Promise<void> {
+    const db = await this.getDB()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([CHATROOM_STORE], 'readwrite')
+      const store = transaction.objectStore(CHATROOM_STORE)
+      const request = store.clear()
+
+      request.onsuccess = () => {
+        console.log('🗑️ 已清空群聊缓存')
+        resolve()
+      }
+
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * 获取群聊数量
+   */
+  async getChatroomCount(): Promise<number> {
+    const db = await this.getDB()
+    
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([CHATROOM_STORE], 'readonly')
+      const store = transaction.objectStore(CHATROOM_STORE)
+      const request = store.count()
+
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  /**
+   * 检查群聊是否存在
+   */
+  async hasChatroom(chatroomId: string): Promise<boolean> {
+    const chatroom = await this.getChatroom(chatroomId)
+    return chatroom !== null
   }
 
   /**

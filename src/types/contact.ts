@@ -81,3 +81,29 @@ export const GenderNames: Record<Gender, string> = {
   [Gender.Male]: '男',
   [Gender.Female]: '女',
 }
+
+/**
+ * 群聊 API 响应接口
+ */
+export interface ChatroomApiResponse {
+  items: ChatroomApiItem[]
+}
+
+/**
+ * 群聊 API 单项数据
+ */
+export interface ChatroomApiItem {
+  name: string
+  owner: string
+  users: ChatroomUserApiItem[]
+  remark: string
+  nickName: string
+}
+
+/**
+ * 群聊用户 API 数据
+ */
+export interface ChatroomUserApiItem {
+  userName: string
+  displayName: string
+}

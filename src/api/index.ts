@@ -7,11 +7,12 @@ import chatlogAPI from './chatlog'
 import sessionAPI from './session'
 import contactAPI from './contact'
 import mediaAPI from './media'
+import chatroomAPI from './chatroom'
 
 /**
  * 导出所有 API
  */
-export { chatlogAPI, sessionAPI, contactAPI, mediaAPI }
+export { chatlogAPI, sessionAPI, contactAPI, mediaAPI, chatroomAPI }
 
 /**
  * 默认导出（对象形式）
@@ -21,6 +22,7 @@ export default {
   session: sessionAPI,
   contact: contactAPI,
   media: mediaAPI,
+  chatroom: chatroomAPI,
 }
 
 /**

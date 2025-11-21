@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Session, SessionDetail } from '@/types'
 import { useDisplayName } from './composables'
 import { useChatStore } from '@/stores/chat'
+import { useChatroomStore } from '@/stores/chatroom'
 
 interface Props {
   session?: Session | SessionDetail | null
@@ -25,6 +26,10 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const chatStore = useChatStore()
+const chatroomStore = useChatroomStore()
+
+// 群聊成员数量
+const memberCount = ref<number | null>(null)
 
 // 使用 displayName composable
 const { displayName } = useDisplayName({
@@ -56,22 +61,33 @@ const sessionSubtitle = computed(() => {
 
   const parts: string[] = [sessionTypeText.value]
 
-  // 群聊显示成员数
+  // 群聊显示成员数（从 API 获取）
   if (props.session.type === 'group') {
-    const detail = props.session as SessionDetail
-    if (detail.memberCount) {
-      parts.push(`${detail.memberCount}人`)
+    if (memberCount.value !== null) {
+      parts.push(`${memberCount.value}人`)
     }
-  }
-
-  // 显示消息总数
-  const messageCount = chatStore.messages.length
-  if (messageCount > 0) {
-    parts.push(`${messageCount}条消息`)
   }
 
   return parts.join(' · ')
 })
+
+// 监听 session 变化，加载群聊人数
+watch(
+  () => props.session,
+  async (newSession) => {
+    if (newSession?.type === 'group' && newSession.id) {
+      try {
+        memberCount.value = await chatroomStore.getChatroomMemberCount(newSession.id)
+      } catch (err) {
+        console.error('获取群聊成员数量失败:', err)
+        memberCount.value = null
+      }
+    } else {
+      memberCount.value = null
+    }
+  },
+  { immediate: true }
+)
 
 // 事件处理
 const handleBack = () => {
