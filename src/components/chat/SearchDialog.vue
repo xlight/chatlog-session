@@ -65,6 +65,25 @@ const getDefaultDateRange = (): [Date, Date] => {
 
 const dateRange = ref<[Date, Date] | null>(getDefaultDateRange())
 
+// 移动端单独的日期选择器
+const startDate = ref<Date>(getDefaultDateRange()[0])
+const endDate = ref<Date>(getDefaultDateRange()[1])
+
+// 同步移动端日期到范围
+watch([startDate, endDate], ([start, end]) => {
+  if (isMobile.value && start && end) {
+    dateRange.value = [start, end]
+  }
+})
+
+// 同步范围到移动端日期
+watch(dateRange, (range) => {
+  if (range && range[0] && range[1]) {
+    startDate.value = range[0]
+    endDate.value = range[1]
+  }
+})
+
 // 计算属性
 const messages = computed(() => searchStore.messageResults)
 const isLoading = computed(() => searchStore.messageLoading)
@@ -192,7 +211,8 @@ watch(() => props.sessionId, (newId) => {
         />
 
         <!-- 日期范围 -->
-        <div class="date-range">
+        <!-- PC 端：范围选择器 -->
+        <div v-if="!isMobile" class="date-range">
           <label>时间范围：</label>
           <el-date-picker
             v-model="dateRange"
@@ -205,6 +225,35 @@ watch(() => props.sessionId, (newId) => {
             style="flex: 1;"
           />
           <span class="hint">最近一年</span>
+        </div>
+
+        <!-- 移动端：单独的日期选择器 -->
+        <div v-else class="date-range mobile-date-range">
+          <label>时间范围：</label>
+          <div class="date-inputs">
+            <el-date-picker
+              v-model="startDate"
+              type="date"
+              placeholder="开始日期"
+              size="default"
+              clearable
+              :teleported="true"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+            />
+            <span class="separator">至</span>
+            <el-date-picker
+              v-model="endDate"
+              type="date"
+              placeholder="结束日期"
+              size="default"
+              clearable
+              :teleported="true"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+            />
+          </div>
+          <span class="hint">默认最近一年</span>
         </div>
       </div>
 
@@ -414,10 +463,28 @@ watch(() => props.sessionId, (newId) => {
       .hint {
         font-size: 11px;
         margin-top: 4px;
+        color: var(--el-text-color-secondary);
       }
 
-      :deep(.el-date-editor) {
-        width: 100% !important;
+      &.mobile-date-range {
+        .date-inputs {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 8px;
+          width: 100%;
+
+          .separator {
+            font-size: 12px;
+            color: var(--el-text-color-secondary);
+            flex-shrink: 0;
+          }
+
+          :deep(.el-date-editor) {
+            flex: 1;
+            min-width: 0;
+          }
+        }
       }
     }
   }
