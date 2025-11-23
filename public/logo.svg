@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- 主背景渐变 -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a9eff"/>
+      <stop offset="50%" style="stop-color:#409eff"/>
+      <stop offset="100%" style="stop-color:#1e6fd9"/>
+    </linearGradient>
+    
+    <!-- 气泡渐变 1 -->
+    <linearGradient id="bubble1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.98"/>
+      <stop offset="100%" style="stop-color:#f0f8ff;stop-opacity:0.95"/>
+    </linearGradient>
+    
+    <!-- 气泡渐变 2 -->
+    <linearGradient id="bubble2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.96"/>
+      <stop offset="100%" style="stop-color:#e8f4ff;stop-opacity:0.92"/>
+    </linearGradient>
+    
+    <!-- 气泡渐变 3 -->
+    <linearGradient id="bubble3" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.94"/>
+      <stop offset="100%" style="stop-color:#ddeeff;stop-opacity:0.88"/>
+    </linearGradient>
+    
+    <!-- 柔和阴影 -->
+    <filter id="shadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.2"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- 内发光效果 -->
+    <filter id="glow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="0" dy="0" result="offsetblur"/>
+      <feFlood flood-color="#409eff" flood-opacity="0.3"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- 裁剪路径 - 使用外层框边界 -->
+    <clipPath id="frameClip">
+      <rect x="66" y="66" width="380" height="380" rx="50"/>
+    </clipPath>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="512" height="512" rx="115" fill="url(#bg)"/>
+  
+  <!-- 装饰性粒子 - 营造氛围 -->
+  <g opacity="0.15" fill="#fff">
+    <circle cx="80" cy="120" r="3"/>
+    <circle cx="430" cy="150" r="4"/>
+    <circle cx="90" cy="400" r="3.5"/>
+    <circle cx="420" cy="380" r="3"/>
+    <circle cx="150" cy="80" r="2.5"/>
+    <circle cx="380" cy="430" r="3.5"/>
+  </g>
+  
+  <!-- 应用裁剪 -->
+  <g clip-path="url(#frameClip)">
+  
+  <g transform="translate(256, 256)">
+    
+    <!-- 外层容器框 - 抽象的存储空间 -->
+    <g opacity="0.18">
+      <rect x="-190" y="-190" width="380" height="380" rx="50" 
+            fill="none" stroke="#fff" stroke-width="3"/>
+      <rect x="-165" y="-165" width="330" height="330" rx="42" 
+            fill="none" stroke="#fff" stroke-width="2"/>
+    </g>
+    
+    <!-- 主气泡群组 - 艺术化交织排列 -->
+    <g filter="url(#shadow)">
+      
+      <!-- 气泡 1: 左上大气泡 -->
+      <g transform="translate(-75, -70) rotate(-8)">
+        <rect x="0" y="0" width="145" height="105" rx="30" fill="url(#bubble1)"/>
+        <!-- 尾巴 -->
+        <path d="M 12,105 L -7,132 L 28,112 Z" fill="url(#bubble1)"/>
+        <!-- 内容线条 - 艺术化倾斜 -->
+        <g opacity="0.45">
+          <line x1="25" y1="35" x2="105" y2="35" stroke="#409eff" stroke-width="6.5" stroke-linecap="round"/>
+          <line x1="25" y1="58" x2="86" y2="58" stroke="#409eff" stroke-width="6" stroke-linecap="round"/>
+          <line x1="25" y1="78" x2="70" y2="78" stroke="#409eff" stroke-width="5.5" stroke-linecap="round"/>
+        </g>
+      </g>
+      
+      <!-- 气泡 2: 右侧中等气泡 -->
+      <g transform="translate(30, -35) rotate(5)">
+        <rect x="0" y="0" width="135" height="120" rx="28" fill="url(#bubble2)"/>
+        <!-- 尾巴 -->
+        <path d="M 124,98 L 154,114 L 133,102 Z" fill="url(#bubble2)"/>
+        <!-- 内容线条 -->
+        <g opacity="0.48">
+          <line x1="23" y1="40" x2="100" y2="40" stroke="#409eff" stroke-width="6.5" stroke-linecap="round"/>
+          <line x1="23" y1="63" x2="91" y2="63" stroke="#409eff" stroke-width="6" stroke-linecap="round"/>
+          <line x1="23" y1="84" x2="68" y2="84" stroke="#409eff" stroke-width="5.5" stroke-linecap="round"/>
+        </g>
+      </g>
+      
+      <!-- 气泡 3: 底部小气泡 -->
+      <g transform="translate(-100, 50) rotate(-3)">
+        <rect x="0" y="0" width="122" height="91" rx="26" fill="url(#bubble3)"/>
+        <!-- 尾巴 -->
+        <path d="M 35,91 L 28,114 L 49,96 Z" fill="url(#bubble3)"/>
+        <!-- 内容线条 -->
+        <g opacity="0.42">
+          <line x1="21" y1="30" x2="91" y2="30" stroke="#409eff" stroke-width="6" stroke-linecap="round"/>
+          <line x1="21" y1="54" x2="77" y2="54" stroke="#409eff" stroke-width="5.5" stroke-linecap="round"/>
+        </g>
+      </g>
+      
+      <!-- 气泡 4: 右下小气泡 - 点缀 -->
+      <g transform="translate(50, 70) rotate(8)">
+        <rect x="0" y="0" width="98" height="72" rx="21" fill="url(#bubble1)" opacity="0.9"/>
+        <path d="M 82,72 L 100,91 L 91,72 Z" fill="url(#bubble1)" opacity="0.9"/>
+        <g opacity="0.4">
+          <line x1="16" y1="26" x2="72" y2="26" stroke="#409eff" stroke-width="5.5" stroke-linecap="round"/>
+          <line x1="16" y1="44" x2="56" y2="44" stroke="#409eff" stroke-width="5" stroke-linecap="round"/>
+        </g>
+      </g>
+      
+    </g>
+    
+    <!-- xLight 品牌元素 - 艺术化光芒 -->
+    <g transform="translate(105, -110)">
+      <!-- 中心光核 -->
+      <circle cx="0" cy="0" r="15" fill="#fff" opacity="0.95" filter="url(#glow)"/>
+      <circle cx="0" cy="0" r="8" fill="#fff"/>
+      
+      <!-- 放射光线 - 不规则长度增加艺术感 -->
+      <g stroke="#fff" stroke-linecap="round" opacity="0.7">
+        <line x1="-30" y1="0" x2="-44" y2="0" stroke-width="4.5"/>
+        <line x1="30" y1="0" x2="44" y2="0" stroke-width="4.5"/>
+        <line x1="0" y1="-30" x2="0" y2="-44" stroke-width="4.5"/>
+        <line x1="0" y1="30" x2="0" y2="44" stroke-width="4.5"/>
+        <!-- 斜向光线 -->
+        <line x1="-22" y1="-22" x2="-33" y2="-33" stroke-width="3.5" opacity="0.6"/>
+        <line x1="22" y1="-22" x2="33" y2="-33" stroke-width="3.5" opacity="0.6"/>
+        <line x1="-22" y1="22" x2="-33" y2="33" stroke-width="3.5" opacity="0.6"/>
+        <line x1="22" y1="22" x2="33" y2="33" stroke-width="3.5" opacity="0.6"/>
+      </g>
+    </g>
+    
+    <!-- Session 连接线 - 艺术化弧线 -->
+    <g stroke="#fff" stroke-width="3.5" fill="none" opacity="0.25" stroke-linecap="round">
+      <path d="M -135,110 Q -105,140 -63,133" stroke-dasharray="8,14"/>
+      <path d="M 119,98 Q 147,119 140,147" stroke-dasharray="8,14"/>
+      <path d="M 126,-147 Q 98,-168 63,-161" stroke-dasharray="8,14"/>
+      <path d="M -154,-126 Q -175,-105 -168,-77" stroke-dasharray="8,14"/>
+    </g>
+    
+    <!-- 数据流节点 - 艺术化分布 -->
+    <g fill="#fff">
+      <circle cx="-140" cy="119" r="6.5" opacity="0.4"/>
+      <circle cx="133" cy="105" r="7" opacity="0.45"/>
+      <circle cx="133" cy="-154" r="6" opacity="0.4"/>
+      <circle cx="-161" cy="-119" r="6.5" opacity="0.38"/>
+      <!-- 小点缀 -->
+      <circle cx="-70" cy="-154" r="5" opacity="0.3"/>
+      <circle cx="154" cy="56" r="5.5" opacity="0.35"/>
+    </g>
+    
+    <!-- NAS 存储抽象 - 底部层级线 -->
+    <g transform="translate(0, 133)" opacity="0.12">
+      <rect x="-98" y="0" width="196" height="9" rx="3" fill="#fff"/>
+      <rect x="-98" y="20" width="196" height="9" rx="3" fill="#fff"/>
+      <rect x="-98" y="40" width="196" height="9" rx="3" fill="#fff"/>
+      <!-- 指示灯 -->
+      <circle cx="-77" cy="4.5" r="3" fill="#8cc5ff"/>
+      <circle cx="-77" cy="24.5" r="3" fill="#8cc5ff"/>
+      <circle cx="-77" cy="44.5" r="3" fill="#8cc5ff"/>
+    </g>
+    
+  </g>
+  
+  </g><!-- 结束裁剪 -->
+  
+  <!-- 顶部微妙光晕 -->
+  <circle cx="390" cy="130" r="80" fill="#fff" opacity="0.06"/>
+  
+</svg>
