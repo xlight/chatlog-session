@@ -38,7 +38,7 @@ const lastMessageTime = computed(() => {
 // 最后一条消息预览
 const lastMessagePreview = computed(() => {
   const msg = props.session.lastMessage
-  if (!msg) return '暂无消息'
+  if (!msg) return '[非文本消息]'
 
   // 根据消息类型显示不同的预览
   switch (msg.type) {

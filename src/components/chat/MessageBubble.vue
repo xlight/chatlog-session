@@ -243,13 +243,13 @@ const forwardedMessages = computed(() => {
       <span class="system-text">{{ message.content }}</span>
     </div>
 
-    <!-- Gap 虚拟消息 (仅在 Debug 模式显示) -->
-    <div v-else-if="isGapMessage && appStore.isDebug" class="message-bubble__virtual">
+    <!-- Gap 虚拟消息 -->
+    <div v-else-if="isGapMessage" class="message-bubble__virtual">
       <span class="virtual-text">⚠️ Gap: {{ message.content }}</span>
     </div>
 
-    <!-- EmptyRange 虚拟消息 (仅在 Debug 模式显示) -->
-    <div v-else-if="isEmptyRangeMessage && appStore.isDebug" class="message-bubble__virtual">
+    <!-- EmptyRange 虚拟消息 -->
+    <div v-else-if="isEmptyRangeMessage" class="message-bubble__virtual">
       <span class="virtual-text">📭 EmptyRange: {{ message.content }}</span>
     </div>
 
