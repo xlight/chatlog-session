@@ -5,6 +5,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { chatlogAPI, mediaAPI } from '@/api'
 import type { Message } from '@/types/message'
+import { createEmptyRangeMessage, parseTimeRangeStart } from '@/types/message'
 import type { SearchParams } from '@/types/api'
 import { useAppStore } from './app'
 import { useMessageCacheStore } from './messageCache'
@@ -38,21 +39,21 @@ export const useChatStore = defineStore('chat', () => {
   // 监听缓存更新事件
   const handleCacheUpdate = (event: CustomEvent) => {
     const { talker, messages: newMessages } = event.detail
-    
+
     // 如果是当前打开的会话，更新消息列表
     if (talker === currentTalker.value) {
       const oldCount = messages.value.length
       const newCount = newMessages.length
-      
+
       if (newCount > oldCount) {
         // 找出新增的消息（基于 id 和 seq）
         const existingIds = new Set(messages.value.map(m => `${m.id}_${m.seq}`))
         const actualNewMessages = newMessages.filter((m: Message) => !existingIds.has(`${m.id}_${m.seq}`))
-        
+
         if (actualNewMessages.length > 0) {
           // 只添加新消息到末尾
           messages.value = [...messages.value, ...actualNewMessages]
-          
+
           if (appStore.isDebug) {
             console.log(`🔄 Auto-updated messages for current session: ${talker}`, {
               oldCount,
@@ -63,7 +64,7 @@ export const useChatStore = defineStore('chat', () => {
         } else if (newCount !== oldCount) {
           // 如果数量不同但没有新消息，说明可能有消息被删除或修改，全量更新
           messages.value = newMessages
-          
+
           if (appStore.isDebug) {
             console.log(`🔄 Full refresh messages for current session: ${talker}`, {
               oldCount,
@@ -255,6 +256,18 @@ export const useChatStore = defineStore('chat', () => {
    * 优先从缓存加载，如果没有缓存则从 API 加载并缓存
    */
   async function loadMessages(talker: string, page = 1, append = false, beforeTime?: string) {
+    //如果 beforeTime 不包含 ~ , 则说明不是时间范围， 则需要补充成一个时间范围
+    if (beforeTime && !beforeTime.includes('~')) {
+      // 获取beforeTime 当天的 0 点
+      const beforeDate = typeof beforeTime === 'string'
+        ? new Date(beforeTime)
+        : new Date(beforeTime * 1000)
+      const startOfDay = (new Date(beforeDate.getFullYear(), beforeDate.getMonth(), beforeDate.getDate()))
+      // 获取beforeTime 当天的 23:59:59
+      const endOfDay = beforeTime
+
+      beforeTime = formatCSTRange(startOfDay, new Date(endOfDay))
+    }
     try {
       loading.value = true
       error.value = null
@@ -304,6 +317,27 @@ export const useChatStore = defineStore('chat', () => {
         }
       }
 
+      // 如果结果为空且有时间范围，插入 EmptyRange 消息
+      if ( beforeTime && page === 1 && !append) {
+        const suggestedBeforeTime = parseTimeRangeStart(beforeTime)
+        const emptyRangeMessage = createEmptyRangeMessage(
+          talker,
+          beforeTime,
+          0, // triedTimes
+          suggestedBeforeTime
+        )
+
+        if (appStore.isDebug) {
+          console.log('📝 EmptyRange message created for empty load:', {
+            talker,
+            timeRange: beforeTime,
+            suggestedBeforeTime: new Date(suggestedBeforeTime).toISOString()
+          })
+        }
+
+        result = [emptyRangeMessage, ...result ]
+      }
+
       if (append) {
         messages.value = [...messages.value, ...result]
       } else {
@@ -312,7 +346,7 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       currentPage.value = page
-      hasMore.value = result.length >= limit
+      hasMore.value = result.length >= limit && result.every(m => !m.isEmptyRange)
 
       if (appStore.isDebug) {
         console.log('💬 Messages loaded', {
