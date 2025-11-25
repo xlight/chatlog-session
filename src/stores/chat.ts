@@ -23,6 +23,17 @@ function getLatestMessageTime(messages: Message[]): string | undefined {
   return latest.time
 }
 
+/**
+ * 获取消息列表中最老消息的东八区时间
+ */
+function getFirstMessageTime(messages: Message[]): string | undefined {
+  if (!messages || messages.length === 0) return undefined
+
+  const newest = messages[0]
+
+  return newest.time
+}
+
 export const useChatStore = defineStore('chat', () => {
   const appStore = useAppStore()
   const cacheStore = useMessageCacheStore()
@@ -317,12 +328,30 @@ export const useChatStore = defineStore('chat', () => {
         }
       }
 
-      // 如果结果为空且有时间范围，插入 EmptyRange 消息
+      // 调试：输出第一条消息的时间信息
+      if (result.length > 0) {
+        const firstMsg = result[0]
+        console.log('📝 First message debug:', {
+          id: firstMsg.id,
+          seq: firstMsg.seq,
+          time: firstMsg.time,
+          createTime: firstMsg.createTime,
+          timeType: typeof firstMsg.time,
+          createTimeType: typeof firstMsg.createTime,
+          timeValid: firstMsg.time ? !isNaN(new Date(firstMsg.time).getTime()) : false,
+          createTimeValid: firstMsg.createTime ? !isNaN(new Date(firstMsg.createTime * 1000).getTime()) : false,
+        })
+      }
+
+      // 插入 EmptyRange 消息
       if ( beforeTime && page === 1 && !append) {
         const suggestedBeforeTime = parseTimeRangeStart(beforeTime)
+        const newestMsgTime = getFirstMessageTime(result)
+
         const emptyRangeMessage = createEmptyRangeMessage(
           talker,
           beforeTime,
+          newestMsgTime,
           0, // triedTimes
           suggestedBeforeTime
         )
@@ -356,20 +385,6 @@ export const useChatStore = defineStore('chat', () => {
           hasMore: hasMore.value,
         })
 
-        // 调试：输出第一条消息的时间信息
-        if (result.length > 0) {
-          const firstMsg = result[0]
-          console.log('📝 First message debug:', {
-            id: firstMsg.id,
-            seq: firstMsg.seq,
-            time: firstMsg.time,
-            createTime: firstMsg.createTime,
-            timeType: typeof firstMsg.time,
-            createTimeType: typeof firstMsg.createTime,
-            timeValid: firstMsg.time ? !isNaN(new Date(firstMsg.time).getTime()) : false,
-            createTimeValid: firstMsg.createTime ? !isNaN(new Date(firstMsg.createTime * 1000).getTime()) : false,
-          })
-        }
       }
 
       return result

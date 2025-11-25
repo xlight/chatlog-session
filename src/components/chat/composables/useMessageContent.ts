@@ -12,6 +12,9 @@ export function useMessageContent(message: Message) {
   const isEmojiMessage = computed(() => message.type === MESSAGE_TYPE.EMOJI)
   const isLocationMessage = computed(() => message.type === MESSAGE_TYPE.LOCATION)
   const isSystemMessage = computed(() => message.type === MESSAGE_TYPE.SYSTEM)
+  const isRevokeMessage = computed(() => message.type === MESSAGE_TYPE.REVOKE)
+  const isGapMessage = computed(() => message.type === MESSAGE_TYPE.GAP || message.isGap)
+  const isEmptyRangeMessage = computed(() => message.type === MESSAGE_TYPE.EMPTY_RANGE || message.isEmptyRange)
 
   // type=49 的各种子类型
   const isQQMusicMessage = computed(
@@ -102,6 +105,9 @@ export function useMessageContent(message: Message) {
     isEmojiMessage,
     isLocationMessage,
     isSystemMessage,
+    isRevokeMessage,
+    isGapMessage,
+    isEmptyRangeMessage,
     isQQMusicMessage,
     isCardPackageMessage,
     isReferMessage,

@@ -1,3 +1,5 @@
+import { toCST } from "@/utils/timezone"
+
 /**
  * 消息类型枚举
  */
@@ -149,26 +151,32 @@ export const MessageTypeIcons: Record<MessageType, string> = {
 export function createEmptyRangeMessage(
   talker: string,
   timeRange: string,
+  newestMsgTime: string | undefined,
   triedTimes: number,
   suggestedBeforeTime: number
 ): Message {
   const startTime = parseTimeRangeStart(timeRange)
   const endTime = parseTimeRangeEnd(timeRange)
   const startDate = new Date(startTime)
-  const endDate = new Date(endTime)
-  
-  const formatDate = (date: Date) => {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  let endDate = new Date(endTime)
+  if( newestMsgTime){
+    endDate = new Date(newestMsgTime)
   }
-  
+  const formatDate = (date: Date) => {
+    const cstHours = (date.getUTCHours() + 8) % 24
+    const minutes = date.getUTCMinutes()
+    const seconds = date.getUTCSeconds()
+    return `${String(cstHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  }
+
   const startStr = formatDate(startDate)
   const endStr = formatDate(endDate)
-  
+
   return {
     id: -Date.now() - 1000,
     seq: -1,
-    time: new Date().toISOString(),
-    createTime: Date.now(),
+    time: toCST(startDate),
+    createTime: startDate.getTime(),
     talker,
     talkerName: '',
     sender: '',

@@ -59,6 +59,9 @@ const {
   isEmojiMessage,
   isLocationMessage,
   isSystemMessage,
+  isRevokeMessage,
+  isGapMessage,
+  isEmptyRangeMessage,
   isQQMusicMessage,
   isCardPackageMessage,
   isReferMessage,
@@ -120,7 +123,8 @@ const bubbleClass = computed(() => {
   return {
     'message-bubble--self': isSelf.value,
     'message-bubble--other': !isSelf.value,
-    'message-bubble--system': isSystemMessage.value
+    'message-bubble--system': isSystemMessage.value || isRevokeMessage.value,
+    'message-bubble--virtual': isGapMessage.value || isEmptyRangeMessage.value
   }
 })
 
@@ -226,6 +230,21 @@ const forwardedMessages = computed(() => {
     <!-- 系统消息 -->
     <div v-if="isSystemMessage" class="message-bubble__system">
       <span class="system-text">{{ message.content }}</span>
+    </div>
+
+    <!-- 撤回消息 -->
+    <div v-else-if="isRevokeMessage" class="message-bubble__system">
+      <span class="system-text">{{ message.content }}</span>
+    </div>
+
+    <!-- Gap 虚拟消息 (仅在 Debug 模式显示) -->
+    <div v-else-if="isGapMessage && appStore.isDebug" class="message-bubble__virtual">
+      <span class="virtual-text">⚠️ Gap: {{ message.content }}</span>
+    </div>
+
+    <!-- EmptyRange 虚拟消息 (仅在 Debug 模式显示) -->
+    <div v-else-if="isEmptyRangeMessage && appStore.isDebug" class="message-bubble__virtual">
+      <span class="virtual-text">📭 EmptyRange: {{ message.content }}</span>
     </div>
 
     <!-- 拍一拍消息 (type=49, subType=62) -->
@@ -525,7 +544,8 @@ const forwardedMessages = computed(() => {
     }
   }
 
-  &--system {
+  &--system,
+  &--virtual {
     justify-content: center;
     padding: 12px 16px;
   }
@@ -537,6 +557,20 @@ const forwardedMessages = computed(() => {
     font-size: 12px;
     color: var(--el-text-color-secondary);
     text-align: center;
+  }
+
+  &__virtual {
+    padding: 4px 12px;
+    background-color: rgba(255, 193, 7, 0.1);
+    border: 1px dashed var(--el-color-warning);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--el-color-warning);
+    text-align: center;
+
+    .virtual-text {
+      font-family: 'Monaco', 'Courier New', monospace;
+    }
   }
 
   &__avatar {

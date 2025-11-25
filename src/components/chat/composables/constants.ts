@@ -8,7 +8,10 @@ export const MESSAGE_TYPE = {
   EMOJI: 47,
   LOCATION: 48,
   RICH: 49,
-  SYSTEM: 10000
+  SYSTEM: 10000,
+  REVOKE: 10002,
+  GAP: 99999,
+  EMPTY_RANGE: 99998
 } as const
 
 // 富文本消息子类型
