@@ -154,13 +154,13 @@ watch(() => props.visible, (visible) => {
       <!-- 工具栏 -->
       <div class="toolbar">
         <el-button-group>
-          <el-button :icon="ZoomOut" @click="handleZoomOut" :disabled="scale <= 0.5">
+          <el-button :icon="ZoomOut" :disabled="scale <= 0.5" @click="handleZoomOut">
             缩小
           </el-button>
           <el-button @click="resetTransform">
             {{ Math.round(scale * 100) }}%
           </el-button>
-          <el-button :icon="ZoomIn" @click="handleZoomIn" :disabled="scale >= 3">
+          <el-button :icon="ZoomIn" :disabled="scale >= 3" @click="handleZoomIn">
             放大
           </el-button>
         </el-button-group>

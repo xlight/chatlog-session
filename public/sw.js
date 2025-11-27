@@ -1,5 +1,4 @@
 /* eslint-env serviceworker */
-/* global clients */
 
 // Chatlog Session - Service Worker
 // Version: 1.0.0

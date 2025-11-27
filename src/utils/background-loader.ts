@@ -248,7 +248,7 @@ export class BackgroundLoader<T = any> {
    */
   private async loadBatches(total?: number): Promise<void> {
     let currentBatch = 0
-    let totalBatches = total ? Math.ceil(total / this.options.batchSize) : undefined
+    const totalBatches = total ? Math.ceil(total / this.options.batchSize) : undefined
 
     while (!this.state.cancelled) {
       // 检查暂停状态
