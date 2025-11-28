@@ -21,6 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
 // 4. 父组件通过 @click 监听器接收事件并执行相应的处理方法
 const emit = defineEmits<{
   click: [session: Session]
+  action: [command: string, session: Session]
 }>()
 
 // 使用 displayName composable
@@ -67,15 +68,26 @@ const showUnreadBadge = computed(() => {
 const handleClick = () => {
   emit('click', props.session)
 }
+
+// 处理菜单命令
+const handleCommand = (command: string) => {
+  emit('action', command, props.session)
+}
 </script>
 
 <template>
-  <div
-    class="session-item"
-    :class="{ 'session-item--active': active, 'session-item--pinned': session.isPinned }"
-    @click="handleClick"
+  <el-dropdown
+    trigger="contextmenu"
+    placement="bottom-start"
+    class="session-item-dropdown"
+    @command="handleCommand"
   >
-    <!-- 头像 -->
+    <div
+      class="session-item"
+      :class="{ 'session-item--active': active, 'session-item--pinned': session.isPinned }"
+      @click="handleClick"
+    >
+      <!-- 头像 -->
     <div class="session-item__avatar">
       <Avatar
         :src="session.avatar"
@@ -109,10 +121,32 @@ const handleClick = () => {
         </div>
       </div>
     </div>
-  </div>
+    </div>
+    <template #dropdown>
+      <el-dropdown-menu>
+        <el-dropdown-item :command="session.isPinned ? 'unpin' : 'pin'">
+          <el-icon><Paperclip /></el-icon>
+          {{ session.isPinned ? '取消置顶' : '置顶会话' }}
+        </el-dropdown-item>
+        <el-dropdown-item :command="session.unreadCount && session.unreadCount > 0 ? 'read' : 'unread'">
+          <el-icon><ChatDotRound /></el-icon>
+          {{ session.unreadCount && session.unreadCount > 0 ? '标记已读' : '标记未读' }}
+        </el-dropdown-item>
+        <el-dropdown-item divided command="delete">
+          <el-icon style="color: var(--el-color-danger)"><Delete /></el-icon>
+          <span style="color: var(--el-color-danger)">删除会话</span>
+        </el-dropdown-item>
+      </el-dropdown-menu>
+    </template>
+  </el-dropdown>
 </template>
 
 <style lang="scss" scoped>
+.session-item-dropdown {
+  display: block;
+  width: 100%;
+}
+
 .session-item {
   display: flex;
   padding: 12px 16px;

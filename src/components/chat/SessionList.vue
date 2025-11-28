@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSessionStore } from '@/stores/session'
 import type { Session } from '@/types'
 import SessionItem from './SessionItem.vue'
@@ -133,6 +134,41 @@ const silentRefresh = async () => {
 const handleSelectSession = (session: Session) => {
   sessionStore.currentSessionId = session.id
   emit('select', session)
+}
+
+// 处理会话操作菜单
+const handleSessionAction = async (command: string, session: Session) => {
+  switch (command) {
+    case 'pin':
+      sessionStore.pinSession(session.talker)
+      break
+    case 'unpin':
+      sessionStore.unpinSession(session.talker)
+      break
+    case 'read':
+      sessionStore.markAsRead(session.talker)
+      break
+    case 'unread':
+      sessionStore.updateSession(session.talker, { unreadCount: 1 })
+      break
+    case 'delete':
+      try {
+        await ElMessageBox.confirm(
+          '确定要从列表中移除该会话吗？',
+          '移除会话',
+          {
+            confirmButtonText: '移除',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+        sessionStore.deleteSession(session.talker)
+        ElMessage.success('会话已移除')
+      } catch {
+        // 取消
+      }
+      break
+  }
 }
 
 // 刷新列表（根据当前状态选择刷新方式）
@@ -270,6 +306,7 @@ defineExpose({
           :session="session"
           :active="session.id === activeSessionId"
           @click="handleSelectSession"
+          @action="handleSessionAction"
         />
       </div>
 
@@ -285,6 +322,7 @@ defineExpose({
           :session="session"
           :active="session.id === activeSessionId"
           @click="handleSelectSession"
+          @action="handleSessionAction"
         />
       </div>
 
