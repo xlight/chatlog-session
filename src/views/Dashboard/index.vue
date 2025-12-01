@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { request } from '@/utils/request'
-import { useAppStore } from '@/stores/app'
 import { useContactStore } from '@/stores/contact'
-import { formatFileSize, formatNumber, formatPercent } from '@/utils/format'
+import { formatFileSize, formatNumber } from '@/utils/format'
 import { formatDate } from '@/utils/date'
 import Avatar from '@/components/common/Avatar.vue'
 import { mediaAPI } from '@/api/media'
 import type { DashboardData } from '@/api/dashboard'
 
-const appStore = useAppStore()
 const contactStore = useContactStore()
 const loading = ref(false)
 const dashboardData = ref<DashboardData | null>(null)
