@@ -200,7 +200,7 @@ defineExpose({
     </div>
 
     <!-- 加载状态 -->
-    <div v-if="sessionStore.loading" class="session-list__loading">
+    <div v-if="!silentRefreshing && sessionStore.loading" class="session-list__loading">
       <el-skeleton :rows="6" animated />
     </div>
 
