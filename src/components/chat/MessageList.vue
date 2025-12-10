@@ -317,6 +317,10 @@ const handleScroll = () => {
 
 // 刷新消息列表
 const handleRefresh = () => {
+  // 清除当前 session 的缓存
+  if (props.sessionId) {
+    chatStore.cacheStore.remove(props.sessionId)
+  }
   hasMoreHistory.value = true
   loadMessages(false)
 }
