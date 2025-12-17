@@ -11,7 +11,7 @@ const ALLOWED_DOMAINS = [
 ]
 
 function convertToProxyUrl(url: string): string {
-  //if (window.location.protocol !== 'https:') return url
+  if (window.location.host.indexOf('xlight')=== -1) return url
   if (!url || !url.startsWith('http://')) return url
 
   try {
