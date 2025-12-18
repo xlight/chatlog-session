@@ -16,6 +16,7 @@ export function useMessageContent(message: Message) {
   const isGapMessage = computed(() => message.type === MessageType.Gap || message.isGap)
   const isEmptyRangeMessage = computed(() => message.type === MessageType.EmptyRange || message.isEmptyRange)
   const isQQMailMessage = computed(() => message.type === MessageType.QQMail)
+  const isVoiceCallMessage = computed(() => message.type === MessageType.VoiceCall)
 
   // type=49 的各种子类型
   const isQQMusicMessage = computed(
@@ -132,6 +133,7 @@ export function useMessageContent(message: Message) {
     isTransferMessage,
     isRedPacketMessage,
     isQQMailMessage,
+    isVoiceCallMessage,
     isOtherRichMessage,
     referMessage,
     referMessageType,

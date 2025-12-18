@@ -32,6 +32,7 @@ import TransferMessage from './message-types/TransferMessage.vue'
 import QQMailMessage from './message-types/QQMailMessage.vue'
 import QQMusicMessage from './message-types/QQMusicMessage.vue'
 import CardPackageMessage from './message-types/CardPackageMessage.vue'
+import VoiceCallMessage from './message-types/VoiceCallMessage.vue'
 
 interface Props {
   message: Message
@@ -89,7 +90,8 @@ const {
   referMessage,
   referMessageType,
   isSelf,
-  isQQMailMessage
+  isQQMailMessage,
+  isVoiceCallMessage
 } = useMessageContent(props.message)
 
 // 使用 URL 处理逻辑
@@ -251,6 +253,11 @@ const handleCardPackageClick = () => {
   console.log('查看微信卡包')
 }
 
+// 处理语音通话点击
+const handleVoiceCallClick = () => {
+  console.log('查看语音通话详情')
+}
+
 // 转发消息 Dialog
 const forwardedDialogVisible = ref(false)
 
@@ -390,6 +397,15 @@ const forwardedMessages = computed(() => {
           <QQMailMessage
             v-else-if="isQQMailMessage"
             :show-media-resources="showMediaResources"
+          />
+
+          <!-- 语音通话消息 (type=50) -->
+          <VoiceCallMessage
+            v-else-if="isVoiceCallMessage"
+            :content="message.content"
+            :is-self="isSelf"
+            :show-media-resources="showMediaResources"
+            @click="handleVoiceCallClick"
           />
 
           <!-- QQ音乐消息 (type=49, subType=3) -->
