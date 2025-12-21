@@ -55,11 +55,11 @@ const dialogVisible = computed({
 // 搜索状态
 const searchText = ref('')
 
-// 初始化默认时间范围（最近一年）
+// 初始化默认时间范围（最近一个月）
 const getDefaultDateRange = (): [Date, Date] => {
   const endDate = new Date()
   const startDate = new Date()
-  startDate.setFullYear(endDate.getFullYear() - 1)
+  startDate.setMonth(endDate.getMonth() - 1)
   return [startDate, endDate]
 }
 
@@ -132,7 +132,7 @@ const clearSearch = () => {
 // 查看消息
 const handleMessageClick = (message: Message) => {
   emit('message-click', message)
-  dialogVisible.value = false
+  // 不自动关闭对话框，允许用户选择文字或继续查看其他结果
 }
 
 // 加载更多消息
@@ -224,7 +224,7 @@ watch(() => props.sessionId, (newId) => {
             clearable
             style="flex: 1;"
           />
-          <span class="hint">最近一年</span>
+          <span class="hint">最近一个月</span>
         </div>
 
         <!-- 移动端：单独的日期选择器 -->
@@ -253,7 +253,7 @@ watch(() => props.sessionId, (newId) => {
               value-format="YYYY-MM-DD"
             />
           </div>
-          <span class="hint">默认最近一年</span>
+          <span class="hint">默认最近一个月</span>
         </div>
       </div>
 
