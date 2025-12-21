@@ -58,7 +58,12 @@
           <el-icon><ArrowLeft /></el-icon>
           上一步
         </el-button>
-        <el-button type="primary" size="large" @click="handleComplete">
+        <el-button
+          ref="completeButtonRef"
+          type="primary"
+          size="large"
+          @click="handleComplete"
+        >
           开始使用
           <el-icon><Right /></el-icon>
         </el-button>
@@ -68,12 +73,15 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, nextTick } from 'vue'
 import { ArrowLeft, Right } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
   prev: []
   complete: []
 }>()
+
+const completeButtonRef = ref<InstanceType<typeof import('element-plus')['ElButton']>>()
 
 const handlePrev = () => {
   emit('prev')
@@ -82,6 +90,12 @@ const handlePrev = () => {
 const handleComplete = () => {
   emit('complete')
 }
+
+// 页面加载时自动聚焦"开始使用"按钮
+onMounted(async () => {
+  await nextTick()
+  completeButtonRef.value?.$el?.focus()
+})
 </script>
 
 <style scoped lang="scss">

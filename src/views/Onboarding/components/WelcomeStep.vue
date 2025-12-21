@@ -29,48 +29,48 @@
           <div class="welcome-step__feature">
             <div class="welcome-step__feature-icon">🔐</div>
             <div class="welcome-step__feature-text">
-              <div class="welcome-step__feature-title">本地数据存储</div>
-              <div class="welcome-step__feature-desc">数据仅存储在浏览器本地</div>
+              <div class="welcome-step__feature-title">隐私安全第一</div>
+              <div class="welcome-step__feature-desc">100% 本地存储，永不上传</div>
             </div>
           </div>
 
           <div class="welcome-step__feature">
             <div class="welcome-step__feature-icon">📱</div>
             <div class="welcome-step__feature-text">
-              <div class="welcome-step__feature-title">浏览所有会话记录</div>
-              <div class="welcome-step__feature-desc">快速查看所有聊天会话</div>
+              <div class="welcome-step__feature-title">智能会话管理</div>
+              <div class="welcome-step__feature-desc">置顶、筛选、快速定位</div>
             </div>
           </div>
 
           <div class="welcome-step__feature">
             <div class="welcome-step__feature-icon">💬</div>
             <div class="welcome-step__feature-text">
-              <div class="welcome-step__feature-title">查看完整聊天历史</div>
-              <div class="welcome-step__feature-desc">自动加载所有历史消息</div>
+              <div class="welcome-step__feature-title">多媒体支持</div>
+              <div class="welcome-step__feature-desc">图片、视频、Live Photo</div>
             </div>
           </div>
 
           <div class="welcome-step__feature">
             <div class="welcome-step__feature-icon">🔍</div>
             <div class="welcome-step__feature-text">
-              <div class="welcome-step__feature-title">搜索联系人和消息</div>
-              <div class="welcome-step__feature-desc">快速找到需要的内容</div>
+              <div class="welcome-step__feature-title">全文搜索</div>
+              <div class="welcome-step__feature-desc">联系人、消息内容快速查找</div>
             </div>
           </div>
 
           <div class="welcome-step__feature">
             <div class="welcome-step__feature-icon">📊</div>
             <div class="welcome-step__feature-text">
-              <div class="welcome-step__feature-title">支持多种消息类型</div>
-              <div class="welcome-step__feature-desc">文字、图片、视频等</div>
+              <div class="welcome-step__feature-title">Dashboard 统计</div>
+              <div class="welcome-step__feature-desc">聊天数据可视化分析</div>
             </div>
           </div>
 
           <div class="welcome-step__feature">
-            <div class="welcome-step__feature-icon">🚫</div>
+            <div class="welcome-step__feature-icon">📲</div>
             <div class="welcome-step__feature-text">
-              <div class="welcome-step__feature-title">零服务器追踪</div>
-              <div class="welcome-step__feature-desc">不记录任何用户行为数据</div>
+              <div class="welcome-step__feature-title">PWA 应用</div>
+              <div class="welcome-step__feature-desc">可安装、离线使用、自动更新</div>
             </div>
           </div>
         </div>
@@ -79,7 +79,12 @@
 
     <!-- 固定在底部的按钮区域 -->
     <div class="welcome-step__actions">
-      <el-button type="primary" size="large" @click="handleStart">
+      <el-button
+        ref="startButtonRef"
+        type="primary"
+        size="large"
+        @click="handleStart"
+      >
         开始配置
       </el-button>
     </div>
@@ -87,13 +92,23 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, nextTick } from 'vue'
+
 const emit = defineEmits<{
   next: []
 }>()
 
+const startButtonRef = ref<InstanceType<typeof import('element-plus')['ElButton']>>()
+
 const handleStart = () => {
   emit('next')
 }
+
+// 页面加载时自动聚焦"开始配置"按钮
+onMounted(async () => {
+  await nextTick()
+  startButtonRef.value?.$el?.focus()
+})
 </script>
 
 <style scoped lang="scss">

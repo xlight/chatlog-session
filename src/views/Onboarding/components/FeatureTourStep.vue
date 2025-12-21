@@ -45,6 +45,7 @@
         </el-button>
         <el-button
           v-if="currentFeature < features.length - 1"
+          ref="nextFeatureButtonRef"
           type="primary"
           size="large"
           @click="handleNextFeature"
@@ -54,6 +55,7 @@
         </el-button>
         <el-button
           v-else
+          ref="completeButtonRef"
           type="primary"
           size="large"
           @click="handleNext"
@@ -72,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, nextTick, onMounted } from 'vue'
 import { ArrowLeft, ArrowRight, Check } from '@element-plus/icons-vue'
 
 interface Feature {
@@ -89,46 +91,48 @@ const emit = defineEmits<{
 }>()
 
 const currentFeature = ref(0)
+const nextFeatureButtonRef = ref<InstanceType<typeof import('element-plus')['ElButton']>>()
+const completeButtonRef = ref<InstanceType<typeof import('element-plus')['ElButton']>>()
 
 const features: Feature[] = [
   {
     icon: '📱',
-    title: '会话列表',
-    description: '左侧显示所有会话，点击可查看聊天记录',
+    title: '会话管理',
+    description: '灵活管理所有聊天会话，快速找到重要对话',
     tips: [
-      '显示联系人头像和名称',
-      '显示最后一条消息时间',
-      '支持搜索和过滤',
+      '本地置顶重要会话，不受服务端限制',
+      '支持筛选和分组（全部/聊天/置顶）',
+      '置顶会话支持折叠收起',
     ],
   },
   {
     icon: '💬',
     title: '消息查看',
-    description: '选择会话后，中间区域显示完整聊天历史',
+    description: '完整展示各种类型的消息内容',
     tips: [
-      '自动加载所有历史消息',
-      '支持文字、图片、视频等多种类型',
-      '保持原有的时间顺序',
+      '支持文字、图片、视频、位置等多种类型',
+      'Live Photo 和视频直接预览播放',
+      '日期快速导航，轻松浏览历史消息',
     ],
   },
   {
     icon: '🔍',
     title: '搜索功能',
-    description: '顶部搜索框可以搜索联系人或消息内容',
+    description: '快速找到联系人或消息内容',
     tips: [
       '支持联系人名称搜索',
-      '支持消息内容搜索',
+      '支持消息内容全文搜索',
       '快速定位需要的信息',
     ],
   },
   {
-    icon: '⚙️',
-    title: '设置选项',
-    description: '在设置中可以调整各种配置',
+    icon: '📊',
+    title: '数据分析',
+    description: 'Dashboard 可视化展示您的聊天数据',
     tips: [
-      '修改 API 服务器地址',
-      '调整每页加载消息数量',
-      '管理联系人信息',
+      '消息量统计与趋势分析',
+      '联系人互动频率排行',
+      '了解您的聊天习惯',
     ],
   },
 ]
@@ -150,6 +154,26 @@ const handleNext = () => {
 const handleSkip = () => {
   emit('skip')
 }
+
+// 聚焦主按钮
+const focusPrimaryButton = async () => {
+  await nextTick()
+  if (currentFeature.value < features.length - 1) {
+    nextFeatureButtonRef.value?.$el?.focus()
+  } else {
+    completeButtonRef.value?.$el?.focus()
+  }
+}
+
+// 监听当前功能变化，自动聚焦按钮
+watch(currentFeature, () => {
+  focusPrimaryButton()
+})
+
+// 页面加载时自动聚焦主按钮
+onMounted(() => {
+  focusPrimaryButton()
+})
 </script>
 
 <style scoped lang="scss">

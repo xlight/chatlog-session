@@ -15,9 +15,11 @@
         :rules="rules"
         label-position="top"
         class="api-config-step__form"
+        @submit.prevent="handleTestConnection"
       >
         <el-form-item label="API Base URL" prop="apiBaseUrl">
           <el-input
+            ref="apiUrlInputRef"
             v-model="formData.apiBaseUrl"
             size="large"
             placeholder="http://localhost:5030"
@@ -123,6 +125,7 @@
             测试连接
           </el-button>
           <el-button
+            ref="nextButtonRef"
             type="primary"
             size="large"
             :disabled="!canProceed"
@@ -138,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import {
@@ -165,6 +168,8 @@ const emit = defineEmits<{
 }>()
 
 const formRef = ref<FormInstance>()
+const nextButtonRef = ref<InstanceType<typeof import('element-plus')['ElButton']>>()
+const apiUrlInputRef = ref<InstanceType<typeof import('element-plus')['ElInput']>>()
 const formData = reactive({
   apiBaseUrl: props.modelValue,
 })
@@ -208,6 +213,23 @@ watch(
     emit('update:modelValue', newValue)
   }
 )
+
+// 监听测试状态，成功后自动聚焦到"下一步"按钮
+watch(
+  () => props.testStatus,
+  async (newStatus) => {
+    if (newStatus === 'success') {
+      await nextTick()
+      nextButtonRef.value?.$el?.focus()
+    }
+  }
+)
+
+// 页面加载时自动聚焦 API URL 输入框
+onMounted(async () => {
+  await nextTick()
+  apiUrlInputRef.value?.focus()
+})
 
 /**
  * URL 失焦时规范化
