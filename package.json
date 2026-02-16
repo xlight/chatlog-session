@@ -24,7 +24,7 @@
     "sharp": "^0.34.5",
     "terser": "^5.44.1",
     "vue": "^3.4.0",
-    "vue-router": "^4.6.4",
+    "vue-router": "^5.0.2",
     "vue-virtual-scroller": "^2.0.0-beta.8"
   },
   "devDependencies": {
