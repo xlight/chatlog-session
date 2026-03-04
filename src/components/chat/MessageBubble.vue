@@ -21,7 +21,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   showAvatar: true,
   showTime: false,
-  showName: false
+  showName: false,
 })
 
 // 定义 emits
@@ -46,9 +46,10 @@ const {
   isEmptyRangeMessage,
   isPatMessage,
   isForwardedMessage,
+  isFileMessage,
   referMessage,
   referMessageType,
-  messageConfig
+  messageConfig,
 } = messageTypeInfo
 
 // 使用 URL 处理逻辑
@@ -97,7 +98,7 @@ const bubbleClass = computed(() => {
     'message-bubble--self': isSelf.value,
     'message-bubble--other': !isSelf.value,
     'message-bubble--system': isSystemMessage.value || isRevokeMessage.value,
-    'message-bubble--virtual': isGapMessage.value || isEmptyRangeMessage.value
+    'message-bubble--virtual': isGapMessage.value || isEmptyRangeMessage.value,
   }
 })
 
@@ -121,7 +122,7 @@ const componentProps = computed(() => {
     console.warn('[MessageBubble] 配置或 propsMapper 不存在', {
       type: props.message.type,
       subType: props.message.subType,
-      config
+      config,
     })
     return {}
   }
@@ -157,7 +158,7 @@ const componentProps = computed(() => {
       locationLabel: messageUrls.locationLabel.value,
       locationX: messageUrls.locationX.value,
       locationY: messageUrls.locationY.value,
-      locationCityname: messageUrls.locationCityname.value
+      locationCityname: messageUrls.locationCityname.value,
     }
 
     const mappedProps = config.propsMapper(props.message, context)
@@ -167,7 +168,7 @@ const componentProps = computed(() => {
     console.error('[MessageBubble] propsMapper 执行错误', {
       error,
       message: props.message,
-      config
+      config,
     })
     return {}
   }
@@ -183,6 +184,21 @@ const forwardedMessages = computed(() => {
 // ==================== 事件处理 ====================
 const handleForwardedClick = () => {
   forwardedDialogVisible.value = true
+}
+
+const handleFileClick = () => {
+  const fileUrl = messageUrls.fileUrl.value
+  if (fileUrl) {
+    window.open(fileUrl, '_blank')
+  }
+}
+
+const handleComponentClick = () => {
+  if (isForwardedMessage.value) {
+    handleForwardedClick()
+  } else if (isFileMessage.value) {
+    handleFileClick()
+  }
 }
 
 const forwardedTitle = computed(() => messageUrls.forwardedTitle.value || '聊天记录')
@@ -201,7 +217,11 @@ const forwardedTitle = computed(() => messageUrls.forwardedTitle.value || '聊�
     </div>
 
     <!-- Gap 虚拟消息 -->
-    <div v-else-if="isGapMessage" class="message-bubble__virtual message-bubble__gap" @click="emit('gap-click', message)">
+    <div
+      v-else-if="isGapMessage"
+      class="message-bubble__virtual message-bubble__gap"
+      @click="emit('gap-click', message)"
+    >
       <el-button text>
         <el-icon><MoreFilled /></el-icon>
         <span>{{ message.content }}</span>
@@ -209,27 +229,23 @@ const forwardedTitle = computed(() => messageUrls.forwardedTitle.value || '聊�
     </div>
 
     <!-- EmptyRange 虚拟消息 -->
-    <div v-else-if="isEmptyRangeMessage" class="message-bubble__virtual message-bubble__empty-range">
-      <span class="virtual-text">📭 {{ appStore.isDebug ? 'EmptyRange: ' : '' }}{{ message.content }}</span>
+    <div
+      v-else-if="isEmptyRangeMessage"
+      class="message-bubble__virtual message-bubble__empty-range"
+    >
+      <span class="virtual-text"
+        >📭 {{ appStore.isDebug ? 'EmptyRange: ' : '' }}{{ message.content }}</span
+      >
     </div>
 
     <!-- 拍一拍消息 (特殊渲染) -->
-    <component
-      :is="dynamicComponent"
-      v-else-if="isPatMessage"
-      v-bind="componentProps"
-    />
+    <component :is="dynamicComponent" v-else-if="isPatMessage" v-bind="componentProps" />
 
     <!-- 普通消息 -->
     <template v-else>
       <!-- 头像 (对方消息显示在左边) -->
       <div v-if="!isSelf" class="message-bubble__avatar">
-        <Avatar
-          v-if="showAvatar"
-          :src="avatarUrl"
-          :name="message.senderName"
-          :size="36"
-        />
+        <Avatar v-if="showAvatar" :src="avatarUrl" :name="message.senderName" :size="36" />
         <div v-else class="avatar-placeholder"></div>
       </div>
 
@@ -251,7 +267,7 @@ const forwardedTitle = computed(() => messageUrls.forwardedTitle.value || '聊�
             <component
               :is="dynamicComponent"
               v-bind="componentProps"
-              @click="isForwardedMessage ? handleForwardedClick() : undefined"
+              @click="handleComponentClick"
             />
           </template>
 
@@ -263,9 +279,7 @@ const forwardedTitle = computed(() => messageUrls.forwardedTitle.value || '聊�
               <div class="unknown-detail">
                 type={{ message.type }}, subType={{ message.subType }}
               </div>
-              <div v-if="componentName" class="unknown-detail">
-                组件: {{ componentName }}
-              </div>
+              <div v-if="componentName" class="unknown-detail">组件: {{ componentName }}</div>
             </div>
           </div>
         </div>
@@ -273,12 +287,7 @@ const forwardedTitle = computed(() => messageUrls.forwardedTitle.value || '聊�
 
       <!-- 头像 (自己的消息显示在右边) -->
       <div v-if="isSelf" class="message-bubble__avatar">
-        <Avatar
-          v-if="showAvatar"
-          :src="avatarUrl"
-          :name="message.senderName"
-          :size="36"
-        />
+        <Avatar v-if="showAvatar" :src="avatarUrl" :name="message.senderName" :size="36" />
         <div v-else class="avatar-placeholder"></div>
       </div>
     </template>
