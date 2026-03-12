@@ -103,6 +103,8 @@ export interface Message {
   gapData?: {
     timeRange: string
     beforeTime: number
+    estimatedCount?: number
+    estimateConfidence?: 'high' | 'medium' | 'low'
   }
   // EmptyRange 消息标识
   isEmptyRange?: boolean
@@ -322,7 +324,8 @@ export function createGapMessage(
   talker: string,
   gapStartTime: string | number,
   gapEndTime: string | number,
-  estimatedCount?: number
+  estimatedCount?: number,
+  estimateConfidence: 'high' | 'medium' | 'low' = 'low'
 ): Message {
   const startDate =
     typeof gapStartTime === 'string' ? new Date(gapStartTime) : new Date(gapStartTime)
@@ -333,15 +336,16 @@ export function createGapMessage(
   const timeRange = `${toCST(startDate)}~${toCST(endDate)}`
 
   const content =
-    estimatedCount && estimatedCount > 0
+    estimateConfidence === 'high' && estimatedCount && estimatedCount > 0
       ? `${startStr} ~ ${endStr} 还有约 ${estimatedCount} 条消息`
       : `${startStr} ~ ${endStr} 还有更多消息`
 
   return {
     id: -Date.now(),
     seq: -1,
-    time: toCST(startDate),
-    createTime: startDate.getTime(),
+    // Gap 作为“待补齐缺口”锚点，排序与定位使用结束时间更符合插入语义
+    time: toCST(endDate),
+    createTime: endDate.getTime(),
     talker,
     talkerName: '',
     sender: '',
@@ -356,6 +360,8 @@ export function createGapMessage(
     gapData: {
       timeRange,
       beforeTime: endDate.getTime(),
+      estimatedCount,
+      estimateConfidence,
     },
   }
 }

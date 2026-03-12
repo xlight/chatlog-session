@@ -27,11 +27,14 @@ import {
   detectTimeGap,
   normalizeBatchToChronological,
   mergeChronologicalMessages,
+  getHistoryAnchorBeforeTime,
   isRealMessage,
   loadMessagesInTimeRange,
   handleEmptyResult,
   checkDataConnection,
   estimateMessageCount,
+  getGapEstimateConfidence,
+  mergeAdjacentGapMessages,
   mergeTopAdjacentEmptyRanges,
 } from './chat/utils'
 
@@ -300,6 +303,35 @@ export const useChatStore = defineStore('chat', () => {
 
   const getChronologicalMessages = () => {
     return normalizeBatchToChronological(messages.value, appStore.isDebug)
+  }
+
+  const assertHistoryAnchorProgress = (
+    previousBeforeTime: string | number,
+    nextBeforeTime: string | number | undefined,
+    label: string
+  ) => {
+    if (!appStore.isDebug || !nextBeforeTime) return
+
+    const prevTs =
+      typeof previousBeforeTime === 'string'
+        ? new Date(previousBeforeTime).getTime()
+        : previousBeforeTime < 10000000000
+          ? previousBeforeTime * 1000
+          : previousBeforeTime
+    const nextTs =
+      typeof nextBeforeTime === 'string'
+        ? new Date(nextBeforeTime).getTime()
+        : nextBeforeTime < 10000000000
+          ? nextBeforeTime * 1000
+          : nextBeforeTime
+
+    if (!isNaN(prevTs) && !isNaN(nextTs) && nextTs >= prevTs) {
+      console.warn('⚠️ History anchor did not move earlier', {
+        label,
+        previousBeforeTime,
+        nextBeforeTime,
+      })
+    }
   }
 
   /**
@@ -605,15 +637,28 @@ export const useChatStore = defineStore('chat', () => {
             newestLoadedTime,
             requestedEndTime
           )
+          const estimateConfidence = getGapEstimateConfidence(
+            messages.value,
+            talker,
+            newestLoadedTime,
+            requestedEndTime
+          )
 
           // Gap 标记更新的未加载部分
-          gapToInsert = createGapMessage(talker, newestLoadedTime, requestedEndTime, estimatedCount)
+          gapToInsert = createGapMessage(
+            talker,
+            newestLoadedTime,
+            requestedEndTime,
+            estimatedCount,
+            estimateConfidence
+          )
 
           if (appStore.isDebug) {
             console.log('📌 Creating Gap message at bottom for newer data:', {
               newestLoaded: new Date(newestLoadedTime).toISOString(),
               requestedEnd: new Date(requestedEndTime).toISOString(),
               estimatedCount,
+              estimateConfidence,
               actualLoaded: result.length,
             })
           }
@@ -644,12 +689,20 @@ export const useChatStore = defineStore('chat', () => {
         messagesToInsert.push(gapToInsert)
       }
       mergeWithCurrentMessages(messagesToInsert, 'loadHistoryMessages:merge')
+      messages.value = mergeAdjacentGapMessages(messages.value, talker, appStore.isDebug)
       messages.value = mergeTopAdjacentEmptyRanges(messages.value, talker, appStore.isDebug)
+
+      const nextAnchor = getHistoryAnchorBeforeTime(messages.value)
+      assertHistoryAnchorProgress(beforeTime, nextAnchor, 'loadHistoryMessages')
 
       // 清除提示信息
       historyLoadMessage.value = ''
 
       if (appStore.isDebug) {
+        const gapCount = messages.value.filter(m => m.isGap && m.talker === talker).length
+        const emptyRangeCount = messages.value.filter(
+          m => m.isEmptyRange && m.talker === talker
+        ).length
         console.log('📊 History loading result:', {
           loaded: result.length,
           unique: uniqueNewMessages.length,
@@ -657,6 +710,8 @@ export const useChatStore = defineStore('chat', () => {
           hasMore: hasMoreHistory,
           gapInserted: !!gapToInsert,
           emptyRangeInserted: !!emptyRangeToInsert,
+          gapCount,
+          emptyRangeCount,
         })
       }
 
@@ -733,47 +788,55 @@ export const useChatStore = defineStore('chat', () => {
 
       // 判断是否还有更多数据
       const hasMoreInGap = result.length >= limit
+      const isConnected = checkDataConnection(result, messages.value)
 
-      // 如果还有更多数据，创建新的 Gap 消息到底部
+      // 仅在明确重复衔接时才允许 Gap 消亡；否则保留/更新 Gap
       let newGapToInsert: Message | null = null
-      if (hasMoreInGap && normalizedUniqueMessages.length > 0) {
-        // 检查新数据是否与已有数据衔接
-        const isConnected = checkDataConnection(result, messages.value)
+      if (!isConnected && normalizedUniqueMessages.length > 0) {
+        const requestedEndTime = parseTimeRangeEnd(timeRange)
+        const newestLoadedMsg = normalizedUniqueMessages[normalizedUniqueMessages.length - 1]
+        const newestLoadedTime = getMessageTimestamp(newestLoadedMsg)
 
-        if (!isConnected) {
-          const requestedEndTime = parseTimeRangeEnd(timeRange)
-          const newestLoadedMsg = normalizedUniqueMessages[normalizedUniqueMessages.length - 1]
-          const newestLoadedTime = getMessageTimestamp(newestLoadedMsg)
+        // 根据消息密度估算剩余消息数量
+        const estimatedCount = estimateMessageCount(
+          messages.value,
+          gapMessage.talker,
+          newestLoadedTime,
+          requestedEndTime
+        )
+        const estimateConfidence = getGapEstimateConfidence(
+          messages.value,
+          gapMessage.talker,
+          newestLoadedTime,
+          requestedEndTime
+        )
 
-          // 根据消息密度估算剩余消息数量
-          const estimatedCount = estimateMessageCount(
-            messages.value,
-            gapMessage.talker,
-            newestLoadedTime,
-            requestedEndTime
-          )
+        // 无论本批是否满载，只要没有明确衔接就保留/更新 Gap
+        newGapToInsert = createGapMessage(
+          gapMessage.talker,
+          newestLoadedTime,
+          requestedEndTime,
+          estimatedCount,
+          estimateConfidence
+        )
 
-          // 创建新的 Gap 标记剩余未加载部分（底部）
-          newGapToInsert = createGapMessage(
-            gapMessage.talker,
-            newestLoadedTime,
-            requestedEndTime,
-            estimatedCount
-          )
-
-          if (appStore.isDebug) {
-            console.log('📌 Creating new Gap at bottom for remaining data:', {
-              newestLoaded: new Date(newestLoadedTime).toISOString(),
-              requestedEnd: new Date(requestedEndTime).toISOString(),
-              estimatedCount,
-              actualLoaded: result.length,
-            })
-          }
-        } else {
-          if (appStore.isDebug) {
-            console.log('✅ Gap data is connected to existing data, no new Gap needed')
-          }
+        if (appStore.isDebug) {
+          console.log('📌 Keep/update Gap after load (no explicit overlap):', {
+            newestLoaded: new Date(newestLoadedTime).toISOString(),
+            requestedEnd: new Date(requestedEndTime).toISOString(),
+            estimatedCount,
+            estimateConfidence,
+            actualLoaded: result.length,
+            hasMoreInGap,
+            isConnected,
+          })
         }
+      } else if (appStore.isDebug) {
+        console.log('✅ Gap resolved by explicit duplicate overlap', {
+          hasMoreInGap,
+          isConnected,
+          loaded: result.length,
+        })
       }
 
       // 插入新加载的消息（和可能的新 Gap）到列表
@@ -783,6 +846,24 @@ export const useChatStore = defineStore('chat', () => {
         messagesToInsert.push(newGapToInsert)
       }
       mergeWithCurrentMessages(messagesToInsert, 'loadGapMessages:merge')
+      messages.value = mergeAdjacentGapMessages(messages.value, gapMessage.talker, appStore.isDebug)
+
+      const nextAnchor = getHistoryAnchorBeforeTime(messages.value)
+      assertHistoryAnchorProgress(gapMessage.gapData.beforeTime, nextAnchor, 'loadGapMessages')
+
+      if (appStore.isDebug) {
+        const gapCount = messages.value.filter(
+          m => m.isGap && m.talker === gapMessage.talker
+        ).length
+        console.log('📊 Gap load metrics:', {
+          talker: gapMessage.talker,
+          loaded: result.length,
+          unique: normalizedUniqueMessages.length,
+          isConnected,
+          hasMoreInGap,
+          gapCount,
+        })
+      }
 
       return {
         success: result.length > 0,

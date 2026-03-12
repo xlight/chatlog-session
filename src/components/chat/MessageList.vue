@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, watch } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { formatMinimalDate } from '@/utils/date'
+import { getHistoryAnchorBeforeTime } from '@/stores/chat/utils'
 import type { Message } from '@/types'
 import MessageBubble from './MessageBubble.vue'
 
@@ -107,17 +108,8 @@ const handleLoadHistory = async () => {
     const scrollTop = messageListRef.value?.scrollTop || 0
     const scrollHeight = messageListRef.value?.scrollHeight || 0
 
-    // 使用顶部消息作为继续加载锚点（优先虚拟消息）
-    const topMessage = messages.value[0]
-    let beforeTime: string | number | undefined
-
-    if (topMessage?.isEmptyRange && topMessage.emptyRangeData?.suggestedBeforeTime) {
-      beforeTime = new Date(topMessage.emptyRangeData.suggestedBeforeTime).toISOString()
-    } else if (topMessage?.isGap && topMessage.gapData?.beforeTime) {
-      beforeTime = new Date(topMessage.gapData.beforeTime).toISOString()
-    } else if (topMessage) {
-      beforeTime = topMessage.time || topMessage.createTime
-    }
+    // 使用统一锚点策略（优先虚拟消息）
+    const beforeTime = getHistoryAnchorBeforeTime(messages.value)
 
     if (!beforeTime) {
       console.warn('无法获取最早消息时间')

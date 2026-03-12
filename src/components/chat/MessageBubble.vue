@@ -317,9 +317,10 @@ const forwardedTitle = computed(() => messageUrls.forwardedTitle.value || '聊�
       class="message-bubble__virtual message-bubble__gap"
       @click="emit('gap-click', message)"
     >
-      <el-button text>
+      <el-button text class="gap-action">
         <el-icon><MoreFilled /></el-icon>
-        <span>{{ message.content }}</span>
+        <span class="gap-title">待补齐消息窗口</span>
+        <span class="gap-subtitle">{{ message.content }}</span>
       </el-button>
     </div>
 
@@ -328,9 +329,12 @@ const forwardedTitle = computed(() => messageUrls.forwardedTitle.value || '聊�
       v-else-if="isEmptyRangeMessage"
       class="message-bubble__virtual message-bubble__empty-range"
     >
-      <span class="virtual-text"
-        >📭 {{ appStore.isDebug ? 'EmptyRange: ' : '' }}{{ message.content }}</span
-      >
+      <span class="virtual-text">
+        <span class="empty-title">📭 已探测空窗口</span>
+        <span class="empty-subtitle"
+          >{{ appStore.isDebug ? 'EmptyRange: ' : '' }}{{ message.content }}</span
+        >
+      </span>
     </div>
 
     <!-- 拍一拍消息 (特殊渲染) -->
@@ -465,10 +469,31 @@ const forwardedTitle = computed(() => messageUrls.forwardedTitle.value || '聊�
       background: var(--el-fill-color);
       border-radius: 6px;
       border: 1px dashed var(--el-border-color);
+      text-align: left;
     }
   }
 
   &__gap {
+    .gap-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--el-color-primary-light-5);
+      background: var(--el-color-primary-light-9);
+    }
+
+    .gap-title {
+      color: var(--el-color-primary);
+      font-weight: 600;
+    }
+
+    .gap-subtitle {
+      color: var(--el-text-color-secondary);
+      font-weight: 400;
+    }
+
     .el-button {
       color: var(--el-color-primary);
       font-size: 13px;
@@ -480,6 +505,27 @@ const forwardedTitle = computed(() => messageUrls.forwardedTitle.value || '聊�
       &:hover {
         background: var(--el-fill-color-light);
       }
+    }
+  }
+
+  &__empty-range {
+    .virtual-text {
+      background: var(--el-fill-color-light);
+      border-color: var(--el-border-color-lighter);
+    }
+
+    .empty-title {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--el-text-color-regular);
+      margin-bottom: 2px;
+    }
+
+    .empty-subtitle {
+      display: block;
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
     }
   }
 

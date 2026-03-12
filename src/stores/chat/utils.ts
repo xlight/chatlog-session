@@ -1,5 +1,10 @@
 import type { Message } from '@/types/message'
-import { createEmptyRangeMessage, parseTimeRangeStart, parseTimeRangeEnd } from '@/types/message'
+import {
+  createEmptyRangeMessage,
+  createGapMessage,
+  parseTimeRangeStart,
+  parseTimeRangeEnd,
+} from '@/types/message'
 import { toCST, formatCSTRange, subtractDays } from '@/utils/timezone'
 import { chatlogAPI } from '@/api'
 
@@ -302,6 +307,157 @@ export function estimateMessageCount(
 }
 
 /**
+ * Gap 估算置信度
+ */
+export function getGapEstimateConfidence(
+  messages: Message[],
+  talker: string,
+  startTime: number,
+  endTime: number
+): 'high' | 'medium' | 'low' {
+  const realMessages = messages.filter(m => m.talker === talker && isRealMessage(m))
+  const sampleSize = realMessages.length
+  if (sampleSize < 80) return 'low'
+
+  let minTs = Number.POSITIVE_INFINITY
+  let maxTs = 0
+  const dayBuckets = new Map<string, number>()
+
+  realMessages.forEach(msg => {
+    const ts = getMessageTimestamp(msg)
+    if (!ts) return
+    minTs = Math.min(minTs, ts)
+    maxTs = Math.max(maxTs, ts)
+    const dayKey = new Date(ts).toISOString().slice(0, 10)
+    dayBuckets.set(dayKey, (dayBuckets.get(dayKey) || 0) + 1)
+  })
+
+  if (!isFinite(minTs) || maxTs <= minTs) return 'low'
+
+  const spanDays = Math.max(1, (maxTs - minTs) / (1000 * 60 * 60 * 24))
+  const values = Array.from(dayBuckets.values())
+  const avg = values.reduce((sum, v) => sum + v, 0) / Math.max(values.length, 1)
+  const variance =
+    values.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / Math.max(values.length, 1)
+  const cv = avg > 0 ? Math.sqrt(variance) / avg : Number.POSITIVE_INFINITY
+
+  const center = (minTs + maxTs) / 2
+  const windowCenter = (startTime + endTime) / 2
+  const windowDistanceDays = Math.abs(windowCenter - center) / (1000 * 60 * 60 * 24)
+
+  if (sampleSize >= 200 && spanDays >= 7 && cv <= 1.2 && windowDistanceDays <= spanDays * 1.5) {
+    return 'high'
+  }
+
+  if (sampleSize >= 80 && spanDays >= 3 && cv <= 2.0) {
+    return 'medium'
+  }
+
+  return 'low'
+}
+
+/**
+ * 解析 Gap 的时间范围（毫秒）
+ */
+export function parseGapRangeBounds(message: Message): { start: number; end: number } | null {
+  if (!message.isGap || !message.gapData?.timeRange) return null
+
+  const start = parseTimeRangeStart(message.gapData.timeRange)
+  const end = parseTimeRangeEnd(message.gapData.timeRange)
+  if (!start || !end || isNaN(start) || isNaN(end)) return null
+
+  return { start: Math.min(start, end), end: Math.max(start, end) }
+}
+
+/**
+ * 合并同会话 Gap 窗口
+ */
+export function mergeAdjacentGapMessages(
+  list: Message[],
+  talker: string,
+  isDebug = false
+): Message[] {
+  const gaps = list.filter(msg => msg.isGap && msg.talker === talker)
+  if (gaps.length <= 1) return list
+
+  const nonGaps = list.filter(msg => !(msg.isGap && msg.talker === talker))
+  const sortedGaps = [...gaps].sort((a, b) => {
+    const aBounds = parseGapRangeBounds(a)
+    const bBounds = parseGapRangeBounds(b)
+    if (!aBounds || !bBounds) return compareMessageOrder(a, b)
+    return aBounds.start - bBounds.start
+  })
+
+  const mergedGaps: Message[] = []
+  sortedGaps.forEach(gap => {
+    const bounds = parseGapRangeBounds(gap)
+    if (!bounds) {
+      mergedGaps.push(gap)
+      return
+    }
+
+    const prev = mergedGaps[mergedGaps.length - 1]
+    const prevBounds = prev ? parseGapRangeBounds(prev) : null
+
+    if (!prev || !prevBounds || !isAdjacentOrOverlappingRange(prevBounds, bounds)) {
+      mergedGaps.push(gap)
+      return
+    }
+
+    const mergedStart = Math.min(prevBounds.start, bounds.start)
+    const mergedEnd = Math.max(prevBounds.end, bounds.end)
+    const mergedCount = (prev.gapData?.estimatedCount || 0) + (gap.gapData?.estimatedCount || 0)
+    const confidencePriority: Record<'high' | 'medium' | 'low', number> = {
+      low: 1,
+      medium: 2,
+      high: 3,
+    }
+    const prevConf = prev.gapData?.estimateConfidence || 'low'
+    const curConf = gap.gapData?.estimateConfidence || 'low'
+    const mergedConf =
+      confidencePriority[prevConf] >= confidencePriority[curConf] ? prevConf : curConf
+
+    mergedGaps[mergedGaps.length - 1] = createGapMessage(
+      talker,
+      mergedStart,
+      mergedEnd,
+      mergedCount > 0 ? mergedCount : undefined,
+      mergedConf
+    )
+  })
+
+  const merged = mergeChronologicalMessages(nonGaps, mergedGaps)
+
+  if (isDebug && mergedGaps.length < gaps.length) {
+    console.log('🧩 Merged Gap windows:', {
+      talker,
+      before: gaps.length,
+      after: mergedGaps.length,
+    })
+  }
+
+  return merged
+}
+
+/**
+ * 获取历史加载锚点时间（优先虚拟消息）
+ */
+export function getHistoryAnchorBeforeTime(list: Message[]): string | number | undefined {
+  const topMessage = list[0]
+  if (!topMessage) return undefined
+
+  if (topMessage.isEmptyRange && topMessage.emptyRangeData?.suggestedBeforeTime) {
+    return new Date(topMessage.emptyRangeData.suggestedBeforeTime).toISOString()
+  }
+
+  if (topMessage.isGap && topMessage.gapData?.beforeTime) {
+    return new Date(topMessage.gapData.beforeTime).toISOString()
+  }
+
+  return topMessage.time || topMessage.createTime
+}
+
+/**
  * 检查新加载的数据是否与已有数据衔接
  * @param newMessages 新加载的消息（原始数据，未去重）
  * @param existingMessages 已有的消息列表
@@ -338,11 +494,7 @@ export function checkDataConnection(newMessages: Message[], existingMessages: Me
     }
   }
 
-  const minTimeDiff = Math.min(
-    ...candidates.map(([a, b]) => Math.abs(getMessageTimestamp(a) - getMessageTimestamp(b)))
-  )
-
-  return minTimeDiff <= 1000
+  return false
 }
 
 /**
