@@ -36,7 +36,7 @@
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/tsconfig": "^0.8.1",
     "eslint": "^10.0.0",
-    "eslint-plugin-vue": "^10.6.2",
+    "eslint-plugin-vue": "^10.9.1",
     "prettier": "^3.7.4",
     "sass": "^1.97.2",
     "typescript": "~5.3.0",
