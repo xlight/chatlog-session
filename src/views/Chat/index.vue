@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { useAppStore } from '@/stores/app'
 import { useSessionStore } from '@/stores/session'
 import { useChatMessagesStore } from '@/stores/chatMessages'
+import { useSettingsStore } from '@/stores/settings'
 import { useAutoRefreshManager } from '@/composables/useAutoRefreshManager'
 import { useMobileGesture } from '@/composables/useMobileGesture'
 import { useMobileSessionInfo } from '@/composables/useMobileSessionInfo'
@@ -12,6 +13,7 @@ import { useMessageSearch } from '@/composables/useMessageSearch'
 import { useContactAutoLoad } from '@/composables/useContactAutoLoad'
 import SessionList from '@/components/chat/SessionList.vue'
 import MessageList from '@/components/chat/MessageList.vue'
+import SendBox from '@/components/chat/SendBox.vue'
 import ChatHeader from '@/components/chat/ChatHeader.vue'
 import MobileNavBar from '@/components/layout/MobileNavBar.vue'
 import SearchDialog from '@/components/chat/SearchDialog.vue'
@@ -23,6 +25,7 @@ import type { Session, SessionFilterType } from '@/types'
 const appStore = useAppStore()
 const sessionStore = useSessionStore()
 const chatMessagesStore = useChatMessagesStore()
+const settingsStore = useSettingsStore()
 
 // 引用
 const sessionListRef = ref()
@@ -375,6 +378,14 @@ onUnmounted(() => {
             :session-id="currentSession.id"
             :show-date="true"
             :initial-time="currentSessionTime"
+          />
+
+          <!-- 消息发送框 -->
+          <SendBox
+            v-if="settingsStore.sendmsg.enabled"
+            :session="currentSession"
+            :contact="sessionStore.contactMap.get(currentSession.talker) ?? null"
+            @refresh="handleRefreshMessages"
           />
         </template>
       </div>

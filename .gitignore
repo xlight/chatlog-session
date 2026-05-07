@@ -63,3 +63,4 @@ coverage
 *.swo
 *~
 .zed/
+pnpm-workspace.yaml

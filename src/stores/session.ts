@@ -658,6 +658,7 @@ export const useSessionStore = defineStore('session', () => {
     hasSessions,
     hasCurrentSession,
     sessionStats,
+    contactMap,
     isSearchMode: search.isSearchMode,
     searchResultCount,
     searchIndexIncomplete: search.searchIndexIncomplete,

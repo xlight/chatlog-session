@@ -18,6 +18,7 @@ import {
   PrivacySettings,
   AdvancedSettings,
   AboutSettings,
+  SendmsgSettings,
 } from './components'
 
 const appStore = useAppStore()
@@ -34,6 +35,7 @@ const menuItems = [
   { key: 'appearance', label: '外观设置', icon: 'Brush' },
   { key: 'notifications', label: '通知设置', icon: 'Bell' },
   { key: 'chat', label: '聊天设置', icon: 'ChatDotRound' },
+  { key: 'sendmsg', label: '发送设置', icon: 'Promotion' },
   { key: 'privacy', label: '隐私设置', icon: 'Lock' },
   { key: 'advanced', label: '高级设置', icon: 'Setting' },
   { key: 'about', label: '关于', icon: 'InfoFilled' },
@@ -317,6 +319,9 @@ const resetSettings = async () => {
 
             <!-- 聊天设置 -->
             <ChatSettings v-show="activeMenu === 'chat'" v-model="settingsStore.chat" />
+
+            <!-- 发送设置 -->
+            <SendmsgSettings v-show="activeMenu === 'sendmsg'" v-model="settingsStore.sendmsg" />
 
             <!-- 隐私设置 -->
             <PrivacySettings

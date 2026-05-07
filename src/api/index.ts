@@ -9,11 +9,12 @@ import contactAPI from './contact'
 import mediaAPI from './media'
 import chatroomAPI from './chatroom'
 import { dashboardAPI } from './dashboard'
+import { sendmsgAPI } from './sendmsg'
 
 /**
  * 导出所有 API
  */
-export { chatlogAPI, sessionAPI, contactAPI, mediaAPI, chatroomAPI, dashboardAPI }
+export { chatlogAPI, sessionAPI, contactAPI, mediaAPI, chatroomAPI, dashboardAPI, sendmsgAPI }
 export { BaseAPI } from './base'
 
 /**
@@ -26,6 +27,7 @@ export default {
   media: mediaAPI,
   chatroom: chatroomAPI,
   dashboard: dashboardAPI,
+  sendmsg: sendmsgAPI,
 }
 
 /**

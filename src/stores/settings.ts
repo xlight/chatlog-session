@@ -57,6 +57,11 @@ export interface AdvancedSettingsData {
   cacheSize: number
 }
 
+export interface SendmsgSettingsData {
+  apiUrl: string
+  enabled: boolean
+}
+
 // ==================== 默认值 ====================
 
 const defaultApiSettings: ApiSettingsData = {
@@ -107,6 +112,11 @@ const defaultAdvancedSettings: AdvancedSettingsData = {
   cacheSize: 0,
 }
 
+const defaultSendmsgSettings: SendmsgSettingsData = {
+  apiUrl: 'http://127.0.0.1:8765',
+  enabled: false,
+}
+
 export const useSettingsStore = defineStore('settings', () => {
   // ==================== State ====================
 
@@ -116,6 +126,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const chat = ref<ChatSettingsData>({ ...defaultChatSettings })
   const privacy = ref<PrivacySettingsData>({ ...defaultPrivacySettings })
   const advanced = ref<AdvancedSettingsData>({ ...defaultAdvancedSettings })
+  const sendmsg = ref<SendmsgSettingsData>({ ...defaultSendmsgSettings })
 
   // ==================== Getters ====================
 
@@ -129,6 +140,7 @@ export const useSettingsStore = defineStore('settings', () => {
     ...chat.value,
     ...privacy.value,
     ...advanced.value,
+    ...sendmsg.value,
   }))
 
   /**
@@ -217,6 +229,7 @@ export const useSettingsStore = defineStore('settings', () => {
     chat.value = { ...defaultChatSettings }
     privacy.value = { ...defaultPrivacySettings }
     advanced.value = { ...defaultAdvancedSettings }
+    sendmsg.value = { ...defaultSendmsgSettings }
   }
 
   /**
@@ -239,6 +252,7 @@ export const useSettingsStore = defineStore('settings', () => {
     chat,
     privacy,
     advanced,
+    sendmsg,
 
     // Getters
     allSettings,
@@ -253,6 +267,6 @@ export const useSettingsStore = defineStore('settings', () => {
 }, {
   persist: {
     key: 'chatlog-settings',
-    pick: ['api', 'appearance', 'notification', 'chat', 'privacy', 'advanced'],
+    pick: ['api', 'appearance', 'notification', 'chat', 'privacy', 'advanced', 'sendmsg'],
   },
 })
