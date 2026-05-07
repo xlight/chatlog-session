@@ -89,6 +89,7 @@ async function sendMessage() {
       sendState.value = 'success'
       messageText.value = ''
       emit('refresh')
+      autoResetState()
     }
   } catch (error: unknown) {
     sendState.value = 'error'
@@ -126,6 +127,7 @@ function startPolling(messageId: number) {
         stopPolling(messageId)
         sendState.value = 'success'
         emit('refresh')
+        autoResetState()
       } else if (msgStatus === 'failed') {
         stopPolling(messageId)
         sendState.value = 'error'
@@ -204,13 +206,27 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopAllPolling()
+  if (successTimer) clearTimeout(successTimer)
 })
 
 // ==================== 状态重置 ====================
 
+const SUCCESS_DISPLAY_DURATION = 3000
+let successTimer: ReturnType<typeof setTimeout> | null = null
+
 function resetState() {
   sendState.value = 'idle'
   errorMessage.value = ''
+}
+
+function autoResetState() {
+  if (successTimer) clearTimeout(successTimer)
+  successTimer = setTimeout(() => {
+    if (sendState.value === 'success') {
+      resetState()
+    }
+    successTimer = null
+  }, SUCCESS_DISPLAY_DURATION)
 }
 </script>
 
