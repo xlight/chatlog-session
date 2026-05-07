@@ -37,12 +37,16 @@ const testConnection = async () => {
       // 连接成功后查询微信状态
       try {
         const status = await sendmsgAPI.status()
-        if (status.wechat_logged_in) {
+        if (status.wechat_status?.wechat_available) {
           wechatStatus.value = 'online'
-          wechatStatusMessage.value = '微信已登录'
+          const version = status.wechat_status.wechat_version
+          const platform = status.wechat_status.platform
+          wechatStatusMessage.value = version
+            ? `微信可用 (v${version}${platform ? `, ${platform}` : ''})`
+            : '微信可用'
         } else {
           wechatStatus.value = 'offline'
-          wechatStatusMessage.value = status.message || '微信未登录'
+          wechatStatusMessage.value = '微信不可用，请确认微信已登录'
         }
       } catch {
         wechatStatus.value = 'unknown'

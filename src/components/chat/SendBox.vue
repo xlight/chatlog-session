@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { sendmsgAPI } from '@/api/sendmsg'
+import { useDisplayName } from './composables/useDisplayName'
 import type { Session } from '@/types/session'
-import type { Contact } from '@/types/contact'
 
 const props = defineProps<{
   session: Session
-  contact: Contact | null
 }>()
 
 const emit = defineEmits<{
@@ -32,22 +31,17 @@ const POLLING_TIMEOUT = 30000
 
 // ==================== contact_name 解析 ====================
 
+// 复用 useDisplayName composable，与 ChatHeader 保持一致
+const { displayName } = useDisplayName({
+  id: computed(() => props.session?.talker),
+  defaultName: computed(() => props.session?.name),
+})
+
 const contactName = computed(() => {
-  if (!props.session) return ''
-
-  // 群聊：使用 session.name
-  if (props.session.isChatRoom) {
-    return props.session.name || ''
-  }
-
-  // 私聊：alias > remark > nickname
-  const contact = props.contact
-  if (contact) {
-    return contact.alias || contact.remark || contact.nickname || ''
-  }
-
-  // contact 为 null 时，尝试从 session 获取
-  return props.session.remark || props.session.talkerName || ''
+  const name = displayName.value
+  // wxid 格式不是可读名称，wechat-sendmsg 不接受
+  if (!name || name.startsWith('wxid_')) return ''
+  return name
 })
 
 const canSend = computed(() => {
@@ -81,7 +75,7 @@ async function sendMessage() {
 
     if (!result.ok) {
       sendState.value = 'error'
-      errorMessage.value = result.message || '发送失败'
+      errorMessage.value = result.error || result.message || '发送失败'
       return
     }
 
@@ -108,7 +102,7 @@ function startPolling(messageId: number) {
 
   const timer = setInterval(async () => {
     try {
-      const status = await sendmsgAPI.getQueueStatus(messageId)
+      const response = await sendmsgAPI.getQueueStatus(messageId)
 
       // 检查是否超时
       const startTime = pollingStartTimes.value.get(messageId) || Date.now()
@@ -119,15 +113,27 @@ function startPolling(messageId: number) {
         return
       }
 
+      // 响应格式: { ok, message: { status, ... } }
+      if (!response.ok || !response.message) {
+        // 查询失败，继续轮询（可能是暂时性错误）
+        return
+      }
+
+      const msgStatus = response.message.status
+
       // 根据队列状态判断
-      if (status.status === 'success' || status.status === 'sent') {
+      if (msgStatus === 'completed') {
         stopPolling(messageId)
         sendState.value = 'success'
         emit('refresh')
-      } else if (status.status === 'failed' || status.status === 'error') {
+      } else if (msgStatus === 'failed') {
         stopPolling(messageId)
         sendState.value = 'error'
-        errorMessage.value = status.error || '发送失败'
+        errorMessage.value = response.message.error_message || '发送失败'
+      } else if (msgStatus === 'cancelled') {
+        stopPolling(messageId)
+        sendState.value = 'error'
+        errorMessage.value = '消息已取消'
       }
       // 其他状态（pending/processing）继续轮询
     } catch {
@@ -177,9 +183,10 @@ async function checkServiceAvailability() {
   try {
     const status = await sendmsgAPI.status()
     serviceAvailable.value = true
-    wechatLoggedIn.value = status.wechat_logged_in ?? false
-    if (!wechatLoggedIn.value) {
-      serviceStatusMessage.value = status.message || '微信未登录'
+    const wechatAvailable = status.wechat_status?.wechat_available ?? false
+    wechatLoggedIn.value = wechatAvailable
+    if (!wechatAvailable) {
+      serviceStatusMessage.value = '微信不可用，请确认微信已登录'
     } else {
       serviceStatusMessage.value = ''
     }

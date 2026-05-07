@@ -384,7 +384,6 @@ onUnmounted(() => {
           <SendBox
             v-if="settingsStore.sendmsg.enabled"
             :session="currentSession"
-            :contact="sessionStore.contactMap.get(currentSession.talker) ?? null"
             @refresh="handleRefreshMessages"
           />
         </template>

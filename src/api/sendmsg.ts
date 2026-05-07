@@ -28,24 +28,48 @@ export interface SendMessageResponse {
   mode?: string
   message_id?: number
   message?: string
+  error?: string
 }
 
-/** 队列消息状态 */
-export interface QueueMessageStatus {
+/** 队列消息详情 */
+export interface QueueMessageDetail {
   id: number
+  contact_name: string
+  message: string
   status: string
-  contact_name?: string
-  content?: string
+  mode: string
+  priority: number
+  retry_count: number
+  max_retries: number
+  error_message: string | null
+  scheduled_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** 队列消息状态响应 */
+export interface QueueMessageStatusResponse {
+  ok: boolean
+  message?: QueueMessageDetail
   error?: string
-  created_at?: string
-  updated_at?: string
+}
+
+/** 微信状态详情 */
+export interface WechatStatus {
+  wechat_available: boolean
+  window_handle?: number
+  wechat_version?: string
+  is_nt_framework?: boolean
+  supported?: boolean
+  platform?: string
+  framework_type?: string
 }
 
 /** 服务状态 */
 export interface ServiceStatus {
-  status: string
-  wechat_logged_in?: boolean
-  message?: string
+  ok: boolean
+  wechat_status?: WechatStatus
+  error?: string
 }
 
 /** 连接测试结果 */
@@ -73,7 +97,7 @@ export const sendmsgAPI = {
     const client = createSendmsgClient()
     const { data } = await client.post('/api/v1/messages/send', {
       contact_name: contactName,
-      content,
+      message: content,
     })
     return data
   },
@@ -81,8 +105,9 @@ export const sendmsgAPI = {
   /**
    * 查询队列消息状态
    * GET /api/v1/queue/messages/{messageId}
+   * 响应格式: { ok: true, message: { id, status, ... } }
    */
-  async getQueueStatus(messageId: number): Promise<QueueMessageStatus> {
+  async getQueueStatus(messageId: number): Promise<QueueMessageStatusResponse> {
     const client = createSendmsgClient()
     const { data } = await client.get(`/api/v1/queue/messages/${messageId}`)
     return data
