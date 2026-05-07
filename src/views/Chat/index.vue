@@ -373,12 +373,14 @@ onUnmounted(() => {
           </el-drawer>
 
           <!-- 消息列表 -->
-          <MessageList
-            ref="messageListComponent"
-            :session-id="currentSession.id"
-            :show-date="true"
-            :initial-time="currentSessionTime"
-          />
+          <div class="message-list-wrapper">
+            <MessageList
+              ref="messageListComponent"
+              :session-id="currentSession.id"
+              :show-date="true"
+              :initial-time="currentSessionTime"
+            />
+          </div>
 
           <!-- 消息发送框 -->
           <SendBox
@@ -462,6 +464,12 @@ onUnmounted(() => {
   background-color: var(--el-bg-color);
   min-width: 0;
   transition: transform 0.3s ease-out;
+
+  .message-list-wrapper {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
 
   .message-welcome {
     flex: 1;
