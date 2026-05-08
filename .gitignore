@@ -64,3 +64,5 @@ coverage
 *~
 .zed/
 pnpm-workspace.yaml
+.sisyphus/
+docs/external-docs
