@@ -451,6 +451,7 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
 
     .message-bubble__content {
       align-items: flex-end;
+      flex: 0 1 auto;
     }
 
     .message-bubble__body {
@@ -464,6 +465,7 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
 
     .message-bubble__content {
       align-items: flex-start;
+      flex: 0 1 auto;
     }
 
     .message-bubble__body {
@@ -583,7 +585,6 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
     flex-direction: column;
     gap: 4px;
     max-width: calc(100% - 60px);
-    flex: 1;
   }
 
   &__name {
