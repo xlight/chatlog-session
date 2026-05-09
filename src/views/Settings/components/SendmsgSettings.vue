@@ -108,6 +108,7 @@ const testConnection = async () => {
         <el-tag :type="wechatStatus === 'online' ? 'success' : 'danger'" effect="plain">
           {{ wechatStatusMessage }}
         </el-tag>
+        <el-button v-if="wechatStatus === 'offline'" link type="primary" size="small" style="margin-left: 8px" @click="testConnection">重新检测</el-button>
       </el-form-item>
     </el-form>
 

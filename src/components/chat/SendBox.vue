@@ -236,10 +236,12 @@ function autoResetState() {
     <div v-if="!serviceAvailable" class="send-box-status status-error">
       <el-icon><WarningFilled /></el-icon>
       <span>{{ serviceStatusMessage || '发送服务不可用' }}</span>
+      <el-button link type="primary" size="small" @click="checkServiceAvailability">重新检测</el-button>
     </div>
     <div v-else-if="!wechatLoggedIn" class="send-box-status status-warning">
       <el-icon><WarningFilled /></el-icon>
       <span>{{ serviceStatusMessage || '微信未登录' }}</span>
+      <el-button link type="primary" size="small" @click="checkServiceAvailability">重新检测</el-button>
     </div>
     <div v-else-if="contactNameWarning" class="send-box-status status-warning">
       <el-icon><WarningFilled /></el-icon>
