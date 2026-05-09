@@ -228,8 +228,8 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
         beforeDate.getMonth(),
         beforeDate.getDate()
       )
-      const endOfDay = timeRange
-      timeRange = formatCSTRange(startOfDay, new Date(endOfDay))
+      // 从 lastTime 所在天的 0 点到当前时间，避免 session.lastTime 过时导致漏掉新消息
+      timeRange = formatCSTRange(startOfDay, new Date())
     }
     try {
       loading.value = true
