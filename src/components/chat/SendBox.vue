@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { PictureFilled, FolderOpened } from '@element-plus/icons-vue'
+import { CirclePlus, PictureRounded } from '@element-plus/icons-vue'
 import { sendmsgAPI } from '@/api/sendmsg'
 import { useSettingsStore } from '@/stores/settings'
 import { useDisplayName } from './composables/useDisplayName'
@@ -21,11 +21,7 @@ const emit = defineEmits<{
 
 // ==================== 状态 ====================
 
-type SendState = 'idle' | 'sending' | 'queued' | 'polling' | 'success' | 'error'
-
 const messageText = ref('')
-const sendState = ref<SendState>('idle')
-const errorMessage = ref('')
 const serviceAvailable = ref(true)
 const wechatLoggedIn = ref(true)
 const serviceStatusMessage = ref('')
@@ -34,10 +30,40 @@ const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.web
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
-const imageInputRef = ref<HTMLInputElement | null>(null)
 const isDragOver = ref(false)
+const showEmojiPicker = ref(false)
 
-// 轮询管理
+// ==================== 发送中消息 ====================
+
+interface PendingMessage {
+  id: number
+  content: string
+  status: 'sending' | 'success' | 'error'
+  error?: string
+}
+
+const pendingMessages = ref<PendingMessage[]>([])
+let pendingIdCounter = 0
+
+function addPendingMessage(content: string): number {
+  const id = ++pendingIdCounter
+  pendingMessages.value.push({ id, content, status: 'sending' })
+  return id
+}
+
+function updatePendingMessage(id: number, status: 'success' | 'error', error?: string) {
+  const msg = pendingMessages.value.find(m => m.id === id)
+  if (msg) {
+    msg.status = status
+    msg.error = error
+  }
+  setTimeout(() => {
+    pendingMessages.value = pendingMessages.value.filter(m => m.id !== id)
+  }, 3000)
+}
+
+// ==================== 轮询管理 ====================
+
 const pollingTimers = ref<Map<number, ReturnType<typeof setInterval>>>(new Map())
 const pollingStartTimes = ref<Map<number, number>>(new Map())
 const POLLING_INTERVAL = 1000
@@ -45,7 +71,6 @@ const POLLING_TIMEOUT = 30000
 
 // ==================== contact_name 解析 ====================
 
-// 复用 useDisplayName composable，与 ChatHeader 保持一致
 const { displayName } = useDisplayName({
   id: computed(() => props.session?.talker),
   defaultName: computed(() => props.session?.name),
@@ -53,19 +78,12 @@ const { displayName } = useDisplayName({
 
 const contactName = computed(() => {
   const name = displayName.value
-  // wxid 格式不是可读名称，wechat-sendmsg 不接受
   if (!name || name.startsWith('wxid_')) return ''
   return name
 })
 
 const canSend = computed(() => {
-  return (
-    sendState.value === 'idle' ||
-    sendState.value === 'success' ||
-    sendState.value === 'error'
-  ) && serviceAvailable.value &&
-    wechatLoggedIn.value &&
-    contactName.value !== ''
+  return serviceAvailable.value && wechatLoggedIn.value && contactName.value !== ''
 })
 
 const sendPlaceholder = computed(() => {
@@ -85,58 +103,43 @@ const contactNameWarning = computed(() => {
   return ''
 })
 
+const hasText = computed(() => messageText.value.trim().length > 0)
+
 // ==================== 发送逻辑 ====================
 
 async function sendMessage() {
   const text = messageText.value.trim()
   if (!text || !canSend.value) return
 
-  sendState.value = 'sending'
-  errorMessage.value = ''
+  messageText.value = ''
+  const pendingId = addPendingMessage(text)
 
   try {
     const result = await sendmsgAPI.send(contactName.value, text)
 
     if (!result.ok) {
-      sendState.value = 'error'
-      errorMessage.value = result.error || result.message || '发送失败'
+      updatePendingMessage(pendingId, 'error', result.error || result.message || '发送失败')
       return
     }
 
     if (result.message_id !== undefined) {
-      sendState.value = 'queued'
-      messageText.value = ''
-      startPolling(result.message_id)
+      startPolling(result.message_id, pendingId)
     } else {
-      sendState.value = 'success'
-      messageText.value = ''
+      updatePendingMessage(pendingId, 'success')
       emit('refresh')
-      autoResetState()
     }
   } catch (error: unknown) {
-    sendState.value = 'error'
-    errorMessage.value = error instanceof Error ? error.message : '发送请求失败'
+    updatePendingMessage(pendingId, 'error', error instanceof Error ? error.message : '发送请求失败')
   }
 }
 
-// ==================== 文件/图片发送逻辑 ====================
+// ==================== 文件发送逻辑 ====================
 
 function triggerFileSelect() {
   fileInputRef.value?.click()
 }
 
-function triggerImageSelect() {
-  imageInputRef.value?.click()
-}
-
 function handleFileChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (file) sendFileOrImage(file)
-  input.value = ''
-}
-
-function handleImageChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (file) sendFileOrImage(file)
@@ -151,85 +154,70 @@ async function sendFileOrImage(file: File) {
     return
   }
 
-  sendState.value = 'sending'
-  errorMessage.value = ''
+  const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+  const isImage = IMAGE_EXTENSIONS.has(ext)
+  const label = isImage ? `📷 ${file.name}` : `📎 ${file.name}`
+  const pendingId = addPendingMessage(label)
 
   try {
-    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
-    const isImage = IMAGE_EXTENSIONS.has(ext)
-
     const result = isImage
       ? await sendmsgAPI.sendImageUpload(contactName.value, file)
       : await sendmsgAPI.sendFileUpload(contactName.value, file)
 
     if (!result.ok) {
-      sendState.value = 'error'
-      errorMessage.value = result.error || result.message || '发送失败'
+      updatePendingMessage(pendingId, 'error', result.error || result.message || '发送失败')
       return
     }
 
     if (result.message_id !== undefined) {
-      sendState.value = 'queued'
-      startPolling(result.message_id)
+      startPolling(result.message_id, pendingId)
     } else {
-      sendState.value = 'success'
+      updatePendingMessage(pendingId, 'success')
       emit('refresh')
-      autoResetState()
     }
   } catch (error: unknown) {
-    sendState.value = 'error'
-    errorMessage.value = error instanceof Error ? error.message : '发送请求失败'
+    updatePendingMessage(pendingId, 'error', error instanceof Error ? error.message : '发送请求失败')
   }
 }
 
-function startPolling(messageId: number) {
-  sendState.value = 'polling'
+// ==================== 轮询 ====================
+
+function startPolling(messageId: number, pendingId: number) {
   pollingStartTimes.value.set(messageId, Date.now())
 
   const timer = setInterval(async () => {
     try {
       const response = await sendmsgAPI.getQueueStatus(messageId)
 
-      // 检查是否超时
       const startTime = pollingStartTimes.value.get(messageId) || Date.now()
       if (Date.now() - startTime > POLLING_TIMEOUT) {
         stopPolling(messageId)
-        sendState.value = 'error'
-        errorMessage.value = '发送超时，请到微信确认'
+        updatePendingMessage(pendingId, 'error', '发送超时，请到微信确认')
         return
       }
 
-      // 响应格式: { ok, message: { status, ... } }
       if (!response.ok || !response.message) {
-        // 查询失败，继续轮询（可能是暂时性错误）
         return
       }
 
       const msgStatus = response.message.status
 
-      // 根据队列状态判断
       if (msgStatus === 'completed') {
         stopPolling(messageId)
-        sendState.value = 'success'
+        updatePendingMessage(pendingId, 'success')
         emit('refresh')
-        autoResetState()
       } else if (msgStatus === 'failed') {
         stopPolling(messageId)
-        sendState.value = 'error'
-        errorMessage.value = response.message.error_message || '发送失败'
+        updatePendingMessage(pendingId, 'error', response.message.error_message || '发送失败')
       } else if (msgStatus === 'cancelled') {
         stopPolling(messageId)
-        sendState.value = 'error'
-        errorMessage.value = '消息已取消'
+        updatePendingMessage(pendingId, 'error', '消息已取消')
       }
-      // 其他状态（pending/processing）继续轮询
     } catch {
-      // 轮询请求失败，检查超时
       const startTime = pollingStartTimes.value.get(messageId) || Date.now()
       if (Date.now() - startTime > POLLING_TIMEOUT) {
         stopPolling(messageId)
-        sendState.value = 'error'
-        errorMessage.value = '发送超时，请到微信确认'
+        updatePendingMessage(pendingId, 'error', '发送超时，请到微信确认')
       }
     }
   }, POLLING_INTERVAL)
@@ -314,6 +302,24 @@ function handleKeydown(e: Event | KeyboardEvent) {
   }
 }
 
+// ==================== Emoji ====================
+
+const EMOJI_LIST = [
+  '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+  '🙂', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗',
+  '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝',
+  '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑',
+  '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔',
+  '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮',
+  '👍', '👎', '👏', '🙌', '🤝', '💪', '✌️', '🤞',
+  '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+]
+
+function insertEmoji(emoji: string) {
+  messageText.value += emoji
+  showEmojiPicker.value = false
+}
+
 // ==================== 服务可用性检测 ====================
 
 async function checkServiceAvailability() {
@@ -341,28 +347,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopAllPolling()
-  if (successTimer) clearTimeout(successTimer)
 })
-
-// ==================== 状态重置 ====================
-
-const SUCCESS_DISPLAY_DURATION = 3000
-let successTimer: ReturnType<typeof setTimeout> | null = null
-
-function resetState() {
-  sendState.value = 'idle'
-  errorMessage.value = ''
-}
-
-function autoResetState() {
-  if (successTimer) clearTimeout(successTimer)
-  successTimer = setTimeout(() => {
-    if (sendState.value === 'success') {
-      resetState()
-    }
-    successTimer = null
-  }, SUCCESS_DISPLAY_DURATION)
-}
 </script>
 
 <template>
@@ -383,39 +368,43 @@ function autoResetState() {
       <span>{{ contactNameWarning }}</span>
     </div>
 
-    <!-- 发送状态提示 -->
-    <div v-if="sendState === 'polling'" class="send-box-status status-info">
-      <el-icon class="is-loading"><Loading /></el-icon>
-      <span>正在发送...</span>
-    </div>
-    <div v-if="sendState === 'error'" class="send-box-status status-error">
-      <el-icon><CircleCloseFilled /></el-icon>
-      <span>{{ errorMessage }}</span>
-      <el-button link type="primary" size="small" @click="resetState">重试</el-button>
-    </div>
-    <div v-if="sendState === 'success'" class="send-box-status status-success">
-      <el-icon><CircleCheckFilled /></el-icon>
-      <span>发送成功</span>
+    <!-- 发送中消息列表 -->
+    <div v-if="pendingMessages.length > 0" class="pending-messages">
+      <div
+        v-for="msg in pendingMessages"
+        :key="msg.id"
+        class="pending-msg"
+        :class="`pending-${msg.status}`"
+      >
+        <el-icon v-if="msg.status === 'sending'" class="is-loading"><Loading /></el-icon>
+        <el-icon v-else-if="msg.status === 'success'"><CircleCheckFilled /></el-icon>
+        <el-icon v-else><CircleCloseFilled /></el-icon>
+        <span class="pending-content">{{ msg.content }}</span>
+        <span class="pending-status">
+          {{ msg.status === 'sending' ? '发送中...' : msg.status === 'success' ? '已发送' : msg.error || '发送失败' }}
+        </span>
+      </div>
     </div>
 
     <!-- 输入区域 -->
     <div class="send-box-input">
-      <div class="send-box-actions">
-        <el-button
-          :disabled="!canSend"
-          :icon="PictureFilled"
-          link
-          title="发送图片"
-          @click="triggerImageSelect"
-        />
-        <el-button
-          :disabled="!canSend"
-          :icon="FolderOpened"
-          link
-          title="发送文件"
-          @click="triggerFileSelect"
-        />
-      </div>
+      <!-- 表情按钮 -->
+      <el-popover :visible="showEmojiPicker" placement="top-start" :width="320" trigger="click" @update:visible="showEmojiPicker = $event">
+        <template #reference>
+          <el-button :disabled="!canSend" link class="action-btn" title="表情">
+            <el-icon><PictureRounded /></el-icon>
+          </el-button>
+        </template>
+        <div class="emoji-grid">
+          <button
+            v-for="emoji in EMOJI_LIST"
+            :key="emoji"
+            class="emoji-item"
+            @click="insertEmoji(emoji)"
+          >{{ emoji }}</button>
+        </div>
+      </el-popover>
+
       <el-input
         v-model="messageText"
         type="textarea"
@@ -425,10 +414,23 @@ function autoResetState() {
         resize="none"
         @keydown="handleKeydown"
       />
+
+      <!-- ➕ 按钮（输入框空时） -->
       <el-button
+        v-if="!hasText"
+        :disabled="!canSend"
+        :icon="CirclePlus"
+        link
+        class="action-btn"
+        title="发送文件"
+        @click="triggerFileSelect"
+      />
+
+      <!-- 发送按钮（输入框有内容时） -->
+      <el-button
+        v-else
         type="primary"
-        :disabled="!canSend || !messageText.trim()"
-        :loading="sendState === 'sending'"
+        :disabled="!canSend"
         class="send-button"
         @click="sendMessage"
       >
@@ -438,7 +440,6 @@ function autoResetState() {
 
     <!-- 隐藏的文件选择 input -->
     <input ref="fileInputRef" type="file" style="display: none" @change="handleFileChange" />
-    <input ref="imageInputRef" type="file" accept="image/*" style="display: none" @change="handleImageChange" />
   </div>
 </template>
 
@@ -474,16 +475,48 @@ function autoResetState() {
     color: var(--el-color-warning);
     background-color: var(--el-color-warning-light-9);
   }
+}
 
-  &.status-info {
+.pending-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.pending-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+
+  &.pending-sending {
     color: var(--el-color-primary);
     background-color: var(--el-color-primary-light-9);
   }
 
-  &.status-success {
+  &.pending-success {
     color: var(--el-color-success);
     background-color: var(--el-color-success-light-9);
   }
+
+  &.pending-error {
+    color: var(--el-color-danger);
+    background-color: var(--el-color-danger-light-9);
+  }
+}
+
+.pending-content {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-status {
+  flex-shrink: 0;
 }
 
 .send-box-input {
@@ -502,8 +535,35 @@ function autoResetState() {
   }
 }
 
+.action-btn {
+  flex-shrink: 0;
+  font-size: 20px;
+  padding: 4px;
+}
+
 .send-button {
   flex-shrink: 0;
   height: 40px;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.emoji-item {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px;
+  border-radius: 4px;
+  text-align: center;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background-color: var(--el-fill-color-light);
+  }
 }
 </style>
