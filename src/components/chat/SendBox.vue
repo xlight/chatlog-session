@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { PictureFilled, FolderOpened } from '@element-plus/icons-vue'
 import { sendmsgAPI } from '@/api/sendmsg'
 import { useDisplayName } from './composables/useDisplayName'
 import type { Session } from '@/types/session'
@@ -22,6 +24,13 @@ const errorMessage = ref('')
 const serviceAvailable = ref(true)
 const wechatLoggedIn = ref(true)
 const serviceStatusMessage = ref('')
+
+const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.ico'])
+const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
+
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const imageInputRef = ref<HTMLInputElement | null>(null)
+const isDragOver = ref(false)
 
 // 轮询管理
 const pollingTimers = ref<Map<number, ReturnType<typeof setInterval>>>(new Map())
@@ -79,15 +88,76 @@ async function sendMessage() {
       return
     }
 
-    // 消息已加入队列
     if (result.message_id !== undefined) {
       sendState.value = 'queued'
       messageText.value = ''
       startPolling(result.message_id)
     } else {
-      // 没有队列 ID，直接标记成功
       sendState.value = 'success'
       messageText.value = ''
+      emit('refresh')
+      autoResetState()
+    }
+  } catch (error: unknown) {
+    sendState.value = 'error'
+    errorMessage.value = error instanceof Error ? error.message : '发送请求失败'
+  }
+}
+
+// ==================== 文件/图片发送逻辑 ====================
+
+function triggerFileSelect() {
+  fileInputRef.value?.click()
+}
+
+function triggerImageSelect() {
+  imageInputRef.value?.click()
+}
+
+function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) sendFileOrImage(file)
+  input.value = ''
+}
+
+function handleImageChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) sendFileOrImage(file)
+  input.value = ''
+}
+
+async function sendFileOrImage(file: File) {
+  if (!canSend.value) return
+
+  if (file.size > MAX_FILE_SIZE) {
+    ElMessage.warning(`文件大小不能超过 ${MAX_FILE_SIZE / 1024 / 1024}MB`)
+    return
+  }
+
+  sendState.value = 'sending'
+  errorMessage.value = ''
+
+  try {
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+    const isImage = IMAGE_EXTENSIONS.has(ext)
+
+    const result = isImage
+      ? await sendmsgAPI.sendImageUpload(contactName.value, file)
+      : await sendmsgAPI.sendFileUpload(contactName.value, file)
+
+    if (!result.ok) {
+      sendState.value = 'error'
+      errorMessage.value = result.error || result.message || '发送失败'
+      return
+    }
+
+    if (result.message_id !== undefined) {
+      sendState.value = 'queued'
+      startPolling(result.message_id)
+    } else {
+      sendState.value = 'success'
       emit('refresh')
       autoResetState()
     }
@@ -169,6 +239,46 @@ function stopAllPolling() {
   pollingStartTimes.value.clear()
 }
 
+// ==================== 粘贴图片 ====================
+
+const IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml'])
+
+function handlePaste(e: ClipboardEvent) {
+  const items = e.clipboardData?.items
+  if (!items) return
+
+  for (const item of items) {
+    if (IMAGE_MIME_TYPES.has(item.type)) {
+      e.preventDefault()
+      const file = item.getAsFile()
+      if (file) sendFileOrImage(file)
+      return
+    }
+  }
+}
+
+// ==================== 拖拽文件 ====================
+
+function handleDragOver(e: DragEvent) {
+  e.preventDefault()
+  if (e.dataTransfer?.types.includes('Files')) {
+    isDragOver.value = true
+  }
+}
+
+function handleDragLeave(e: DragEvent) {
+  e.preventDefault()
+  isDragOver.value = false
+}
+
+function handleDrop(e: DragEvent) {
+  e.preventDefault()
+  isDragOver.value = false
+
+  const file = e.dataTransfer?.files?.[0]
+  if (file) sendFileOrImage(file)
+}
+
 // ==================== 键盘事件 ====================
 
 function handleKeydown(e: Event | KeyboardEvent) {
@@ -231,7 +341,7 @@ function autoResetState() {
 </script>
 
 <template>
-  <div class="send-box">
+  <div class="send-box" :class="{ 'is-drag-over': isDragOver }" @paste="handlePaste" @dragover="handleDragOver" @dragleave="handleDragLeave" @drop="handleDrop">
     <!-- 服务状态提示 -->
     <div v-if="!serviceAvailable" class="send-box-status status-error">
       <el-icon><WarningFilled /></el-icon>
@@ -265,6 +375,22 @@ function autoResetState() {
 
     <!-- 输入区域 -->
     <div class="send-box-input">
+      <div class="send-box-actions">
+        <el-button
+          :disabled="!canSend"
+          :icon="PictureFilled"
+          link
+          title="发送图片"
+          @click="triggerImageSelect"
+        />
+        <el-button
+          :disabled="!canSend"
+          :icon="FolderOpened"
+          link
+          title="发送文件"
+          @click="triggerFileSelect"
+        />
+      </div>
       <el-input
         v-model="messageText"
         type="textarea"
@@ -284,6 +410,10 @@ function autoResetState() {
         发送
       </el-button>
     </div>
+
+    <!-- 隐藏的文件选择 input -->
+    <input ref="fileInputRef" type="file" style="display: none" @change="handleFileChange" />
+    <input ref="imageInputRef" type="file" accept="image/*" style="display: none" @change="handleImageChange" />
   </div>
 </template>
 
@@ -293,6 +423,12 @@ function autoResetState() {
   padding: 8px 12px;
   background-color: var(--el-bg-color);
   flex-shrink: 0;
+  transition: border-color 0.2s, background-color 0.2s;
+
+  &.is-drag-over {
+    border-color: var(--el-color-primary);
+    background-color: var(--el-color-primary-light-9);
+  }
 }
 
 .send-box-status {

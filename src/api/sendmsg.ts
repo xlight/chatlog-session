@@ -103,6 +103,68 @@ export const sendmsgAPI = {
   },
 
   /**
+   * 发送文件
+   * POST /api/v1/messages/send-file
+   */
+  async sendFile(contactName: string, fileName: string, fileBase64: string, mode = 'queue'): Promise<SendMessageResponse> {
+    const client = createSendmsgClient()
+    const { data } = await client.post('/api/v1/messages/send-file', {
+      contact_name: contactName,
+      mode,
+      file_name: fileName,
+      file_base64: fileBase64,
+    })
+    return data
+  },
+
+  /**
+   * 发送图片
+   * POST /api/v1/messages/send-image
+   */
+  async sendImage(contactName: string, fileName: string, fileBase64: string, mode = 'queue'): Promise<SendMessageResponse> {
+    const client = createSendmsgClient()
+    const { data } = await client.post('/api/v1/messages/send-image', {
+      contact_name: contactName,
+      mode,
+      file_name: fileName,
+      file_base64: fileBase64,
+    })
+    return data
+  },
+
+  /**
+   * 发送图片（multipart/form-data 上传）
+   * POST /api/v1/messages/send-image
+   */
+  async sendImageUpload(contactName: string, file: File, mode = 'queue'): Promise<SendMessageResponse> {
+    const client = createSendmsgClient()
+    const formData = new FormData()
+    formData.append('contact_name', contactName)
+    formData.append('mode', mode)
+    formData.append('file', file)
+    const { data } = await client.post('/api/v1/messages/send-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return data
+  },
+
+  /**
+   * 发送文件（multipart/form-data 上传）
+   * POST /api/v1/messages/send-file
+   */
+  async sendFileUpload(contactName: string, file: File, mode = 'queue'): Promise<SendMessageResponse> {
+    const client = createSendmsgClient()
+    const formData = new FormData()
+    formData.append('contact_name', contactName)
+    formData.append('mode', mode)
+    formData.append('file', file)
+    const { data } = await client.post('/api/v1/messages/send-file', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return data
+  },
+
+  /**
    * 查询队列消息状态
    * GET /api/v1/queue/messages/{messageId}
    * 响应格式: { ok: true, message: { id, status, ... } }
