@@ -3,8 +3,13 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { PictureFilled, FolderOpened } from '@element-plus/icons-vue'
 import { sendmsgAPI } from '@/api/sendmsg'
+import { useSettingsStore } from '@/stores/settings'
 import { useDisplayName } from './composables/useDisplayName'
 import type { Session } from '@/types/session'
+
+const settingsStore = useSettingsStore()
+
+const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
 
 const props = defineProps<{
   session: Session
@@ -61,6 +66,16 @@ const canSend = computed(() => {
   ) && serviceAvailable.value &&
     wechatLoggedIn.value &&
     contactName.value !== ''
+})
+
+const sendPlaceholder = computed(() => {
+  if (!canSend.value) return '无法发送'
+  const shortcut = settingsStore.sendmsg.sendShortcut
+  if (shortcut === 'ctrl-enter') {
+    const mod = isMac ? '⌘' : 'Ctrl'
+    return `输入消息，${mod}+Enter 发送，Enter 换行`
+  }
+  return '输入消息，Enter 发送，Shift+Enter 换行'
 })
 
 const contactNameWarning = computed(() => {
@@ -283,9 +298,19 @@ function handleDrop(e: DragEvent) {
 
 function handleKeydown(e: Event | KeyboardEvent) {
   const ke = e as KeyboardEvent
-  if (ke.key === 'Enter' && !ke.shiftKey) {
-    e.preventDefault()
-    sendMessage()
+  if (ke.key !== 'Enter') return
+
+  const shortcut = settingsStore.sendmsg.sendShortcut
+  if (shortcut === 'ctrl-enter') {
+    if ((ke.metaKey || ke.ctrlKey) && !ke.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  } else {
+    if (!ke.shiftKey && !ke.metaKey && !ke.ctrlKey) {
+      e.preventDefault()
+      sendMessage()
+    }
   }
 }
 
@@ -395,7 +420,7 @@ function autoResetState() {
         v-model="messageText"
         type="textarea"
         :rows="2"
-        :placeholder="canSend ? '输入消息，Enter 发送，Shift+Enter 换行' : '无法发送'"
+        :placeholder="sendPlaceholder"
         :disabled="!canSend"
         resize="none"
         @keydown="handleKeydown"

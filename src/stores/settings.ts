@@ -57,9 +57,12 @@ export interface AdvancedSettingsData {
   cacheSize: number
 }
 
+export type SendShortcut = 'enter' | 'ctrl-enter'
+
 export interface SendmsgSettingsData {
   apiUrl: string
   enabled: boolean
+  sendShortcut: SendShortcut
 }
 
 // ==================== 默认值 ====================
@@ -115,6 +118,7 @@ const defaultAdvancedSettings: AdvancedSettingsData = {
 const defaultSendmsgSettings: SendmsgSettingsData = {
   apiUrl: 'http://127.0.0.1:8765',
   enabled: false,
+  sendShortcut: 'enter',
 }
 
 export const useSettingsStore = defineStore('settings', () => {

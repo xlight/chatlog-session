@@ -2,7 +2,15 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { sendmsgAPI } from '@/api/sendmsg'
-import type { SendmsgSettingsData } from '@/stores/settings'
+import type { SendmsgSettingsData, SendShortcut } from '@/stores/settings'
+
+const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
+const modKeyLabel = isMac ? '⌘' : 'Ctrl'
+
+const sendShortcutOptions: { value: SendShortcut; label: string }[] = [
+  { value: 'enter', label: 'Enter' },
+  { value: 'ctrl-enter', label: `${modKeyLabel}+Enter` },
+]
 
 const props = defineProps<{
   modelValue: SendmsgSettingsData
@@ -76,6 +84,24 @@ const testConnection = async () => {
         />
         <el-text type="info" size="small" style="margin-left: 12px">
           启用后在聊天界面底部显示消息输入框
+        </el-text>
+      </el-form-item>
+
+      <el-form-item label="发送快捷键">
+        <el-radio-group
+          :model-value="modelValue.sendShortcut"
+          @update:model-value="(val: string | number | boolean | undefined) => updateValue('sendShortcut', val as SendShortcut)"
+        >
+          <el-radio
+            v-for="opt in sendShortcutOptions"
+            :key="opt.value"
+            :value="opt.value"
+          >
+            {{ opt.label }}
+          </el-radio>
+        </el-radio-group>
+        <el-text type="info" size="small" style="margin-left: 12px">
+          {{ modelValue.sendShortcut === 'enter' ? 'Enter 发送，Shift+Enter 换行' : `${modKeyLabel}+Enter 发送，Enter 换行` }}
         </el-text>
       </el-form-item>
 
