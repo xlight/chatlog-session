@@ -120,25 +120,10 @@ const avatarUrl = computed(() => {
     return props.message.talkerAvatar
   }
 
-  // 确定要获取头像的用户 ID
-  let username = ''
-  if (isSelf.value) {
-    // 如果是自己，尝试使用 sender
-    username = props.message.sender
-  } else {
-    // 如果是对方
-    if (props.message.isChatRoom) {
-      // 群聊显示发送者头像
-      username = props.message.sender
-    } else {
-      // 私聊显示聊天对象头像
-      username = props.message.talker
-    }
-  }
-
+  // 统一使用 sender 获取头像（头像代表消息发送者）
+  const username = props.message.sender
   if (!username) return ''
 
-  // 构造 API URL
   return mediaAPI.getAvatarUrl(`avatar/${username}`)
 })
 

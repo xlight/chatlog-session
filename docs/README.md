@@ -1,645 +1,643 @@
 # Chatlog Session 文档中心
 
-欢迎来到 Chatlog Session 的文档中心！这里包含了项目的所有技术文档、用户指南和开发资料。
-
-## 📚 文档导航
-
-### 🗺️ 项目路线图
-- [ROADMAP](ROADMAP.md) - 项目开发路线图和版本规划
-- [CHANGELOG](CHANGELOG.md) - 完整变更日志
-
-### 🚀 快速开始
-- [主布局快速开始](guides/quick-start/main-layout-quick-start.md) - 5分钟了解项目结构
-- [Contact 功能快速参考](guides/quick-start/contact-db-quick-reference.md) - Contact 视图使用速查
-- [API 设置快速指南](guides/quick-start/api-settings-quick-guide.md) - API 配置快速上手
-
-### 👥 用户指南
-- [用户使用手册](guides/user/user-guide.md) - 完整的用户使用说明
-- [后台刷新使用指南](guides/user/background-refresh-guide.md) - 如何使用后台刷新功能
-- [PWA 设置指南](guides/pwa-setup-guide.md) - Progressive Web App 配置指南
-
-### 💻 开发指南
-- [开发者指南](guides/developer/developer-guide.md) - 开发环境搭建和开发流程
-- [测试指南](guides/developer/testing-guide.md) - 测试方法和最佳实践
-- [版本管理](guides/developer/version-management.md) - 版本控制和发布流程
-- [历史消息加载优化总结](guides/developer/history-loading-optimization-summary.md) - 历史消息加载技术总结
-
-#### 调试指南
-- [调试消息日期问题](guides/developer/debugging/debug-message-date.md) - 常见问题调试
-- [自动刷新调试指南](guides/developer/debugging/auto-refresh-debugging.md) - 自动刷新问题排查
-- [Empty Range 调试](guides/developer/debugging/debug-empty-range.md) - 空范围消息调试
-- [虚拟间隔调试指南](guides/developer/debugging/virtual-gap-debug-guide.md) - 虚拟间隔消息调试
-
-#### 实现指南
-- [历史消息加载流程](guides/developer/implementation/history-message-loading-process.md) - 历史消息加载详细流程
-- [时区使用指南](guides/developer/implementation/timezone-usage.md) - 时区处理最佳实践
-- [间隔消息使用指南](guides/developer/implementation/gap-message-usage.md) - 间隔消息实现方法
-- [实时消息实现](guides/developer/implementation/live-message-implementation.md) - 实时消息技术实现
-
-#### 测试指南
-- [Contact 中文索引测试](guides/developer/testing/contact-chinese-index-testing.md) - 中文索引功能测试
-- [Empty Range 测试](guides/developer/testing/test-empty-range.md) - 空范围功能测试
-- [时间间隔测试](guides/developer/testing/test-empty-range-time-gap.md) - 时间间隔功能测试
-- [LoadMessages 空范围测试](guides/developer/testing/test-loadmessages-empty-range.md) - 消息加载空范围测试
-
-### 🔌 API 文档
-- [API 参考手册](api/reference.md) - 完整的 API 接口文档
-- [HTTP API](api/http-api.md) - HTTP 接口详细说明
-- [数据结构](api/data-structure.md) - 数据模型和字段说明
-- [会话映射](api/session-mapping.md) - 会话数据处理
-- [分页机制](api/pagination.md) - 分页参数和使用方法
-- [响应修复](api/response-fix.md) - 常见响应问题处理
-
-#### API 示例
-- [自动解密示例](api/examples/auto-decrypt.md) - 自动解密功能示例
-- [Chatlog 示例](api/examples/chatlog.md) - Chatlog 使用示例
-- [Chatlog 2.0 示例](api/examples/chatlog-2.md) - Chatlog 2.0 使用示例
-- [聊天室示例](api/examples/chatroom.md) - 聊天室功能示例
-- [联系人示例](api/examples/contact.md) - 联系人数据示例
-- [仪表板示例](api/examples/dashboard.md) - 仪表板功能示例
-- [解密示例](api/examples/decrypt.md) - 解密功能示例
-- [日记示例](api/examples/diary.md) - 日记功能示例
-- [搜索示例](api/examples/search.md) - 搜索功能示例
-- [会话示例](api/examples/session.md) - 会话功能示例
-- [会话 2.0 示例](api/examples/session-v2.md) - 会话 2.0 功能示例
-- [设置示例](api/examples/setting.md) - 设置功能示例
-
-### ⚡ 功能特性
-
-#### 核心功能
-- [消息自动刷新与缓存总结](features/core/message-cache/message-auto-refresh-cache-summary.md) - 自动刷新缓存系统总结
-- [消息缓存实现总结](features/core/message-cache/message-cache-implementation-summary.md) - 缓存实现技术总结
-- [消息缓存自动刷新](features/core/message-cache/message-cache-autorefresh.md) - 自动刷新机制详解
-- [IndexedDB 缓存](features/core/message-cache/indexeddb-cache.md) - 本地缓存实现
-- [IndexedDB 集成](features/core/message-cache/indexeddb-integration.md) - 数据库集成方案
-
-#### 消息加载
-- [带时间戳的消息加载](features/core/message-loading/message-loading-with-createtime.md) - 时间戳消息加载
-- [下拉加载历史消息](features/core/message-loading/pull-down-to-load-history.md) - 下拉刷新功能
-- [进度条状态](features/core/message-loading/loading-progress-states.md) - LoadingProgress 组件说明
-
-#### 滚动位置
-- [滚动位置记忆](features/core/scroll-position/scroll-position-memory.md) - 滚动位置保持功能
-- [滚动位置记忆流程图](features/core/scroll-position/scroll-position-memory-flowchart.md) - 滚动记忆流程图
-- [滚动位置记忆检查清单](features/core/scroll-position/scroll-position-memory-checklist.md) - 滚动记忆功能检查
-- [滚动到底部修复](features/core/scroll-position/scroll-to-bottom-fix.md) - 滚动问题解决方案
-
-#### 虚拟消息
-- [虚拟间隔消息](features/core/virtual-messages/virtual-gap-message.md) - 虚拟间隔消息实现
-- [虚拟间隔消息文档索引](features/core/virtual-messages/virtual-gap-docs-index.md) - 虚拟间隔文档索引
-- [空范围消息](features/core/virtual-messages/empty-range-message.md) - 空范围消息处理
-- [空范围时间间隔检测](features/core/virtual-messages/empty-range-time-gap-detection.md) - 时间间隔检测
-
-#### 后台功能
-- [后台刷新实现](features/background/background-refresh-implementation.md) - 后台刷新技术实现
-- [后台加载器](features/background/background-loading.md) - BackgroundLoader 使用说明
-- [无感知刷新会话列表](features/background/silent-refresh-sessionlist.md) - 静默刷新技术
-- [无感知刷新会话列表总结](features/background/silent-refresh-sessionlist-summary.md) - 静默刷新技术总结
-
-#### 联系人功能
-- [Contact 数据库模式](features/contact/contact-db-mode.md) - Contact 视图优化详解
-- [Chat 自动加载](features/contact/contact-auto-load.md) - 自动加载联系人功能
-- [联系人功能](features/contact/contact-features.md) - 联系人管理功能详解
-
-#### 联系人索引
-- [联系人中文索引](features/contact/contact-index/contact-chinese-index.md) - 中文索引功能
-- [联系人中文索引实现](features/contact/contact-index/contact-chinese-index-implementation.md) - 中文索引技术实现
-- [联系人索引优化](features/contact/contact-index/contact-index-optimization.md) - 索引性能优化
-
-#### 联系人 IndexedDB
-- [联系人索引数据库清理指南](features/contact/contact-indexeddb/contact-index-db-clear-guide.md) - 数据库清理方法
-- [联系人索引数据库升级](features/contact/contact-indexeddb/contact-index-db-upgrade.md) - 数据库升级指南
-
-#### 消息功能
-- [消息气泡增强](features/ui/message-bubble-enhancement.md) - MessageBubble 组件扩展
-- [转发消息对话框](features/messages/rich/forwarded-message-dialog.md) - 转发消息显示
-- [转发消息增强](features/messages/rich/forwarded-message-enhancement.md) - 转发消息功能增强
-- [接龙消息](features/messages/rich/jielong-message.md) - 接龙消息处理
-- [转账消息](features/messages/rich/transfer-message.md) - 转账消息处理
-
-#### 基础消息
-- [名片消息](features/messages/basic/contact-card-message.md) - 名片消息处理
-- [位置消息](features/messages/basic/location-message.md) - 位置消息处理
-- [语音播放](features/messages/basic/voice-playback.md) - 语音消息播放
-- [历史加载中的空范围](features/messages/basic/empty-range-in-history-loading.md) - 历史加载空范围处理
-
-#### 媒体消息
-- [媒体显示控制](features/messages/media/media-display-control.md) - 媒体显示控制功能
-- [媒体显示控制实现](features/messages/media/media-display-control-implementation.md) - 媒体控制技术实现
-- [媒体显示控制总结](features/messages/media/media-display-control-summary.md) - 媒体控制功能总结
-- [媒体显示控制测试](features/messages/media/media-display-control-test.md) - 媒体控制功能测试
-- [视频链接消息](features/messages/media/video-link-message.md) - 视频链接消息处理
-
-#### 通知功能
-- [消息通知](features/notification/message-notification.md) - 消息通知功能
-- [消息通知总结](features/notification/message-notification-summary.md) - 通知功能技术总结
-- [通知增强](features/notification/notification-enhancements.md) - 通知功能增强
-
-#### 性能优化
-- [虚拟滚动](features/performance/virtual-scroll.md) - 虚拟滚动技术实现
-
-#### PWA 功能
-- [PWA 实现](features/pwa/pwa-implementation.md) - Progressive Web App 技术实现
-
-#### 搜索功能
-- [搜索功能](features/search/search-feature.md) - 搜索功能实现
-
-#### UI 功能
-- [移动端 UI 适配](features/ui/mobile/mobile-ui-adaptation.md) - 移动端界面适配
-- [移动端 UI 实现](features/ui/mobile/mobile-ui-implementation.md) - 移动端界面技术实现
-- [移动端性能优化](features/ui/mobile/mobile-performance-optimization.md) - 移动端性能优化
-- [新手引导](features/ui/onboarding-guide.md) - 首次使用引导功能
-
-#### 其他功能
-- [Live Photo 兼容性](features/live-photo-compatibility.md) - Live Photo 兼容支持
-- [系统热键](features/system-hotkey.md) - 系统快捷键功能
-- [P0 功能清单](features/README_p0_features.md) - 最高优先级功能列表
-
-#### API 功能
-- [API 配置统一](features/api/api-config-unification.md) - API 配置标准化
-- [API 设置](features/api/api-settings.md) - API 设置功能
-
-#### 调试功能
-- [虚拟间隔调试模式](features/debug/virtual-gap-debug-mode.md) - 虚拟间隔调试
-- [虚拟间隔调试 UI](features/debug/virtual-gap-debug-ui.md) - 虚拟间隔调试界面
-
-### 🏗️ 架构设计
-- [架构设计概述](architecture/README.md) - 架构设计总览
-- [产品设计文档](architecture/product-design.md) - 产品需求和设计
-
-#### 核心架构
-- [消息加载流程](architecture/core/message-loading-flow.md) - 消息加载技术流程
-- [消息加载快速参考](architecture/core/message-loading-quick-reference.md) - 消息加载速查指南
-
-#### UI 架构
-- [主布局架构](architecture/ui/main-layout.md) - 应用布局设计
-- [视图切换设计](architecture/ui/view-switching.md) - 视图切换机制
-
-### 📝 变更日志
-- [v0.15.0](changelog/CHANGELOG_v0.15.0.md) - 本地会话置顶与管理、Live Photo 支持
-- [v0.14.0](changelog/CHANGELOG_v0.14.0.md) - 聊天记录增强、消息列表优化
-- [v0.13.0](changelog/CHANGELOG_v0.13.0.md) - PWA 支持、Service Worker 实现
-- [v0.12.0](changelog/CHANGELOG_v0.12.0.md) - 通知内容优化、隐私设置
-- [v0.11.0](changelog/CHANGELOG_v0.11.0.md) - 消息自动刷新与缓存、通知功能
-- [v0.10.0](changelog/CHANGELOG_v0.10.0.md) - 图片占位符优化、ImageViewer 组件
-- [v0.9.0](changelog/CHANGELOG_v0.9.0.md) - 移动端界面适配与性能优化
-- [v0.8.0](changelog/CHANGELOG_v0.8.0.md) - MessageBubble 组件重构与消息类型扩展
-- [v0.7.0](changelog/CHANGELOG_v0.7.0.md) - 功能增强
-- [v0.6.0](changelog/CHANGELOG_v0.6.0.md) - 功能优化
-- [v0.5.1](changelog/CHANGELOG_v0.5.1.md) - Bug 修复
-- [v0.5.0](changelog/CHANGELOG_v0.5.0.md) - 新功能
-- [v0.4.1](changelog/CHANGELOG_v0.4.1.md) - 后台刷新、数据库加载、自动初始化
-- [v0.4.0](changelog/CHANGELOG_v0.4.0.md) - 消息增强、转发消息、引用回复
-- [v0.3.3](changelog/CHANGELOG_v0.3.3.md) - 滚动到底部修复
-- [v0.3.2](changelog/CHANGELOG_v0.3.2_summary.md) - 主布局重构
-- [v0.3.1](changelog/CHANGELOG_v0.3.1.md) - MessageBubble 扩展
-- [v0.3.0](changelog/CHANGELOG_v0.3.0.md) - IndexedDB 集成
-- [v0.2.0](changelog/CHANGELOG_v0.2.0.md) - Chatlog API 适配
-- [v0.9.2](changelog/CHANGELOG_v0.9.2.md) - 移动端优化补丁
-
-### 📖 参考资料
-- [版本历史](references/version-history.md) - 完整的版本发布记录
-- [开发进度](references/progress.md) - 项目开发进度跟踪
-- [最终总结](references/final-summary.md) - 项目里程碑总结
-- [实现总结](references/implementation-summary.md) - v0.4.1 实现总结
-- [自动后台刷新](references/auto-background-refresh.md) - 自动刷新机制说明
-- [Contact 变更日志](references/contact-db-mode-changelog.md) - Contact 模式变更详情
-
-### 🔧 故障排查
-- [通知问题排查](troubleshooting/notification-issues.md) - 通知功能问题解决
-- [通知调试](troubleshooting/notification_debug.md) - 通知功能调试指南
-
-### 🛠️ 重构文档
-- [重构概述](refactoring/README.md) - 重构工作总览
-- [消息加载重构](refactoring/message-loading-refactor.md) - 消息加载模块重构
-- [通知迁移总结](refactoring/notification-migration-summary.md) - 通知模块迁移
-- [通知快速参考](refactoring/notification-quick-reference.md) - 通知功能速查
-- [通知存储重构](refactoring/notification-store-refactor.md) - 通知存储模块重构
-- [通知测试检查清单](refactoring/notification-testing-checklist.md) - 通知功能测试清单
-- [通知存储变更日志](refactoring/CHANGELOG_notification_store.md) - 通知存储变更记录
-
-#### 组件重构
-- [MessageBubble 架构](refactoring/component/MessageBubble-Architecture.md) - MessageBubble 组件架构
-- [MessageBubble 快速参考](refactoring/component/MessageBubble-QuickReference.md) - MessageBubble 速查指南
-- [MessageBubble 重构](refactoring/component/MessageBubble-Refactoring.md) - MessageBubble 组件重构
-- [MessageBubble 总结](refactoring/component/MessageBubble-Summary.md) - MessageBubble 重构总结
-
-### 🐛 问题修复
-- [会话列表自动刷新修复](fixes/2025-01_session_list_auto_refresh.md) - 会话列表刷新问题修复
-- [虚拟消息显示修复](fixes/virtual-messages-display-fix.md) - 虚拟消息显示问题修复
-
-#### 自动刷新修复
-- [自动刷新缓存更新](fixes/auto-refresh/auto-refresh-cache-update.md) - 缓存更新问题修复
-- [自动刷新消息增强](fixes/auto-refresh/auto-refresh-messages-enhancement.md) - 消息刷新功能增强
-
-#### 历史加载修复
-- [历史加载 HasMore 逻辑修复](fixes/history-loading/history-loading-hasmore-logic-fix.md) - HasMore 逻辑问题修复
-- [历史加载偏移修复](fixes/history-loading/history-loading-offset-fix.md) - 偏移计算问题修复
-
-#### 混合内容修复
-- [混合内容问题](fixes/mix-content/mix-content.md) - 混合内容问题分析
-- [解决方案](fixes/mix-content/solution.md) - 混合内容解决方案
-- [隧道错误修复](fixes/mix-content/tunnel-error-fix.md) - 隧道错误问题修复
-- [Worker 对比](fixes/mix-content/worker-comparison.md) - Worker 方案对比
-
-#### 修复总结
-- [v0.6.4 最终总结](fixes/summaries/FINAL_SUMMARY_v0.6.4.md) - v0.6.4 版本修复总结
-- [快速参考](fixes/summaries/QUICK_REFERENCE.md) - 修复问题速查指南
-- [v0.6.3 快速参考](fixes/summaries/QUICK_REFERENCE_v0.6.3.md) - v0.6.3 版本速查指南
-- [验证检查清单](fixes/summaries/VERIFICATION_CHECKLIST.md) - 功能验证检查清单
-
-### 📋 问题记录
-- [问题概述](issues/README.md) - 问题记录总览
-- [历史加载问题 2025-11-22](issues/history-loading-issues-2025-11-22.md) - 历史加载问题记录
-- [历史加载问题修复补丁](issues/history-loading-issues-fix-patch.md) - 历史加载问题修复
-- [空范围解决方案总结](issues/solutions/empty-range-solution-summary.md) - 空范围问题解决方案
-
-### 🚀 部署指南
-- [自定义路径部署](deployment/custom-path.md) - 自定义路径配置
-- [GitHub Pages 部署](deployment/github-pages.md) - GitHub Pages 部署指南
-- [其他平台部署](deployment/other-platforms.md) - 其他部署平台指南
-
-### 📝 示例文档
-- [示例概述](examples/README.md) - 示例文档总览
-- [转发消息示例](examples/api/forwarded-message-example.md) - 转发消息数据示例
-- [表情消息示例](examples/messages/emoji-message-example.md) - 表情消息示例
-- [小程序消息示例](examples/messages/miniprogram-message-example.md) - 小程序消息示例
-- [短视频消息示例](examples/messages/shortvideo-message-example.md) - 短视频消息示例
-
-### 🛠️ 脚本工具
-- [生成图标 HTML](scripts/generate-icons.html) - 图标生成工具 HTML
-- [生成图标 JavaScript](scripts/generate-icons.js) - 图标生成工具 JS
-- [生成图标 Shell](scripts/generate-icons.sh) - 图标生成工具 Shell
-
-### 🔍 其他同类工具
-- [留痕工具](其他同类工具/留痕.md) - 同类工具介绍
-- [留痕工具 2](其他同类工具/留痕-2.md) - 同类工具补充介绍
-
-## 🎯 按主题查找
-
-### 性能优化
-- [Contact 数据库模式](features/contact/contact-db-mode.md) - 20-40倍速度提升
-- [虚拟滚动](features/performance/virtual-scroll.md) - 大数据量渲染优化
-- [后台加载器](features/background/background-loading.md) - 非阻塞加载
-- [IndexedDB 缓存](features/core/message-cache/indexeddb-cache.md) - 离线支持
-- [移动端性能优化](features/ui/mobile/mobile-performance-optimization.md) - 移动端性能提升
-
-### 用户体验
-- [后台刷新实现](features/background/background-refresh-implementation.md) - 手动刷新控制
-- [进度条状态](features/core/message-loading/loading-progress-states.md) - 加载进度反馈
-- [Chat 自动加载](features/contact/contact-auto-load.md) - 自动数据准备
-- [联系人功能](features/contact/contact-features.md) - 丰富的交互功能
-- [移动端 UI 适配](features/ui/mobile/mobile-ui-adaptation.md) - 移动端界面优化
-- [新手引导](features/ui/onboarding-guide.md) - 首次使用体验
-
-### 数据管理
-- [IndexedDB 集成](features/core/message-cache/indexeddb-integration.md) - 本地数据持久化
-- [消息自动刷新与缓存](features/core/message-cache/message-auto-refresh-cache-summary.md) - 智能缓存系统
-- [联系人中文索引](features/contact/contact-index/contact-chinese-index.md) - 中文搜索优化
-
-### 组件开发
-- [消息气泡增强](features/ui/message-bubble-enhancement.md) - 复杂消息类型支持
-- [转发消息对话框](features/messages/rich/forwarded-message-dialog.md) - 对话框组件
-- [主布局架构](architecture/ui/main-layout.md) - 布局组件设计
-- [MessageBubble 架构](refactoring/component/MessageBubble-Architecture.md) - 组件架构设计
-
-### 消息处理
-- [虚拟间隔消息](features/core/virtual-messages/virtual-gap-message.md) - 消息间隔处理
-- [历史消息加载流程](guides/developer/implementation/history-message-loading-process.md) - 消息加载技术
-- [带时间戳的消息加载](features/core/message-loading/message-loading-with-createtime.md) - 时间戳消息处理
-
-### 通知系统
-- [消息通知](features/notification/message-notification.md) - 通知功能实现
-- [通知增强](features/notification/notification-enhancements.md) - 通知功能优化
-- [通知问题排查](troubleshooting/notification-issues.md) - 通知问题解决
-
-### PWA 功能
-- [PWA 实现](features/pwa/pwa-implementation.md) - Progressive Web App 技术
-- [PWA 设置指南](guides/pwa-setup-guide.md) - PWA 配置指南
-
-## 📁 目录结构
-
-```
-docs/
-├── README.md                     # 本文件
-├── CHANGELOG.md                  # 完整变更日志
-├── ROADMAP.md                    # 项目路线图
-├── api/                          # API 文档
-│   ├── reference.md              # API 参考手册
-│   ├── http-api.md               # HTTP API 文档
-│   ├── data-structure.md         # 数据结构
-│   ├── session-mapping.md        # 会话映射
-│   ├── pagination.md             # 分页机制
-│   ├── response-fix.md           # 响应修复
-│   └── examples/                 # API 示例
-│       ├── auto-decrypt.md
-│       ├── chatlog.md
-│       ├── chatlog-2.md
-│       ├── chatroom.md
-│       ├── contact.md
-│       ├── dashboard.md
-│       ├── decrypt.md
-│       ├── diary.md
-│       ├── search.md
-│       ├── session.md
-│       ├── session-v2.md
-│       └── setting.md
-├── architecture/                 # 架构设计
-│   ├── README.md                 # 架构概述
-│   ├── product-design.md         # 产品设计
-│   ├── core/                     # 核心架构
-│   │   ├── message-loading-flow.md
-│   │   └── message-loading-quick-reference.md
-│   └── ui/                       # UI 架构
-│       ├── main-layout.md
-│       └── view-switching.md
-├── deployment/                   # 部署指南
-│   ├── custom-path.md
-│   ├── github-pages.md
-│   └── other-platforms.md
-├── examples/                     # 示例文档
-│   ├── README.md
-│   ├── api/
-│   │   └── forwarded-message-example.md
-│   └── messages/
-│       ├── emoji-message-example.md
-│       ├── miniprogram-message-example.md
-│       └── shortvideo-message-example.md
-├── features/                     # 功能特性
-│   ├── README_p0_features.md    # P0 功能清单
-│   ├── live-photo-compatibility.md
-│   ├── system-hotkey.md
-│   ├── api/                      # API 功能
-│   │   ├── api-config-unification.md
-│   │   └── api-settings.md
-│   ├── background/               # 后台功能
-│   │   ├── background-loading.md
-│   │   ├── background-refresh-implementation.md
-│   │   ├── silent-refresh-sessionlist.md
-│   │   └── silent-refresh-sessionlist-summary.md
-│   ├── contact/                  # 联系人功能
-│   │   ├── contact-auto-load.md
-│   │   ├── contact-db-mode.md
-│   │   ├── contact-features.md
-│   │   ├── contact-index/        # 联系人索引
-│   │   │   ├── contact-chinese-index.md
-│   │   │   ├── contact-chinese-index-implementation.md
-│   │   │   └── contact-index-optimization.md
-│   │   └── contact-indexeddb/    # 联系人 IndexedDB
-│   │       ├── contact-index-db-clear-guide.md
-│   │       └── contact-index-db-upgrade.md
-│   ├── core/                     # 核心功能
-│   │   ├── message-cache/        # 消息缓存
-│   │   │   ├── indexeddb-cache.md
-│   │   │   ├── indexeddb-integration.md
-│   │   │   ├── message-auto-refresh-cache-summary.md
-│   │   │   ├── message-cache-autorefresh.md
-│   │   │   └── message-cache-implementation-summary.md
-│   │   ├── message-loading/      # 消息加载
-│   │   │   ├── loading-progress-states.md
-│   │   │   ├── message-loading-with-createtime.md
-│   │   │   └── pull-down-to-load-history.md
-│   │   ├── scroll-position/      # 滚动位置
-│   │   │   ├── README_scroll_position_memory.md
-│   │   │   ├── scroll-position-memory-checklist.md
-│   │   │   ├── scroll-position-memory-flowchart.md
-│   │   │   ├── scroll-position-memory.md
-│   │   │   └── scroll-to-bottom-fix.md
-│   │   └── virtual-messages/     # 虚拟消息
-│   │       ├── empty-range-message.md
-│   │       ├── empty-range-time-gap-detection.md
-│   │       ├── virtual-gap-docs-index.md
-│   │       ├── virtual-gap-message-README.md
-│   │       └── virtual-gap-message.md
-│   ├── debug/                    # 调试功能
-│   │   ├── virtual-gap-debug-mode.md
-│   │   └── virtual-gap-debug-ui.md
-│   ├── messages/                 # 消息功能
-│   │   ├── basic/                # 基础消息
-│   │   │   ├── contact-card-message.md
-│   │   │   ├── empty-range-in-history-loading.md
-│   │   │   ├── location-message.md
-│   │   │   └── voice-playback.md
-│   │   ├── media/                # 媒体消息
-│   │   │   ├── media-display-control.md
-│   │   │   ├── media-display-control-implementation.md
-│   │   │   ├── media-display-control-summary.md
-│   │   │   ├── media-display-control-test.md
-│   │   │   └── video-link-message.md
-│   │   └── rich/                 # 富文本消息
-│   │       ├── forwarded-message-dialog.md
-│   │       ├── forwarded-message-enhancement.md
-│   │       ├── jielong-message.md
-│   │       └── transfer-message.md
-│   ├── notification/             # 通知功能
-│   │   ├── message-notification.md
-│   │   ├── message-notification-summary.md
-│   │   └── notification-enhancements.md
-│   ├── performance/              # 性能优化
-│   │   └── virtual-scroll.md
-│   ├── pwa/                      # PWA 功能
-│   │   └── pwa-implementation.md
-│   ├── search/                   # 搜索功能
-│   │   └── search-feature.md
-│   └── ui/                       # UI 功能
-│       ├── message-bubble-enhancement.md
-│       ├── mobile/               # 移动端 UI
-│       │   ├── mobile-performance-optimization.md
-│       │   ├── mobile-ui-adaptation.md
-│       │   └── mobile-ui-implementation.md
-│       └── onboarding-guide.md
-├── fixes/                        # 问题修复
-│   ├── 2025-01_session_list_auto_refresh.md
-│   ├── virtual-messages-display-fix.md
-│   ├── auto-refresh/             # 自动刷新修复
-│   │   ├── auto-refresh-cache-update.md
-│   │   └── auto-refresh-messages-enhancement.md
-│   ├── history-loading/          # 历史加载修复
-│   │   ├── history-loading-hasmore-logic-fix.md
-│   │   └── history-loading-offset-fix.md
-│   ├── mix-content/              # 混合内容修复
-│   │   ├── mix-content.md
-│   │   ├── solution.md
-│   │   ├── tunnel-error-fix.md
-│   │   └── worker-comparison.md
-│   └── summaries/                # 修复总结
-│       ├── FINAL_SUMMARY_v0.6.4.md
-│       ├── QUICK_REFERENCE.md
-│       ├── QUICK_REFERENCE_v0.6.3.md
-│       └── VERIFICATION_CHECKLIST.md
-├── guides/                       # 指南文档
-│   ├── pwa-setup-guide.md
-│   ├── quick-start/              # 快速开始
-│   │   ├── api-settings-quick-guide.md
-│   │   ├── contact-db-quick-reference.md
-│   │   └── main-layout-quick-start.md
-│   ├── user/                     # 用户指南
-│   │   ├── background-refresh-guide.md
-│   │   └── user-guide.md
-│   └── developer/                # 开发指南
-│       ├── developer-guide.md
-│       ├── history-loading-optimization-summary.md
-│       ├── testing-guide.md
-│       ├── version-management.md
-│       ├── debugging/            # 调试指南
-│       │   ├── auto-refresh-debugging.md
-│       │   ├── debug-empty-range.md
-│       │   ├── debug-message-date.md
-│       │   └── virtual-gap-debug-guide.md
-│       ├── implementation/       # 实现指南
-│       │   ├── gap-message-usage.md
-│       │   ├── history-message-loading-process.md
-│       │   ├── live-message-implementation.md
-│       │   └── timezone-usage.md
-│       └── testing/              # 测试指南
-│           ├── contact-chinese-index-testing.md
-│           ├── test-empty-range.md
-│           ├── test-empty-range-time-gap.md
-│           └── test-loadmessages-empty-range.md
-├── issues/                       # 问题记录
-│   ├── README.md
-│   ├── history-loading-issues-2025-11-22.md
-│   ├── history-loading-issues-fix-patch.md
-│   └── solutions/
-│       └── empty-range-solution-summary.md
-├── refactoring/                  # 重构文档
-│   ├── README.md
-│   ├── CHANGELOG_notification_store.md
-│   ├── message-loading-refactor.md
-│   ├── notification-migration-summary.md
-│   ├── notification-quick-reference.md
-│   ├── notification-store-refactor.md
-│   ├── notification-testing-checklist.md
-│   └── component/                # 组件重构
-│       ├── MessageBubble-Architecture.md
-│       ├── MessageBubble-QuickReference.md
-│       ├── MessageBubble-Refactoring.md
-│       └── MessageBubble-Summary.md
-├── references/                   # 参考资料
-│   ├── auto-background-refresh.md
-│   ├── contact-db-mode-changelog.md
-│   ├── final-summary.md
-│   ├── implementation-summary.md
-│   ├── progress.md
-│   └── version-history.md
-├── scripts/                      # 脚本工具
-│   ├── generate-icons.html
-│   ├── generate-icons.js
-│   └── generate-icons.sh
-├── troubleshooting/              # 故障排查
-│   ├── notification-issues.md
-│   └── notification_debug.md
-├── changelog/                    # 变更日志
-│   ├── CHANGELOG_v0.2.0.md
-│   ├── CHANGELOG_v0.3.0.md
-│   ├── CHANGELOG_v0.3.1.md
-│   ├── CHANGELOG_v0.3.2_summary.md
-│   ├── CHANGELOG_v0.3.3.md
-│   ├── CHANGELOG_v0.4.0.md
-│   ├── CHANGELOG_v0.4.1.md
-│   ├── CHANGELOG_v0.5.0.md
-│   ├── CHANGELOG_v0.5.1.md
-│   ├── CHANGELOG_v0.6.0.md
-│   ├── CHANGELOG_v0.7.0.md
-│   ├── CHANGELOG_v0.8.0.md
-│   ├── CHANGELOG_v0.9.0.md
-│   ├── CHANGELOG_v0.9.2.md
-│   ├── CHANGELOG_v0.10.0.md
-│   ├── CHANGELOG_v0.11.0.md
-│   ├── CHANGELOG_v0.12.0.md
-│   ├── CHANGELOG_v0.13.0.md
-│   ├── CHANGELOG_v0.14.0.md
-│   └── CHANGELOG_v0.15.0.md
-└── 其他同类工具/                 # 其他同类工具
-    ├── 留痕.md
-    └── 留痕-2.md
-```
-
-## 📊 文档统计
-
-```
-总文档数: 190+ 篇
-API 文档: 18 篇
-功能特性: 85+ 篇
-架构设计: 7 篇
-用户指南: 4 篇
-开发指南: 25+ 篇
-快速开始: 3 篇
-变更日志: 20 篇
-参考资料: 6 篇
-故障排查: 2 篇
-重构文档: 10+ 篇
-问题修复: 15+ 篇
-部署指南: 3 篇
-示例文档: 5 篇
-脚本工具: 3 篇
-其他工具: 2 篇
-代码量: ~10,000+ 行
-```
-
-## 🔍 搜索建议
-
-- **项目规划**: 查看[项目路线图](ROADMAP.md)了解开发计划
-- **新用户**: 从[用户使用手册](guides/user/user-guide.md)开始
-- **开发者**: 查看[开发者指南](guides/developer/developer-guide.md)
-- **了解 API**: 参考[API 参考手册](api/reference.md)
-- **性能问题**: 查看性能优化相关文档
-- **功能使用**: 查看功能特性目录
-- **问题排查**: 查看故障排查相关文档
-- **消息处理**: 查看消息加载和虚拟消息相关文档
-- **通知系统**: 查看通知功能相关文档
-- **PWA 功能**: 查看 PWA 相关文档
-
-## 📅 最新更新
-
-### v0.15.0 (2025-12-05)
-- ✅ 本地会话置顶与管理功能
-- ✅ Live Photo 与视频播放支持
-- ✅ Dashboard 重构与优化
-- ✅ 架构与性能优化
-- ✅ PWA 增强功能
-
-### v0.14.0 (2025-11-25)
-- ✅ 聊天记录/转发消息增强
-- ✅ 消息列表体验优化
-- ✅ 历史消息加载与虚拟消息
-- ✅ 技术重构与性能提升
-
-详见 [CHANGELOG v0.15.0](changelog/CHANGELOG_v0.15.0.md) 和 [项目路线图](ROADMAP.md)
-
-## 📝 命名规范
-
-本文档中心采用以下命名规范：
-
-- **文件名**: 使用 kebab-case（小写字母 + 连字符）
-  - 例如：`background-refresh-implementation.md`
-- **目录名**: 使用小写字母，单词用连字符分隔
-  - 例如：`quick-start/`
-- **CHANGELOG**: 保持原有的 `CHANGELOG_vX.X.X.md` 格式
-- **组件文档**: 使用 PascalCase + 描述性后缀
-  - 例如：`MessageBubble-Architecture.md`
-
-## 🤝 贡献文档
-
-如果你想为文档做出贡献，请：
-1. 遵循现有文档的格式和风格
-2. 使用清晰的标题和结构
-3. 提供代码示例和图表
-4. 更新文档索引（本文件）
-5. 遵循命名规范（kebab-case）
-6. 将新文档添加到正确的分类目录
-7. 更新本 README 中的相关部分
-
-## 📧 联系方式
-
-- **项目仓库**: [GitHub](https://github.com/your-repo)
-- **问题反馈**: [Issues](https://github.com/your-repo/issues)
-- **开发团队**: Development Team
+项目全部文档索引，共 321 篇。归档文档见 external-docs/_archive/。
 
 ---
 
-**最后更新**: 2025-12-05  
-**文档版本**: v0.15.0  
-**维护者**: Development Team  
-**文档总数**: 190+ 篇  
-**覆盖功能**: 完整项目功能文档
+## 生态系统架构总览
+
+Chatlog 生态由多个子项目协同工作，共同实现微信聊天记录的**读取 → 查看 → 搜索 → 发送 → 自动化**全链路能力。
+
+```mermaid
+graph TB
+    subgraph 用户层["👤 用户层"]
+        Browser["Chatlog Session<br/>Vue 3 前端 (浏览器)"]
+    end
+
+    subgraph 服务层["⚙️ 服务层"]
+        ChatlogAPI["Chatlog API<br/>Golang 后端 (:5039)<br/>聊天记录读取 & 解密"]
+        SendMsg["wechat-sendmsg<br/>Python 服务 (:8765)<br/>消息发送 (GUI 自动化)"]
+        CFWorker["CF Worker Proxy<br/>Cloudflare Worker<br/>多媒体资源代理"]
+    end
+
+    subgraph 数据层["💾 数据层"]
+        WeChatDB["微信本地数据库<br/>contact.db / message.db / session.db<br/>(SQLCipher 加密)"]
+        IndexedDB["浏览器 IndexedDB<br/>本地缓存 & 离线支持"]
+    end
+
+    subgraph 自动化层["🤖 自动化层"]
+        Butler["WeChat Butler<br/>微信消息自动化管家<br/>规则引擎 + 自动回复"]
+        WeChatClient["微信桌面客户端<br/>Win / Mac / Linux"]
+    end
+
+    Browser -->|"HTTP API<br/>会话/消息/联系人"| ChatlogAPI
+    Browser -->|"HTTP API<br/>发送消息/图片/文件"| SendMsg
+    Browser -->|"代理请求<br/>图片/视频/语音"| CFWorker
+    ChatlogAPI -->|"SQLCipher 解密<br/>读取本地数据库"| WeChatDB
+    SendMsg -->|"GUI 自动化<br/>pyautogui + 剪贴板"| WeChatClient
+    Butler -->|"规则匹配<br/>消息处理"| WeChatClient
+    Browser -->|"本地持久化<br/>缓存 & 离线"| IndexedDB
+
+    style Browser fill:#42b883,stroke:#2c3e50,color:#fff
+    style ChatlogAPI fill:#00ADD8,stroke:#2c3e50,color:#fff
+    style SendMsg fill:#3776AB,stroke:#2c3e50,color:#fff
+    style CFWorker fill:#F38020,stroke:#2c3e50,color:#fff
+    style WeChatDB fill:#9B59B6,stroke:#2c3e50,color:#fff
+    style IndexedDB fill:#E67E22,stroke:#2c3e50,color:#fff
+    style Butler fill:#E74C3C,stroke:#2c3e50,color:#fff
+    style WeChatClient fill:#27AE60,stroke:#2c3e50,color:#fff
+```
+
+### 数据流架构
+
+```mermaid
+flowchart LR
+    subgraph 数据读取流["📖 数据读取流"]
+        A1["微信本地数据库<br/>(SQLCipher)"] -->|"解密读取"| A2["Chatlog API<br/>(Golang :5039)"]
+        A2 -->|"HTTP JSON"| A3["Chatlog Session<br/>(Vue 3 前端)"]
+        A3 -->|"IndexedDB<br/>缓存"| A4["本地缓存层"]
+    end
+
+    subgraph 消息发送流["📤 消息发送流"]
+        B1["SendBox 组件<br/>用户输入"] -->|"HTTP POST"| B2["wechat-sendmsg<br/>(Python :8765)"]
+        B2 -->|"消息队列<br/>SQLite 持久化"| B3["GUI 自动化<br/>pyautogui"]
+        B3 -->|"剪贴板+快捷键"| B4["微信桌面客户端"]
+    end
+
+    subgraph 多媒体流["🖼️ 多媒体流"]
+        C1["腾讯 CDN<br/>图片/视频/语音"] -->|"CF Worker<br/>代理转发"| C2["Chatlog Session<br/>前端展示"]
+    end
+
+    subgraph 自动化流["🤖 自动化流"]
+        D1["WeChat Butler<br/>规则引擎"] -->|"消息匹配<br/>& 自动回复"| D2["微信桌面客户端"]
+    end
+```
+
+---
+
+## 子项目概览
+
+| 子项目 | 定位 | 技术栈 | 端口 | 核心能力 |
+|--------|------|--------|------|----------|
+| **Chatlog Session** | 微信聊天记录查看器 | Vue 3 + TS + Vite + Pinia | — | 会话浏览、消息查看、联系人管理、全文搜索、消息发送、数据导出 |
+| **Chatlog API** | 聊天记录读取 & 解密服务 | Golang + SQLCipher | :5039 | 数据库解密、会话查询、消息分页、联系人读取、多媒体代理 |
+| **wechat-sendmsg** | 微信消息发送工具 | Python + FastAPI + pyautogui | :8765 | 文本/图片/文件发送、消息队列持久化、重试机制、MCP 协议 |
+| **CF Worker Proxy** | 多媒体资源代理 | Cloudflare Workers | — | 腾讯域名白名单代理、CORS 头注入、来源验证 |
+| **WeChat Butler** | 微信消息自动化管家 | 规划中 | — | 规则引擎、消息匹配、自动回复、系统集成 |
+
+### Chatlog Session 前端架构
+
+```mermaid
+graph TB
+    subgraph Views["视图层 (Views)"]
+        Chat["Chat<br/>聊天消息"]
+        Contact["Contact<br/>联系人"]
+        Search["Search<br/>搜索"]
+        Settings["Settings<br/>设置"]
+        Dashboard["Dashboard<br/>仪表盘"]
+        Onboarding["Onboarding<br/>引导页"]
+    end
+
+    subgraph Stores["状态层 (Pinia Stores)"]
+        SessionStore["session<br/>会话列表"]
+        ChatStore["chatMessages<br/>消息数据"]
+        ContactStore["contact<br/>联系人"]
+        SettingsStore["settings<br/>配置"]
+        SearchStore["search<br/>搜索"]
+        NotificationStore["notification<br/>通知"]
+    end
+
+    subgraph API["API 层"]
+        ChatlogAPI["chatlog.ts<br/>聊天记录 API"]
+        SessionAPI["session.ts<br/>会话 API"]
+        ContactAPI["contact.ts<br/>联系人 API"]
+        MediaAPI["media.ts<br/>多媒体 API"]
+        SendmsgAPI["sendmsg.ts<br/>消息发送 API"]
+    end
+
+    subgraph Components["组件层"]
+        ChatComponents["chat/<br/>MessageBubble, SendBox..."]
+        LayoutComponents["layout/<br/>MainLayout, Sidebar..."]
+        CommonComponents["common/<br/>LoadingProgress..."]
+    end
+
+    subgraph Composables["组合式函数"]
+        AutoRefresh["useAutoRefreshManager"]
+        MessageCache["useMessageCache"]
+        MobileGesture["useMobileGesture"]
+        KeyboardShortcuts["useKeyboardShortcuts"]
+    end
+
+    Views --> Stores
+    Stores --> API
+    Views --> Components
+    Views --> Composables
+    Stores --> Composables
+```
+
+---
+
+## 技术栈全景
+
+```mermaid
+graph LR
+    subgraph 前端["Chatlog Session (前端)"]
+        Vue["Vue 3"]
+        TS["TypeScript"]
+        Vite["Vite 8"]
+        EP["Element Plus"]
+        Pinia["Pinia 3"]
+        VueRouter["Vue Router 5"]
+        VueUse["VueUse"]
+        VirtualScroller["vue-virtual-scroller"]
+        Marked["marked"]
+        Dayjs["dayjs"]
+        Pinyin["pinyin-pro"]
+        DOMPurify["DOMPurify"]
+    end
+
+    subgraph 后端["Chatlog API (后端)"]
+        Go["Golang"]
+        SQLCipher["SQLCipher"]
+        HTTP["net/http"]
+    end
+
+    subgraph 发送["wechat-sendmsg"]
+        Python["Python"]
+        FastAPI["FastAPI"]
+        PyAutoGUI["pyautogui"]
+        SQLite["SQLite"]
+    end
+
+    subgraph 代理["CF Worker Proxy"]
+        CF["Cloudflare Workers"]
+    end
+
+    Vue --- TS --- Vite
+    Go --- SQLCipher
+    Python --- FastAPI --- PyAutoGUI
+```
+
+---
+
+## 文档目录结构
+
+```
+docs/
+├── faq.md                                # 常见问题
+├── changelog/                            # 版本变更日志 (29 篇)
+│   ├── CHANGELOG_v0.2.0.md ~ v0.25.0.md
+│   └── ...
+└── external-docs/                        # 外部文档中心
+    ├── api/                              # API 参考文档 (26 篇)
+    │   ├── reference.md                  # 完整 API 接口文档
+    │   ├── data-structure.md             # 数据模型和字段说明
+    │   ├── http-api.md                   # HTTP API 说明
+    │   ├── pagination.md                 # 分页参数和使用方法
+    │   ├── session-mapping.md            # 会话数据处理
+    │   ├── response-fix.md               # 常见响应问题处理
+    │   └── examples/                     # API 调用示例 (21 篇)
+    ├── architecture/                     # 架构设计文档 (5 篇)
+    │   ├── product-design.md             # 产品需求和设计
+    │   ├── core/                         # 核心架构
+    │   │   ├── message-loading-flow.md           # 消息加载完整流程
+    │   │   └── message-loading-quick-reference.md # 消息加载快速参考
+    │   └── ui/                           # UI 架构
+    │       ├── main-layout.md                    # 主布局设计
+    │       └── view-switching.md                 # 视图切换机制
+    ├── backend-golang/                   # Chatlog API 后端文档 (41 篇)
+    │   ├── db-analysis/                  # 微信数据库结构分析 (9 篇)
+    │   ├── db-copy/                      # 数据库复制与备份机制 (9 篇)
+    │   ├── implementation/               # 核心功能实现细节 (4 篇)
+    │   ├── optimizations/                # 性能优化方案 (7 篇)
+    │   ├── refactoring/                  # 代码重构总结 (2 篇)
+    │   └── ...                           # 解密、SQLCipher 迁移等
+    ├── cf-worker-proxy/                  # CF Worker 代理文档
+    ├── deployment/                       # 部署指南 (3 篇)
+    ├── design/                           # 技术设计文档 (1 篇)
+    │   └── v0.26.0-sendmsg-integration.md  # SendMsg 集成设计
+    ├── examples/                         # 使用示例 (4 篇)
+    ├── features/                         # 功能特性文档 (34 篇)
+    │   ├── api/                          # API 相关功能
+    │   ├── background/                   # 后台刷新/加载
+    │   ├── contact/                      # 联系人功能
+    │   ├── core/                         # 核心功能 (消息加载/缓存/滚动/虚拟消息)
+    │   ├── messages/                     # 消息类型功能 (basic/media/rich)
+    │   ├── notification/                 # 通知功能
+    │   ├── performance/                  # 性能优化功能
+    │   ├── pwa/                          # PWA 功能
+    │   ├── search/                       # 搜索功能
+    │   └── ui/                           # UI 增强功能 (含移动端)
+    ├── fixes/                            # 问题修复文档 (10 篇)
+    ├── guides/                           # 使用和开发指南 (27 篇)
+    │   ├── quick-start/                  # 快速开始指南
+    │   ├── developer/                    # 开发者指南 (含调试/实现/测试)
+    │   ├── user/                         # 用户使用手册
+    │   ├── message-types/                # 消息类型指南
+    │   └── troubleshooting/              # 故障排查指南
+    ├── issues/                           # 问题追踪 (4 篇)
+    ├── openspec/                         # OpenSpec 变更管理 (115 篇)
+    │   ├── specs/                        # 规格定义
+    │   └── changes/                      # 变更记录
+    │       ├── integrate-ai-panel-butler/  # AI 面板集成 (进行中)
+    │       └── archive/                   # 已归档变更 (10 个)
+    ├── performance/                      # 性能优化文档 (1 篇)
+    ├── planning/                         # 规划文档 (4 篇)
+    ├── refactoring/                      # 重构文档 (2 篇)
+    ├── references/                       # 参考资料 (7 篇)
+    ├── scripts/                          # 辅助脚本
+    ├── troubleshooting/                  # 故障排查 (2 篇)
+    ├── _archive/                         # 已归档文档 (61 篇)
+    ├── 其他同类工具/                      # 同类工具对比参考 (2 篇)
+    ├── CHANGELOG.md                      # 变更日志
+    ├── ROADMAP.md                        # 项目路线图
+    └── TODO.md                           # 待办事项
+```
+
+---
+
+## 文档导航
+
+### 按项目查找
+
+#### Chatlog Session (前端)
+
+| 类别 | 文档 | 说明 |
+|------|------|------|
+| 入门 | [快速开始](external-docs/guides/quick-start/main-layout-quick-start.md) | 5 分钟了解项目结构 |
+| 用户 | [用户使用手册](external-docs/guides/user/user-guide.md) | 完整的用户使用说明 |
+| 开发 | [开发者指南](external-docs/guides/developer/developer-guide.md) | 开发环境搭建和开发流程 |
+| 测试 | [测试指南](external-docs/guides/developer/testing-guide.md) | 测试方法和最佳实践 |
+| API | [API 参考手册](external-docs/api/reference.md) | 完整的 API 接口文档 |
+| 架构 | [主布局架构](external-docs/architecture/ui/main-layout.md) | 应用布局设计 |
+| 路线图 | [项目路线图](external-docs/ROADMAP.md) | 开发路线图和版本规划 |
+
+#### Chatlog API (后端)
+
+| 类别 | 文档 | 说明 |
+|------|------|------|
+| 概览 | [后端文档索引](external-docs/backend-golang/README.md) | 后端文档导航 |
+| 数据库 | [数据库结构分析](external-docs/backend-golang/db-analysis/) | 微信本地数据库表结构 |
+| 优化 | [性能优化方案](external-docs/backend-golang/optimizations/) | 各方面优化细节 |
+| 实现 | [核心功能实现](external-docs/backend-golang/implementation/) | 解密、模板提取等 |
+
+#### wechat-sendmsg (消息发送)
+
+| 类别 | 文档 | 说明 |
+|------|------|------|
+| 设计 | [SendMsg 集成设计](external-docs/design/v0.26.0-sendmsg-integration.md) | v0.26.0 集成技术方案 |
+
+#### WeChat Butler (自动化)
+
+| 类别 | 文档 | 说明 |
+|------|------|------|
+| 规划 | [AI 面板集成变更](external-docs/openspec/changes/integrate-ai-panel-butler/) | Butler 集成变更规格 |
+| 规划 | [AI/MCP 集成规划](external-docs/planning/ai-mcp-integration-plan.md) | AI 集成整体规划 |
+
+### 按主题查找
+
+| 主题 | 关键文档 |
+|------|---------|
+| 消息加载 | [完整流程](external-docs/architecture/core/message-loading-flow.md) / [快速参考](external-docs/architecture/core/message-loading-quick-reference.md) |
+| 性能优化 | [Contact DB 模式](external-docs/features/contact/contact-db-mode.md) / [虚拟滚动](external-docs/features/performance/virtual-scroll.md) / [拼音优化](external-docs/performance/pinyin-optimization.md) |
+| 数据管理 | [数据结构](external-docs/api/data-structure.md) / [分页机制](external-docs/api/pagination.md) / [会话映射](external-docs/api/session-mapping.md) |
+| 部署运维 | [GitHub Pages](external-docs/deployment/github-pages.md) / [PWA 配置](external-docs/guides/pwa-setup-guide.md) / [故障排查](external-docs/troubleshooting/TROUBLESHOOTING.md) |
+| 移动端 | [主布局](external-docs/architecture/ui/main-layout.md) / [视图切换](external-docs/architecture/ui/view-switching.md) / [移动端 UI](external-docs/features/ui/mobile/mobile-ui.md) |
+
+---
+
+## 版本历程
+
+| 版本 | 日期 | 里程碑 |
+|------|------|--------|
+| v0.26.0 | 2026-05-08 | SendMsg 集成、微信风格 SendBox、可配置快捷键 |
+| v0.25.0 | 2026-05-06 | 链接消息、Live Photo 高清修复、Vite v8 |
+| v0.24.0 | 2026-04-13 | 收藏消息类型支持 |
+| v0.22.0 | 2026-03-12 | Gap 置信度分级、锚点逻辑统一 |
+| v0.20.0 | 2026-03-11 | EmptyRange 窗口探测优化 |
+| v0.16.0 | 2026-02-11 | 聊天记录导出 (JSON/CSV/TXT/Markdown) |
+| v0.15.0 | 2025-12-05 | 会话置顶、Live Photo、Dashboard 重构、PWA |
+| v0.14.0 | 2025-11-25 | 转发消息增强、EmptyRange/Gap/Revoke 虚拟消息 |
+| v0.10.0 | 2025-01-24 | 群聊管理、搜索、IndexedDB v3、智能消息加载 |
+| v0.9.0 | 2025-11-21 | 移动端响应式布局、keep-alive 缓存 |
+
+完整版本记录见 [ROADMAP.md](external-docs/ROADMAP.md) 和 [CHANGELOG.md](external-docs/CHANGELOG.md)。
+
+---
+
+## 文档统计
+
+| 分类 | 数量 |
+|------|------|
+| 总文档数 | 321 篇 |
+| 归档文档 | 61 篇 |
+| API 文档 | 26 篇 |
+| 功能特性 | 34 篇 |
+| 架构设计 | 5 篇 |
+| 指南文档 | 27 篇 |
+| 后端文档 | 41 篇 |
+| OpenSpec 变更 | 115 篇 |
+| 变更日志 | 29 篇 |
+
+---
+
+## docs/
+
+- [faq.md](faq.md) — 常见问题 (FAQ)
+
+### changelog/
+
+- [CHANGELOG_v0.10.0.md](changelog/CHANGELOG_v0.10.0.md) — v0.10.0. 变更日志
+- [CHANGELOG_v0.11.0.md](changelog/CHANGELOG_v0.11.0.md) — v0.11.0. 变更日志
+- [CHANGELOG_v0.12.0.md](changelog/CHANGELOG_v0.12.0.md) — v0.12.0. 变更日志
+- [CHANGELOG_v0.13.0.md](changelog/CHANGELOG_v0.13.0.md) — v0.13.0. 变更日志
+- [CHANGELOG_v0.14.0.md](changelog/CHANGELOG_v0.14.0.md) — v0.14.0. 变更日志
+- [CHANGELOG_v0.15.0.md](changelog/CHANGELOG_v0.15.0.md) — v0.15.0. 变更日志
+- [CHANGELOG_v0.16.0.md](changelog/CHANGELOG_v0.16.0.md) — v0.16.0. 变更日志
+- [CHANGELOG_v0.17.0.md](changelog/CHANGELOG_v0.17.0.md) — v0.17.0. 变更日志
+- [CHANGELOG_v0.18.0.md](changelog/CHANGELOG_v0.18.0.md) — v0.18.0. 变更日志
+- [CHANGELOG_v0.19.0.md](changelog/CHANGELOG_v0.19.0.md) — v0.19.0. 变更日志
+- [CHANGELOG_v0.2.0.md](changelog/CHANGELOG_v0.2.0.md) — v0.2.0. 变更日志
+- [CHANGELOG_v0.20.0.md](changelog/CHANGELOG_v0.20.0.md) — v0.20.0. 变更日志
+- [CHANGELOG_v0.21.0.md](changelog/CHANGELOG_v0.21.0.md) — v0.21.0. 变更日志
+- [CHANGELOG_v0.22.0.md](changelog/CHANGELOG_v0.22.0.md) — v0.22.0. 变更日志
+- [CHANGELOG_v0.24.0.md](changelog/CHANGELOG_v0.24.0.md) — v0.24.0. 变更日志
+- [CHANGELOG_v0.25.0.md](changelog/CHANGELOG_v0.25.0.md) — v0.25.0. 变更日志
+- [CHANGELOG_v0.3.0.md](changelog/CHANGELOG_v0.3.0.md) — v0.3.0. 变更日志
+- [CHANGELOG_v0.3.1.md](changelog/CHANGELOG_v0.3.1.md) — v0.3.1. 变更日志
+- [CHANGELOG_v0.3.2_summary.md](changelog/CHANGELOG_v0.3.2_summary.md) — v0.3.2 变更日志
+- [CHANGELOG_v0.3.3.md](changelog/CHANGELOG_v0.3.3.md) — v0.3.3. 变更日志
+- [CHANGELOG_v0.4.0.md](changelog/CHANGELOG_v0.4.0.md) — v0.4.0. 变更日志
+- [CHANGELOG_v0.4.1.md](changelog/CHANGELOG_v0.4.1.md) — v0.4.1. 变更日志
+- [CHANGELOG_v0.5.0.md](changelog/CHANGELOG_v0.5.0.md) — v0.5.0. 变更日志
+- [CHANGELOG_v0.5.1.md](changelog/CHANGELOG_v0.5.1.md) — v0.5.1. 变更日志
+- [CHANGELOG_v0.6.0.md](changelog/CHANGELOG_v0.6.0.md) — v0.6.0. 变更日志
+- [CHANGELOG_v0.7.0.md](changelog/CHANGELOG_v0.7.0.md) — v0.7.0. 变更日志
+- [CHANGELOG_v0.8.0.md](changelog/CHANGELOG_v0.8.0.md) — v0.8.0. 变更日志
+- [CHANGELOG_v0.9.0.md](changelog/CHANGELOG_v0.9.0.md) — v0.9.0. 变更日志
+- [CHANGELOG_v0.9.2.md](changelog/CHANGELOG_v0.9.2.md) — v0.9.2. 变更日志
+
+## docs/external-docs/
+
+### 根目录/ (3 篇)
+
+- [CHANGELOG.md](external-docs/CHANGELOG.md) — Changelog
+- [ROADMAP.md](external-docs/ROADMAP.md) — 文档信息
+- [TODO.md](external-docs/TODO.md) — TODO
+
+### API 文档/ (26 篇)
+
+- [api/data-structure.md](external-docs/api/data-structure.md) — 概述
+- [api/http-api.md](external-docs/api/http-api.md) — Chatlog HTTP API 文档
+- [api/pagination.md](external-docs/api/pagination.md) — 概述
+- [api/reference.md](external-docs/api/reference.md) — 目录
+- [api/response-fix.md](external-docs/api/response-fix.md) — API 响应处理修复说明
+- [api/session-mapping.md](external-docs/api/session-mapping.md) — 概述
+- [api/examples/auto-decrypt.md](external-docs/api/examples/auto-decrypt.md) — auto-decrypt
+- [api/examples/chatlog-2.md](external-docs/api/examples/chatlog-2.md) — /api/v1/chatlog
+- [api/examples/chatlog.md](external-docs/api/examples/chatlog.md) — /api/v1/chatlog
+- [api/examples/chatroom.md](external-docs/api/examples/chatroom.md) — https://chatlog.x.qiubobo.com:60443/api/v1/chatroom?keywo...
+- [api/examples/contact.md](external-docs/api/examples/contact.md) — {
+- [api/examples/dashboard.md](external-docs/api/examples/dashboard.md) — 数据总览
+- [api/examples/decrypt.md](external-docs/api/examples/decrypt.md) — POST /api/v1/actions/decrypt
+- [api/examples/diary-2.md](external-docs/api/examples/diary-2.md) — diary-2
+- [api/examples/diary.md](external-docs/api/examples/diary.md) — diary
+- [api/examples/msgtype-emoji-not-downloaded.md](external-docs/api/examples/msgtype-emoji-not-downloaded.md) — 暂不支持的表情包
+- [api/examples/msgtype-fav.md](external-docs/api/examples/msgtype-fav.md) — 收藏类的消息
+- [api/examples/msgtype-file-downloading.md](external-docs/api/examples/msgtype-file-downloading.md) — chatlog 返回数据结构 下载中的文件
+- [api/examples/msgtype-forward-group.md](external-docs/api/examples/msgtype-forward-group.md) — 多选转发的消息，包含附件
+- [api/examples/msgtype-link.md](external-docs/api/examples/msgtype-link.md) — chatlog 返回数据结构 qqmail
+- [api/examples/msgtype-qqmail.md](external-docs/api/examples/msgtype-qqmail.md) — chatlog 返回数据结构 qqmail
+- [api/examples/msgtype-voicecall.md](external-docs/api/examples/msgtype-voicecall.md) — chatlog 返回数据结构 下载中的文件
+- [api/examples/search.md](external-docs/api/examples/search.md) — search
+- [api/examples/session-v2.md](external-docs/api/examples/session-v2.md) — 请求近期聊天session列表
+- [api/examples/session.md](external-docs/api/examples/session.md) — 请求近期聊天session列表
+- [api/examples/setting.md](external-docs/api/examples/setting.md) — setting
+
+### 架构设计/ (5 篇)
+
+- [architecture/product-design.md](external-docs/architecture/product-design.md) — 目录
+- [architecture/core/message-loading-flow.md](external-docs/architecture/core/message-loading-flow.md) — 概述
+- [architecture/core/message-loading-quick-reference.md](external-docs/architecture/core/message-loading-quick-reference.md) — 核心流程图
+- [architecture/ui/main-layout.md](external-docs/architecture/ui/main-layout.md) — 概述
+- [architecture/ui/view-switching.md](external-docs/architecture/ui/view-switching.md) — 概述
+
+### 后端 Golang/ (41 篇)
+
+- [backend-golang/Sarv微信聊天记录解密.md](external-docs/backend-golang/Sarv微信聊天记录解密.md) — 概述
+- [backend-golang/[原创]wx新版本（after4.0）数据库key逆向.md](external-docs/backend-golang/[原创]wx新版本（after4.0）数据库key逆向.md) — 1、 前提
+- [backend-golang/fts-native-testing-report.md](external-docs/backend-golang/fts-native-testing-report.md) — 测试日期
+- [backend-golang/sqlcipher-data-realtime-fix.md](external-docs/backend-golang/sqlcipher-data-realtime-fix.md) — 文档信息
+- [backend-golang/sqlcipher-migration.md](external-docs/backend-golang/sqlcipher-migration.md) — SQLCipher 迁移指南
+- [backend-golang/troubleshooting-sqlcipher.md](external-docs/backend-golang/troubleshooting-sqlcipher.md) — SQLCipher 故障排除指南
+- [backend-golang/使用pysqlcipher3操作Windows微信数据库.md](external-docs/backend-golang/使用pysqlcipher3操作Windows微信数据库.md) — 使用pysqlcipher3操作Windows微信数据库
+- [backend-golang/db-analysis/contact_db_analysis.md](external-docs/backend-golang/db-analysis/contact_db_analysis.md) — SQLite 数据库结构分析报告：contact.db
+- [backend-golang/db-analysis/contact_db_deep_analysis.md](external-docs/backend-golang/db-analysis/contact_db_deep_analysis.md) — SQLite 数据库深度分析报告：contact.db
+- [backend-golang/db-analysis/darwin_v4_vfs_analysis.md](external-docs/backend-golang/db-analysis/darwin_v4_vfs_analysis.md) — Darwin V4 微信数据库 VFS 测试分析报告
+- [backend-golang/db-analysis/emoticon_db_analysis.md](external-docs/backend-golang/db-analysis/emoticon_db_analysis.md) — emoticon.db 深度分析报告
+- [backend-golang/db-analysis/favorite_db_analysis.md](external-docs/backend-golang/db-analysis/favorite_db_analysis.md) — favorite.db 深度分析报告
+- [backend-golang/db-analysis/general_db_analysis.md](external-docs/backend-golang/db-analysis/general_db_analysis.md) — general.db 深度分析报告
+- [backend-golang/db-analysis/hardlink_db_analysis.md](external-docs/backend-golang/db-analysis/hardlink_db_analysis.md) — hardlink.db 深度分析报告
+- [backend-golang/db-analysis/message_db_analysis.md](external-docs/backend-golang/db-analysis/message_db_analysis.md) — SQLite 数据库深度分析报告：Message 数据库群
+- [backend-golang/db-analysis/other_db_analysis.md](external-docs/backend-golang/db-analysis/other_db_analysis.md) — SQLite 数据库深度分析报告：其他功能数据库
+- [backend-golang/db-analysis/session_db_analysis.md](external-docs/backend-golang/db-analysis/session_db_analysis.md) — SQLite 数据库深度分析报告：session.db
+- [backend-golang/db-copy/application_file_copy_analysis.md](external-docs/backend-golang/db-copy/application_file_copy_analysis.md) — 文件复制解密逻辑流程图
+- [backend-golang/db-copy/copy_temp_analysis.md](external-docs/backend-golang/db-copy/copy_temp_analysis.md) — User
+- [backend-golang/db-copy/direct_access_wechat_db.md](external-docs/backend-golang/db-copy/direct_access_wechat_db.md) — User
+- [backend-golang/db-copy/error_filecopy_delete.md](external-docs/backend-golang/db-copy/error_filecopy_delete.md) — 问题总结
+- [backend-golang/db-copy/issues_direct_open.md](external-docs/backend-golang/db-copy/issues_direct_open.md) — 解决方案
+- [backend-golang/db-copy/optimization_general.md](external-docs/backend-golang/db-copy/optimization_general.md) — 1. 问题分析
+- [backend-golang/db-copy/optimization_io.md](external-docs/backend-golang/db-copy/optimization_io.md) — FileCopy IO 优化方案
+- [backend-golang/db-copy/rationale_copy_temp.md](external-docs/backend-golang/db-copy/rationale_copy_temp.md) — 为什么 Windows 下一定要临时复制？
+- [backend-golang/db-copy/sqlite_incremental_backup.md](external-docs/backend-golang/db-copy/sqlite_incremental_backup.md) — User
+- [backend-golang/db-copy/vfs_compatibility.md](external-docs/backend-golang/db-copy/vfs_compatibility.md) — 概述
+- [backend-golang/db-copy/vfs_integration.md](external-docs/backend-golang/db-copy/vfs_integration.md) — VFS 集成文档
+- [backend-golang/implementation/debug_logging.md](external-docs/backend-golang/implementation/debug_logging.md) — 1. 目标
+- [backend-golang/implementation/decryption_logic.md](external-docs/backend-golang/implementation/decryption_logic.md) — ChatLog Decrypt 流程详解
+- [backend-golang/implementation/image_decryption_fix.md](external-docs/backend-golang/implementation/image_decryption_fix.md) — 问题背景
+- [backend-golang/implementation/template_extraction.md](external-docs/backend-golang/implementation/template_extraction.md) — 概述
+- [backend-golang/optimizations/dat_to_img_conversion.md](external-docs/backend-golang/optimizations/dat_to_img_conversion.md) — 1. 背景
+- [backend-golang/optimizations/http_server.md](external-docs/backend-golang/optimizations/http_server.md) — 1. 问题分析
+- [backend-golang/optimizations/indexer_performance.md](external-docs/backend-golang/optimizations/indexer_performance.md) — 1. 问题分析
+- [backend-golang/optimizations/indexer_startup.md](external-docs/backend-golang/optimizations/indexer_startup.md) — 1. 问题分析
+- [backend-golang/optimizations/mcp_protocol.md](external-docs/backend-golang/optimizations/mcp_protocol.md) — 1. 问题分析
+- [backend-golang/optimizations/wechat_db_access.md](external-docs/backend-golang/optimizations/wechat_db_access.md) — 1. 问题分析
+- [backend-golang/optimizations/wechat_initialization.md](external-docs/backend-golang/optimizations/wechat_initialization.md) — 1. 问题分析
+- [backend-golang/refactoring/http_router_refactor.md](external-docs/backend-golang/refactoring/http_router_refactor.md) — 概述
+- [backend-golang/refactoring/large_files_analysis.md](external-docs/backend-golang/refactoring/large_files_analysis.md) — 一些较大的代码文件
+
+### 部署指南/ (3 篇)
+
+- [deployment/custom-path.md](external-docs/deployment/custom-path.md) — 自定义路径部署指南
+- [deployment/github-pages.md](external-docs/deployment/github-pages.md) — GitHub Pages 部署指南
+- [deployment/other-platforms.md](external-docs/deployment/other-platforms.md) — 其他部署平台指南
+
+### 技术设计/ (1 篇)
+
+- [design/v0.26.0-sendmsg-integration.md](external-docs/design/v0.26.0-sendmsg-integration.md) — 概述
+
+### 示例文档/ (4 篇)
+
+- [examples/api/forwarded-message-example.md](external-docs/examples/api/forwarded-message-example.md) — 快速开始
+- [examples/messages/emoji-message-example.md](external-docs/examples/messages/emoji-message-example.md) — 概述
+- [examples/messages/miniprogram-message-example.md](external-docs/examples/messages/miniprogram-message-example.md) — 概述
+- [examples/messages/shortvideo-message-example.md](external-docs/examples/messages/shortvideo-message-example.md) — 概述
+
+### 功能特性/ (34 篇)
+
+- [features/README_p0_features.md](external-docs/features/README_p0_features.md) — 文档信息
+- [features/batch-update-mode.md](external-docs/features/batch-update-mode.md) — 概述
+- [features/live-photo-compatibility.md](external-docs/features/live-photo-compatibility.md) — 背景
+- [features/system-hotkey.md](external-docs/features/system-hotkey.md) — PWA（渐进式 Web 应用）本身无法直接绑定系统级快捷键
+- [features/api/api-config-unification.md](external-docs/features/api/api-config-unification.md) — 概述
+- [features/api/api-settings.md](external-docs/features/api/api-settings.md) — 概述
+- [features/background/background-refresh.md](external-docs/features/background/background-refresh.md) — 概述
+- [features/contact/contact-auto-load.md](external-docs/features/contact/contact-auto-load.md) — 概述
+- [features/contact/contact-db-mode.md](external-docs/features/contact/contact-db-mode.md) — 概述
+- [features/contact/contact-features.md](external-docs/features/contact/contact-features.md) — 概述
+- [features/contact/contact-index/contact-chinese-index.md](external-docs/features/contact/contact-index/contact-chinese-index.md) — 概述
+- [features/contact/contact-indexeddb/contact-index-db-clear-guide.md](external-docs/features/contact/contact-indexeddb/contact-index-db-clear-guide.md) — 问题背景
+- [features/contact/contact-indexeddb/contact-index-db-upgrade.md](external-docs/features/contact/contact-indexeddb/contact-index-db-upgrade.md) — 概述
+- [features/core/message-cache/message-cache.md](external-docs/features/core/message-cache/message-cache.md) — 概述
+- [features/core/message-loading/message-loading.md](external-docs/features/core/message-loading/message-loading.md) — 概述
+- [features/core/scroll-position/scroll-position-memory.md](external-docs/features/core/scroll-position/scroll-position-memory.md) — 概述
+- [features/core/virtual-messages/virtual-gap-message.md](external-docs/features/core/virtual-messages/virtual-gap-message.md) — 概述
+- [features/messages/basic/contact-card-message.md](external-docs/features/messages/basic/contact-card-message.md) — 概述
+- [features/messages/basic/empty-range-in-history-loading.md](external-docs/features/messages/basic/empty-range-in-history-loading.md) — 概述
+- [features/messages/basic/location-message.md](external-docs/features/messages/basic/location-message.md) — 概述
+- [features/messages/basic/voice-playback.md](external-docs/features/messages/basic/voice-playback.md) — 概述
+- [features/messages/media/media-display-control.md](external-docs/features/messages/media/media-display-control.md) — 概述
+- [features/messages/media/video-link-message.md](external-docs/features/messages/media/video-link-message.md) — 概述
+- [features/messages/rich/forwarded-message-dialog.md](external-docs/features/messages/rich/forwarded-message-dialog.md) — 功能概述
+- [features/messages/rich/forwarded-message-enhancement.md](external-docs/features/messages/rich/forwarded-message-enhancement.md) — 概述
+- [features/messages/rich/jielong-message.md](external-docs/features/messages/rich/jielong-message.md) — 概述
+- [features/messages/rich/transfer-message.md](external-docs/features/messages/rich/transfer-message.md) — 概述
+- [features/notification/message-notification.md](external-docs/features/notification/message-notification.md) — 概述
+- [features/performance/virtual-scroll.md](external-docs/features/performance/virtual-scroll.md) — 概述
+- [features/pwa/pwa-implementation.md](external-docs/features/pwa/pwa-implementation.md) — 概述
+- [features/search/search-feature.md](external-docs/features/search/search-feature.md) — 概述
+- [features/ui/message-bubble-enhancement.md](external-docs/features/ui/message-bubble-enhancement.md) — 概述
+- [features/ui/onboarding-guide.md](external-docs/features/ui/onboarding-guide.md) — 1. 概述
+- [features/ui/mobile/mobile-ui.md](external-docs/features/ui/mobile/mobile-ui.md) — 概述
+
+### 问题修复/ (10 篇)
+
+- [fixes/2025-01_session_list_auto_refresh.md](external-docs/fixes/2025-01_session_list_auto_refresh.md) — 问题描述
+- [fixes/virtual-messages-display-fix.md](external-docs/fixes/virtual-messages-display-fix.md) — 问题描述
+- [fixes/auto-refresh/auto-refresh-cache-update.md](external-docs/fixes/auto-refresh/auto-refresh-cache-update.md) — 问题描述
+- [fixes/auto-refresh/auto-refresh-messages-enhancement.md](external-docs/fixes/auto-refresh/auto-refresh-messages-enhancement.md) — 文档信息
+- [fixes/history-loading/history-loading-hasmore-logic-fix.md](external-docs/fixes/history-loading/history-loading-hasmore-logic-fix.md) — 问题描述
+- [fixes/history-loading/history-loading-offset-fix.md](external-docs/fixes/history-loading/history-loading-offset-fix.md) — 修正概述
+- [fixes/mix-content/mix-content.md](external-docs/fixes/mix-content/mix-content.md) — Mixed Content 问题
+- [fixes/mix-content/solution.md](external-docs/fixes/mix-content/solution.md) — URL 替换方案
+- [fixes/mix-content/tunnel-error-fix.md](external-docs/fixes/mix-content/tunnel-error-fix.md) — 问题描述
+- [fixes/mix-content/worker-comparison.md](external-docs/fixes/mix-content/worker-comparison.md) — 问题背景
+
+### 指南文档/ (27 篇)
+
+- [guides/ai-assistant-usage.md](external-docs/guides/ai-assistant-usage.md) — 概述
+- [guides/pwa-setup-guide.md](external-docs/guides/pwa-setup-guide.md) — 概述
+- [guides/developer/developer-guide.md](external-docs/guides/developer/developer-guide.md) — 目录
+- [guides/developer/history-loading-optimization-summary.md](external-docs/guides/developer/history-loading-optimization-summary.md) — 概述
+- [guides/developer/testing-guide.md](external-docs/guides/developer/testing-guide.md) — API 测试指南
+- [guides/developer/version-management.md](external-docs/guides/developer/version-management.md) — 版本管理指南
+- [guides/developer/debugging/auto-refresh-debugging.md](external-docs/guides/developer/debugging/auto-refresh-debugging.md) — 文档信息
+- [guides/developer/debugging/debug-empty-range.md](external-docs/guides/developer/debugging/debug-empty-range.md) — 概述
+- [guides/developer/debugging/debug-message-date.md](external-docs/guides/developer/debugging/debug-message-date.md) — 问题描述
+- [guides/developer/debugging/virtual-gap-debug-guide.md](external-docs/guides/developer/debugging/virtual-gap-debug-guide.md) — 目标读者
+- [guides/developer/implementation/gap-message-usage.md](external-docs/guides/developer/implementation/gap-message-usage.md) — 概述
+- [guides/developer/implementation/history-message-loading-process.md](external-docs/guides/developer/implementation/history-message-loading-process.md) — 历史消息加载流程详解
+- [guides/developer/implementation/live-message-implementation.md](external-docs/guides/developer/implementation/live-message-implementation.md) — 概述
+- [guides/developer/implementation/timezone-usage.md](external-docs/guides/developer/implementation/timezone-usage.md) — 概述
+- [guides/developer/testing/contact-chinese-index-testing.md](external-docs/guides/developer/testing/contact-chinese-index-testing.md) — 功能概述
+- [guides/developer/testing/test-empty-range-time-gap.md](external-docs/guides/developer/testing/test-empty-range-time-gap.md) — 测试目标
+- [guides/developer/testing/test-empty-range.md](external-docs/guides/developer/testing/test-empty-range.md) — 目标
+- [guides/developer/testing/test-loadmessages-empty-range.md](external-docs/guides/developer/testing/test-loadmessages-empty-range.md) — 概述
+- [guides/message-types/message-type-checklist.md](external-docs/guides/message-types/message-type-checklist.md) — 开发前检查
+- [guides/message-types/message-type-config-guide.md](external-docs/guides/message-types/message-type-config-guide.md) — 概述
+- [guides/message-types/message-type-quick-reference.md](external-docs/guides/message-types/message-type-quick-reference.md) — 添加新消息类型（3 步完成）
+- [guides/message-types/message-type-refactoring-summary.md](external-docs/guides/message-types/message-type-refactoring-summary.md) — 重构概述
+- [guides/quick-start/api-settings-quick-guide.md](external-docs/guides/quick-start/api-settings-quick-guide.md) — 快速开始
+- [guides/quick-start/contact-db-quick-reference.md](external-docs/guides/quick-start/contact-db-quick-reference.md) — 核心改变
+- [guides/quick-start/main-layout-quick-start.md](external-docs/guides/quick-start/main-layout-quick-start.md) — 快速预览
+- [guides/user/background-refresh-guide.md](external-docs/guides/user/background-refresh-guide.md) — 快速开始
+- [guides/user/user-guide.md](external-docs/guides/user/user-guide.md) — 目录
+
+### 问题记录/ (4 篇)
+
+- [issues/history-loading-issues-2025-11-22.md](external-docs/issues/history-loading-issues-2025-11-22.md) — 问题概述
+- [issues/history-loading-issues-fix-patch.md](external-docs/issues/history-loading-issues-fix-patch.md) — 概述
+- [issues/安全报告.md](external-docs/issues/安全报告.md) — Chatlog Session 安全分析报告
+- [issues/solutions/empty-range-solution-summary.md](external-docs/issues/solutions/empty-range-solution-summary.md) — 概述
+
+### OpenSpec 变更管理/ (115 篇)
+
+- [openspec/readme.md](external-docs/openspec/readme.md) — OpenSpec 说明
+- [openspec/changes/integrate-ai-panel-butler/design.md](external-docs/openspec/changes/integrate-ai-panel-butler/design.md) — Context
+- [openspec/changes/integrate-ai-panel-butler/proposal.md](external-docs/openspec/changes/integrate-ai-panel-butler/proposal.md) — Why
+- [openspec/changes/integrate-ai-panel-butler/tasks.md](external-docs/openspec/changes/integrate-ai-panel-butler/tasks.md) — 1. Types and API Client
+- [openspec/changes/integrate-ai-panel-butler/specs/ai-context-feed/spec.md](external-docs/openspec/changes/integrate-ai-panel-butler/specs/ai-context-feed/spec.md) — ADDED Requirements
+- [openspec/changes/integrate-ai-panel-butler/specs/ai-conversation/spec.md](external-docs/openspec/changes/integrate-ai-panel-butler/specs/ai-conversation/spec.md) — ADDED Requirements
+- [openspec/changes/integrate-ai-panel-butler/specs/ai-panel/spec.md](external-docs/openspec/changes/integrate-ai-panel-butler/specs/ai-panel/spec.md) — ADDED Requirements
+- [openspec/changes/integrate-ai-panel-butler/specs/ai-prompt-library/spec.md](external-docs/openspec/changes/integrate-ai-panel-butler/specs/ai-prompt-library/spec.md) — ADDED Requirements
+- [openspec/changes/integrate-ai-panel-butler/specs/butler-connection/spec.md](external-docs/openspec/changes/integrate-ai-panel-butler/specs/butler-connection/spec.md) — ADDED Requirements
+- [openspec/changes/integrate-ai-panel-butler/specs/unified-settings/spec.md](external-docs/openspec/changes/integrate-ai-panel-butler/specs/unified-settings/spec.md) — ADDED Requirements
+- [openspec/specs/background-batch-loader/spec.md](external-docs/openspec/specs/background-batch-loader/spec.md) — ADDED Requirements
+- [openspec/specs/chat-export-api/spec.md](external-docs/openspec/specs/chat-export-api/spec.md) — Purpose
+- [openspec/specs/chat-export-dialog/spec.md](external-docs/openspec/specs/chat-export-dialog/spec.md) — Purpose
+- [openspec/specs/chat-export-manager/spec.md](external-docs/openspec/specs/chat-export-manager/spec.md) — Purpose
+- [openspec/specs/chat-favorite-message-support/spec.md](external-docs/openspec/specs/chat-favorite-message-support/spec.md) — Requirement
+- [openspec/specs/chat-image-gallery-preview/spec.md](external-docs/openspec/specs/chat-image-gallery-preview/spec.md) — Purpose
+- [openspec/specs/chat-selection/spec.md](external-docs/openspec/specs/chat-selection/spec.md) — Requirement
+- [openspec/specs/drag-file-send/spec.md](external-docs/openspec/specs/drag-file-send/spec.md) — ADDED Requirements
+- [openspec/specs/file-download-utils/spec.md](external-docs/openspec/specs/file-download-utils/spec.md) — Purpose
+- [openspec/specs/history-emptyrange-windowing/spec.md](external-docs/openspec/specs/history-emptyrange-windowing/spec.md) — Purpose
+- [openspec/specs/message-order-stabilization/spec.md](external-docs/openspec/specs/message-order-stabilization/spec.md) — Purpose
+- [openspec/specs/package-manager-pnpm-migration/spec.md](external-docs/openspec/specs/package-manager-pnpm-migration/spec.md) — ADDED Requirements
+- [openspec/specs/paste-image-send/spec.md](external-docs/openspec/specs/paste-image-send/spec.md) — ADDED Requirements
+- [openspec/specs/send-shortcut-config/spec.md](external-docs/openspec/specs/send-shortcut-config/spec.md) — ADDED Requirements
+- [openspec/specs/sendbox-async-send/spec.md](external-docs/openspec/specs/sendbox-async-send/spec.md) — ADDED Requirements
+- [openspec/specs/sendbox-wechat-layout/spec.md](external-docs/openspec/specs/sendbox-wechat-layout/spec.md) — ADDED Requirements
+- [openspec/specs/session-list-search/spec.md](external-docs/openspec/specs/session-list-search/spec.md) — Requirement
+- [openspec/specs/unified-settings/spec.md](external-docs/openspec/specs/unified-settings/spec.md) — Requirement
+- [openspec/specs/virtual-window-lifecycle/spec.md](external-docs/openspec/specs/virtual-window-lifecycle/spec.md) — Purpose
+
+### 项目规划/ (4 篇)
+
+- [planning/ai-integration-refactor.md](external-docs/planning/ai-integration-refactor.md) — 概述
+- [planning/ai-mcp-integration-plan.md](external-docs/planning/ai-mcp-integration-plan.md) — 文档信息
+- [planning/connection-test-guide.md](external-docs/planning/connection-test-guide.md) — AI 连接测试功能说明
+- [planning/implementation-progress.md](external-docs/planning/implementation-progress.md) — AI MCP 集成功能实施进度
+
+### 重构文档/ (2 篇)
+
+- [refactoring/message-loading-refactor.md](external-docs/refactoring/message-loading-refactor.md) — 概述
+- [refactoring/component/MessageBubble.md](external-docs/refactoring/component/MessageBubble.md) — 概述
+
+### 参考资料/ (7 篇)
+
+- [references/auto-background-refresh.md](external-docs/references/auto-background-refresh.md) — 概述
+- [references/contact-db-mode-changelog.md](external-docs/references/contact-db-mode-changelog.md) — Contact View 数据库模式变更日志
+- [references/final-summary.md](external-docs/references/final-summary.md) — Contact View 功能完善 - 最终总结
+- [references/forwarded-media-backend-analysis.md](external-docs/references/forwarded-media-backend-analysis.md) — 背景
+- [references/implementation-summary.md](external-docs/references/implementation-summary.md) — 需求回顾
+- [references/progress.md](external-docs/references/progress.md) — Chatlog Session v1.0 开发进度报告
+- [references/version-history.md](external-docs/references/version-history.md) — v0.8.0 - v0.26.0 版本
+
+### 故障排查/ (2 篇)
+
+- [troubleshooting/notification-issues.md](external-docs/troubleshooting/notification-issues.md) — 文档信息
+- [troubleshooting/notification_debug.md](external-docs/troubleshooting/notification_debug.md) — 问题：notificationStore.isEnabled 为什么是 false？
+
+### 其他同类工具/ (2 篇)
+
+- [其他同类工具/留痕-2.md](external-docs/其他同类工具/留痕-2.md) — 永久免费，被吹爆了的神器
+- [其他同类工具/留痕.md](external-docs/其他同类工具/留痕.md) — 留痕 MemoTrace v3.0
+
+### performance/ (1 篇)
+
+- [performance/pinyin-optimization.md](external-docs/performance/pinyin-optimization.md) — 性能瓶颈分析
+
+---
+
+**文档总数**: 321 篇 | **归档**: 61 篇 | **最后更新**: 2026-05-12 | **版本**: v0.26.0
