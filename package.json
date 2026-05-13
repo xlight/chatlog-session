@@ -38,7 +38,7 @@
     "eslint": "^10.3.0",
     "eslint-plugin-vue": "^10.9.1",
     "prettier": "^3.7.4",
-    "sass": "^1.97.2",
+    "sass": "^1.99.0",
     "typescript": "~6.0.3",
     "unplugin-auto-import": "^20.3.0",
     "unplugin-vue-components": "^32.0.0",
