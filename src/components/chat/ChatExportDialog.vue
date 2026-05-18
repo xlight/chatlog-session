@@ -69,6 +69,19 @@ async function handleStartExport() {
 }
 
 /**
+ * 复制到剪贴板
+ */
+async function handleCopyToClipboard() {
+  if (!props.sessionId) return
+
+  await exportStore.startCopyToClipboard(props.sessionId, props.sessionName || '')
+
+  if (exportStore.stage === 'complete') {
+    emit('success')
+  }
+}
+
+/**
  * 取消导出
  */
 function handleCancel() {
@@ -198,10 +211,16 @@ watch(
     <!-- 完成阶段 -->
     <template v-else-if="exportStore.stage === 'complete'">
       <div class="export-complete">
-        <el-result icon="success" title="导出成功">
+        <el-result icon="success" :title="exportStore.exportMode === 'clipboard' ? '复制成功' : '导出成功'">
           <template #sub-title>
-            <p>文件 "{{ exportStore.exportedFilename }}" 已下载</p>
-            <p class="file-info">共导出 {{ exportStore.processedCount }} 条消息</p>
+            <template v-if="exportStore.exportMode === 'clipboard'">
+              <p>已复制到剪贴板</p>
+              <p class="file-info">共复制 {{ exportStore.processedCount }} 条消息 ({{ exportStore.exportFormat.toUpperCase() }} 格式)</p>
+            </template>
+            <template v-else>
+              <p>文件 "{{ exportStore.exportedFilename }}" 已下载</p>
+              <p class="file-info">共导出 {{ exportStore.processedCount }} 条消息</p>
+            </template>
           </template>
         </el-result>
       </div>
@@ -224,6 +243,9 @@ watch(
       <!-- 配置阶段按钮 -->
       <template v-if="exportStore.stage === 'config'">
         <el-button @click="handleClose">取消</el-button>
+        <el-button :disabled="!exportStore.isTimeRangeValid || !sessionId" @click="handleCopyToClipboard">
+          复制到剪贴板
+        </el-button>
         <el-button type="primary" :disabled="!exportStore.isTimeRangeValid || !sessionId" @click="handleStartExport">
           开始导出
         </el-button>

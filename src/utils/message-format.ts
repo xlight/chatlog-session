@@ -1,6 +1,6 @@
 /**
  * 消息格式化工具
- * 提供消息导出为纯文本和 Markdown 格式的统一实现
+ * 提供消息导出为纯文本、Markdown 和 CSV 格式的统一实现
  */
 
 import dayjs from 'dayjs'
@@ -77,6 +77,43 @@ export function formatMessagesAsMarkdown(messages: Message[], sessionName: strin
   }
 
   return lines.join('\n')
+}
+
+/**
+ * CSV 字段转义（RFC 4180）
+ * 含逗号、双引号或换行的字段用双引号包裹，内部双引号双写
+ */
+function escapeCSVField(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n') || value.includes('\r')) {
+    return `"${value.replace(/"/g, '""')}"`
+  }
+  return value
+}
+
+/**
+ * 将消息列表格式化为 CSV（RFC 4180 兼容）
+ *
+ * @param messages 消息列表
+ * @returns CSV 格式的消息内容
+ */
+export function formatMessagesAsCSV(messages: Message[]): string {
+  const header = ['seq', 'time', 'sender', 'senderName', 'isSelf', 'type', 'content']
+  const rows = [header.join(',')]
+
+  for (const msg of messages) {
+    const row = [
+      escapeCSVField(String(msg.seq ?? '')),
+      escapeCSVField(dayjs(msg.time).format('YYYY-MM-DD HH:mm:ss')),
+      escapeCSVField(msg.sender || ''),
+      escapeCSVField(msg.senderName || ''),
+      escapeCSVField(String(msg.isSelf ? 1 : 0)),
+      escapeCSVField(String(msg.type ?? '')),
+      escapeCSVField(msg.content || ''),
+    ]
+    rows.push(row.join(','))
+  }
+
+  return rows.join('\n')
 }
 
 /**

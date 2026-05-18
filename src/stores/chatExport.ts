@@ -6,9 +6,10 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { ElMessage } from 'element-plus'
 import { chatlogAPI } from '@/api/chatlog'
 import { downloadJSON, downloadText, downloadMarkdown } from '@/utils/download'
-import { formatMessagesAsText, formatMessagesAsMarkdown } from '@/utils/message-format'
+import { formatMessagesAsText, formatMessagesAsMarkdown, formatMessagesAsCSV } from '@/utils/message-format'
 import type { Message } from '@/types/message'
 import dayjs from 'dayjs'
 
@@ -23,6 +24,11 @@ export type ExportStage = 'config' | 'progress' | 'complete' | 'error'
 export type ExportFormat = 'json' | 'csv' | 'txt' | 'markdown'
 
 /**
+ * 导出模式类型
+ */
+export type ExportMode = 'file' | 'clipboard'
+
+/**
  * 时间范围类型
  */
 export type TimeRangeType = 'all' | 'last7Days' | 'last30Days' | 'custom'
@@ -32,6 +38,7 @@ export const useChatExportStore = defineStore('chatExport', () => {
 
   const stage = ref<ExportStage>('config')
   const exportFormat = ref<ExportFormat>('json')
+  const exportMode = ref<ExportMode>('file')
   const timeRangeType = ref<TimeRangeType>('all')
   const customStartDate = ref('')
   const customEndDate = ref('')
@@ -131,6 +138,19 @@ export const useChatExportStore = defineStore('chatExport', () => {
     }
   }
 
+  function formatMessagesForClipboard(messages: Message[], sessionName: string): string {
+    switch (exportFormat.value) {
+      case 'json':
+        return JSON.stringify(messages, null, 2)
+      case 'txt':
+        return formatMessagesAsText(messages)
+      case 'markdown':
+        return formatMessagesAsMarkdown(messages, sessionName)
+      case 'csv':
+        return formatMessagesAsCSV(messages)
+    }
+  }
+
   async function exportMessages(messages: Message[], sessionId: string, sessionName: string) {
     const timestamp = dayjs().format('YYYY-MM-DD_HH-mm-ss')
     const safeSessionName = (sessionName || '聊天记录').replace(/[\\/:*?"<>|]/g, '_')
@@ -192,6 +212,46 @@ export const useChatExportStore = defineStore('chatExport', () => {
     }
   }
 
+  async function startCopyToClipboard(sessionId: string, sessionName: string) {
+    if (!isTimeRangeValid.value || !sessionId) {
+      return
+    }
+
+    exportMode.value = 'clipboard'
+    stage.value = 'progress'
+    exportStartTime.value = new Date()
+    abortController.value = new AbortController()
+
+    try {
+      const timeRange = currentTimeRange.value
+
+      const messages = await chatlogAPI.exportWithProgress(sessionId, timeRange, {
+        signal: abortController.value.signal,
+        onProgress: handleProgressUpdate,
+      })
+
+      const filteredMessages = filterMessagesByType(messages)
+      const text = formatMessagesForClipboard(filteredMessages, sessionName)
+
+      await navigator.clipboard.writeText(text)
+
+      stage.value = 'complete'
+      ElMessage.success('已复制到剪贴板')
+    } catch (error) {
+      if (error instanceof Error && error.message === '导出已取消') {
+        resetState()
+      } else if (error instanceof Error && error.name === 'NotAllowedError') {
+        errorMessage.value = '复制失败，请检查浏览器权限'
+        stage.value = 'error'
+        ElMessage.error(errorMessage.value)
+      } else {
+        errorMessage.value = error instanceof Error ? error.message : '复制失败，请重试'
+        stage.value = 'error'
+        ElMessage.error(errorMessage.value)
+      }
+    }
+  }
+
   function cancelExport() {
     if (abortController.value) {
       abortController.value.abort()
@@ -206,6 +266,7 @@ export const useChatExportStore = defineStore('chatExport', () => {
   function resetState() {
     stage.value = 'config'
     exportFormat.value = 'json'
+    exportMode.value = 'file'
     timeRangeType.value = 'all'
     customStartDate.value = ''
     customEndDate.value = ''
@@ -228,6 +289,7 @@ export const useChatExportStore = defineStore('chatExport', () => {
     // State
     stage,
     exportFormat,
+    exportMode,
     timeRangeType,
     customStartDate,
     customEndDate,
@@ -248,6 +310,7 @@ export const useChatExportStore = defineStore('chatExport', () => {
 
     // Actions
     startExport,
+    startCopyToClipboard,
     cancelExport,
     retryExport,
     resetState,
