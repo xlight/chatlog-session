@@ -126,6 +126,14 @@ export function useMessageUrl(message: Message) {
     return ''
   })
 
+  // 视频缩略图 URL
+  const videoThumbUrl = computed(() => {
+    if (message.type === 43 && message.contents?.md5) {
+      return mediaAPI.getThumbnailUrl(message.contents.md5, message.contents.path)
+    }
+    return ''
+  })
+
   // 表情 URL
   const emojiUrl = computed(() => {
     // 优先使用 cdnurl（type=47 的表情消息）
@@ -226,6 +234,7 @@ export function useMessageUrl(message: Message) {
     imageThumbUrl,
     imageUrl,
     videoUrl,
+    videoThumbUrl,
     voiceUrl,
     emojiUrl,
     fileUrl,

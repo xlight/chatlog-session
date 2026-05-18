@@ -105,6 +105,39 @@ const imagePreviewIndex = computed(() => {
   return idx >= 0 ? idx : 0
 })
 
+// 当前会话视频预览序列
+const videoPreviewList = computed(() => {
+  const currentTalker = chatStore.currentTalker
+  if (!currentTalker || currentTalker !== props.message.talker) {
+    return []
+  }
+
+  return chatStore.videoMessages
+    .filter(msg => msg.talker === props.message.talker)
+    .map(msg => {
+      const thumbUrl = msg.contents?.md5
+        ? mediaAPI.getThumbnailUrl(msg.contents.md5, msg.contents.path)
+        : ''
+      const imageUrl = msg.contents?.md5
+        ? mediaAPI.getVideoUrl(msg.contents.md5)
+        : msg.content || ''
+
+      return {
+        imageUrl,
+        thumbUrl,
+      }
+    })
+    .filter(item => Boolean(item.imageUrl))
+})
+
+const videoPreviewIndex = computed(() => {
+  const currentVideoUrl = messageUrls.videoUrl.value
+  const idx = videoPreviewList.value.findIndex(
+    item => item.imageUrl === currentVideoUrl
+  )
+  return idx >= 0 ? idx : 0
+})
+
 // 格式化消息时间
 const messageTime = computed(() => {
   if (props.message.createTime) {
@@ -172,6 +205,7 @@ const componentProps = computed(() => {
       imageThumbUrl: messageUrls.imageThumbUrl.value,
       imageUrl: messageUrls.imageUrl.value,
       videoUrl: messageUrls.videoUrl.value,
+      videoThumbUrl: messageUrls.videoThumbUrl.value,
       voiceUrl: messageUrls.voiceUrl.value,
       emojiUrl: messageUrls.emojiUrl.value,
       fileUrl: messageUrls.fileUrl.value,
@@ -201,6 +235,8 @@ const componentProps = computed(() => {
       locationCityname: messageUrls.locationCityname.value,
       imagePreviewList: imagePreviewList.value,
       imagePreviewIndex: imagePreviewIndex.value,
+      videoPreviewList: videoPreviewList.value,
+      videoPreviewIndex: videoPreviewIndex.value,
     }
 
     const mappedProps = config.propsMapper(props.message, context)

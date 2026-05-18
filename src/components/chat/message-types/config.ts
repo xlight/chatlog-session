@@ -86,6 +86,11 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
       showMediaResources: ctx.showMediaResources,
       content: msg.content,
       md5: msg.contents?.md5,
+      thumbUrl: ctx.videoThumbUrl,
+      imageUrl: ctx.videoUrl,
+      imageList: ctx.videoPreviewList,
+      initialIndex: ctx.videoPreviewIndex,
+      mediaType: 'video',
     }),
   },
 

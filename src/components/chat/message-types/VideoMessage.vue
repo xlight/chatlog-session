@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { getMediaPlaceholder } from '../composables/utils'
+import ImageViewer from '@/components/common/ImageViewer.vue'
 
 interface Props {
   videoUrl: string
   showMediaResources: boolean
   content?: string
   md5?: string
+  thumbUrl?: string
+  imageUrl?: string
+  imageList?: Array<{ imageUrl: string; thumbUrl?: string }>
+  initialIndex?: number
+  mediaType?: 'image' | 'video' | 'auto'
 }
 
 const props = defineProps<Props>()
@@ -39,18 +45,16 @@ const handleClick = () => {
     <span v-else class="media-placeholder">{{ getMediaPlaceholder(43) }}</span>
   </div>
   
-  <!-- 视频预览对话框 -->
-  <el-dialog
-    v-model="showPreview"
-    :width="'90%'"
-    :style="{ maxWidth: '1200px' }"
-    align-center
-    destroy-on-close
-  >
-    <video v-if="videoUrl" :src="videoUrl" controls class="preview-video">
-      您的浏览器不支持视频播放
-    </video>
-  </el-dialog>
+  <!-- 视频预览（使用 ImageViewer） -->
+  <ImageViewer
+    v-model:visible="showPreview"
+    :image-url="imageUrl || videoUrl"
+    :thumb-url="thumbUrl"
+    :image-list="imageList"
+    :initial-index="initialIndex"
+    :media-type="mediaType || 'video'"
+    title="视频预览"
+  />
 </template>
 
 <style lang="scss" scoped>
@@ -120,13 +124,6 @@ const handleClick = () => {
     &:hover {
       background: var(--el-fill-color);
     }
-  }
-
-  .preview-video {
-    width: 100%;
-    height: auto;
-    display: block;
-    background-color: #000;
   }
 
   &:hover .play-icon {

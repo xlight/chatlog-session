@@ -23,10 +23,12 @@ interface Props {
   imageList?: ImageItem[]
   initialIndex?: number
   title?: string
+  mediaType?: 'image' | 'video' | 'auto'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: '图片预览',
+  mediaType: 'auto',
 })
 
 const emit = defineEmits<{
@@ -66,7 +68,8 @@ const hdUrl = computed(() => currentItem.value?.imageUrl || props.imageUrl)
 const thumbUrl = computed(() => currentItem.value?.thumbUrl)
 
 const qualityLabel = computed(() => {
-  if (isVideoMode.value) return 'Live Photo'
+  if (props.mediaType === 'video') return '视频'
+  if (isVideoMode.value && props.mediaType === 'auto') return 'Live Photo'
   if (currentImageUrl.value === hdUrl.value) return '高清图'
   if (currentImageUrl.value === thumbUrl.value) return '预览小图'
   return '图片预览'
@@ -141,6 +144,15 @@ const resetAndLoad = () => {
   imageOk.value = false
   videoOk.value = false
 
+  // mediaType='video' 时直接进入视频模式
+  if (props.mediaType === 'video') {
+    isVideoMode.value = true
+    currentImageUrl.value = hdUrl.value
+    videoOk.value = true
+    loading.value = false
+    return
+  }
+
   // 先显示缩略图
   currentImageUrl.value = thumbUrl.value || hdUrl.value
 
@@ -170,6 +182,12 @@ const loadHdInBackground = () => {
     hdLoading.value = false
   }
   img.onerror = () => {
+    // mediaType='image' 时不尝试视频回退
+    if (props.mediaType === 'image') {
+      hdLoading.value = false
+      hdLoadFailed.value = true
+      return
+    }
     // 可能是 Live Photo (video/mp4)，尝试视频
     const video = document.createElement('video')
     video.onloadedmetadata = () => {
