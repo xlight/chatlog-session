@@ -9,7 +9,7 @@ _基于 Chatlog API 的现代化微信聊天记录查看器_
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Chatlog API](https://img.shields.io/badge/backend-chatlog-green.svg)](https://github.com/sjzar/chatlog)
 [![Vue 3](https://img.shields.io/badge/vue-3.x-brightgreen.svg)](https://vuejs.org/)
-[![TypeScript](https://img.shields.io/badge/typescript-5.x-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/typescript-6.x-blue.svg)](https://www.typescriptlang.org/)
 [![PWA](https://img.shields.io/badge/PWA-Supported-orange.svg)](https://web.dev/progressive-web-apps/)
 
 一个现代化的 Web 应用，提供类似微信的界面来查看和管理您的聊天记录。
@@ -38,16 +38,16 @@ _基于 Chatlog API 的现代化微信聊天记录查看器_
 
 ## ✨ 功能特性
 
-### 🆕 最新亮点 (v0.25.0)
+### 🆕 最新亮点 (v0.28.0)
 
-- 🔗 **链接消息 subType=1 兼容**：新增对 `type=49, subType=1` 链接类富文本消息的识别与展示，点击可在新窗口打开链接。
-- 📌 **服务端置顶修复**：从 Contact API 补充 `isPinned`/`isMinimized`/`avatar`，服务端置顶会话现在能正确显示 Paperclip 图标与置顶样式。
-- 💾 **强制下载（另存为）**：文件和图片点击改为 blob 下载，不再在浏览器窗口内导航；自动根据 content-type 推断文件后缀名。
-- 🎬 **Live Photo 高清加载修复**：高清资源为 `video/mp4` 格式时不再误报"高清加载失败"，自动以视频模式播放。
-- 🖼️ **图片预览器重构**：精简状态与逻辑，修复上一张/下一张切换失效，下载走统一 `request.download` 方法。
-- 🔧 **构建兼容 Vite v8**：`manualChunks` 改为函数格式，兼容 rolldown；修复全部 TypeScript 类型错误。
+- 🎬 **视频预览增强**：ImageViewer 新增视频预览模式，消息气泡中的视频可加入预览队列逐个播放，无需下载。
+- 📋 **聊天导出剪贴板复制**：导出功能新增一键复制到剪贴板，分享更便捷。
+- ⌨️ **自定义发送快捷键**：支持 Enter 或 Ctrl+Enter 发送消息，适配不同输入习惯。
+- 😀 **表情选择器**：发送消息时可插入表情，SendBox 组件重构支持多消息发送状态追踪。
+- 📎 **文件/图片发送**：支持粘贴和拖拽上传文件与图片（v0.27.0）。
+- 💬 **发送消息功能**：集成 wechat-sendmsg，可在聊天界面直接发送文本消息（v0.26.0）。
 
-> 📌 详细变更请查看：`docs/changelog/CHANGELOG_v0.25.0.md` 与 `docs/changelog/`
+> 📌 详细变更请查看：`docs/changelog/CHANGELOG_v0.28.0.md` 与 `docs/changelog/`
 
 ### 核心功能
 
@@ -148,6 +148,9 @@ pnpm dev
 
 ### ✅ 已完成
 
+- [x] **v0.28.0**: 视频预览增强、聊天导出剪贴板复制、自定义发送快捷键、表情选择器、SendBox 重构
+- [x] **v0.27.0**: 文件/图片发送（粘贴+拖拽）、消息气泡溢出修复、timeRange 计算修复
+- [x] **v0.26.0**: 发送消息功能集成、TypeScript 6.0 / ESLint / Vite 主版本升级
 - [x] **v0.25.0**: 链接消息 subType=1、服务端置顶修复、强制下载、Live Photo 高清修复、图片预览器重构、Vite v8 构建
 - [x] **v0.24.0**: 收藏消息类型支持、富文本消息 fallback、依赖升级
 - [x] **v0.23.0**: 会话搜索拼音与多字段匹配优化
@@ -166,7 +169,7 @@ pnpm dev
 
 ### 🔮 规划中
 
-- [ ] **v0.26.0**: 导出体验升级（导出模板、批量任务、失败重试与断点续导）
+- [ ] **v0.29.0**: 导出体验升级（导出模板、批量任务、失败重试与断点续导）
 - [ ] **v1.0.0**: 正式版发布
 
 > 详细路线图请参考 [ROADMAP.md](https://github.com/xlight/chatlog-session-docs/blob/main/ROADMAP.md)
