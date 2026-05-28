@@ -165,12 +165,13 @@ export default xxxAPI
 
 ```
 src/
-├── api/              # API 层 - class 单例 + transform 函数
+├── api/              # API 层 - class 单例 + transform 函数 → [api/AGENTS.md]
 ├── assets/styles/    # SCSS 全局变量、mixins、基础样式
 ├── components/       # 按功能分组: chat/, common/, layout/, search/, PWA/
 ├── composables/      # 可复用组合函数 (useXxx.ts)
 ├── router/           # Vue Router - createWebHistory, 懒加载路由
 ├── stores/           # Pinia stores (Composition API 为主)
+│   └── chat/         # 消息核心逻辑 → [stores/chat/AGENTS.md]
 ├── types/            # TypeScript 类型定义，按领域拆分
 ├── utils/            # 工具函数: request, db, format, date, storage 等
 └── views/            # 页面组件: Chat/, Contact/, Search/, Settings/, Dashboard/
@@ -212,11 +213,53 @@ src/
 - `src/auto-imports.d.ts` - unplugin-auto-import 生成
 - `src/components.d.ts` - unplugin-vue-components 生成
 - `.eslintrc-auto-import.json` - auto-import ESLint globals
+- `src/env.d.ts` + `src/vite-env.d.ts` - 两个文件共存，`env.d.ts` 声明 `__APP_VERSION__` 等 Vite define 常量，`vite-env.d.ts` 声明 Vite 客户端类型
+
+## Custom Build Plugins
+
+- `vite-plugin-version.ts` — 自定义 Vite 插件，注入版本号和构建日期到全局常量（`__APP_VERSION__`, `__BUILD_DATE__`, `__BUILD_TIME__`, `__GIT_HASH__`, `__GIT_BRANCH__`），从 `package.json` 读取版本号，从 `git` 读取 commit hash 和分支名
+
+## Testing
+
+### 测试命令
+
+```bash
+pnpm test           # 运行所有测试（单次执行）
+pnpm test:watch     # 监听模式，文件变更自动重跑
+pnpm test:coverage  # 生成覆盖率报告（输出到 coverage/ 目录）
+```
+
+### 测试框架
+
+- **Vitest** v4.x + **jsdom** 环境
+- `@vue/test-utils` v2.x 用于组件测试
+- `@pinia/testing` 的 `createTestingPinia` 用于 Store 测试
+- `@vitest/coverage-v8` 用于覆盖率
+
+### 测试文件位置
+
+测试文件统一放在 `src/` 下对应模块的 `__tests__/` 目录中
+
+### 当前测试状态
+
+- **17 个测试文件**，**469 个测试用例**，全部通过
+- 覆盖范围：utils/（10 文件）、stores/chat/utils.ts（22 函数）、stores/（4 文件）、api/base.ts（1 文件）
+- CI 已集成：`.github/workflows/deploy.yml` 在 build 前执行 `pnpm test`
 
 ## Common Gotchas
 
-1. **不要手动导入 Vue API** - `ref`, `computed`, `watch` 等已自动导入
-2. **Node 版本不对会导致构建失败** - 确保 Node.js 20+
-3. **不要提交 package-lock.json** - 项目使用 pnpm，CI 会拒绝 npm 锁文件
-4. **全局 SCSS 变量已自动注入** - 不需要手动 `@use` variables.scss
-5. **Element Plus 组件已自动导入** - 不需要手动 import
+1. **不要手动导入 Vue API** — `ref`, `computed`, `watch` 等已自动导入（测试文件中除外）
+2. **Node 版本不对会导致构建失败** — 确保 Node.js 20+
+3. **不要提交 package-lock.json** — 项目使用 pnpm，CI 会拒绝 npm 锁文件
+4. **全局 SCSS 变量已自动注入** — 不需要手动 `@use` variables.scss
+5. **Element Plus 组件已自动导入** — 不需要手动 import（测试文件中需要 stub）
+6. **测试文件中必须显式 import** — unplugin-auto-import 在测试中不生效
+
+## Anti-Patterns (本项目禁止)
+
+1. **`as any`** — 尽量避免，用 `unknown` 替代（ESLint warn）
+2. **`@ts-ignore` / `@ts-expect-error`** — 禁止，必须修复类型错误
+3. **空 catch 块** — `catch(e) {}` 禁止，必须处理或记录错误
+4. **未门控的 console.log** — 必须通过 `appStore.isDebug` 门控
+5. **未提交失败测试** — 禁止删除测试来让测试通过
+6. **提交 package-lock.json** — CI guard 会拒绝

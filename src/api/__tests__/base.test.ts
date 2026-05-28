@@ -198,7 +198,7 @@ describe('BaseAPI', () => {
         { id: 2, label: 'b' },
       ])
 
-      const result = await (api as any).batchGet(['1', '2'])
+      await (api as any).batchGet(['1', '2'])
 
       expect(request.get).toHaveBeenCalledTimes(2)
       expect(request.all).toHaveBeenCalled()

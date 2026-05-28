@@ -1,7 +1,7 @@
 /**
  * usePWAStore 单元测试
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { createTestingPinia } from '@pinia/testing'
 import { usePWAStore } from '@/stores/pwa'
 import { ServiceWorkerState } from '@/utils/serviceWorker'
@@ -99,7 +99,6 @@ describe('usePWAStore', () => {
       store.cacheInfo = {
         totalEntries: 42,
         details: {},
-        totalSize: 1024,
       }
       expect(store.totalCacheEntries).toBe(42)
     })
@@ -113,7 +112,6 @@ describe('usePWAStore', () => {
       store.cacheInfo = {
         totalEntries: 15,
         details,
-        totalSize: 2048,
       }
       expect(store.cacheDetails).toEqual(details)
     })
@@ -172,7 +170,7 @@ describe('usePWAStore', () => {
       store.isInstallable = true
       store.isInstalled = true
       store.updateAvailable = true
-      store.cacheInfo = { totalEntries: 10, details: {}, totalSize: 500 }
+      store.cacheInfo = { totalEntries: 10, details: {} }
       store.lastUpdateCheck = new Date()
 
       store.$reset()
