@@ -12,268 +12,214 @@ _基于 Chatlog API 的现代化微信聊天记录查看器_
 [![TypeScript](https://img.shields.io/badge/typescript-6.x-blue.svg)](https://www.typescriptlang.org/)
 [![PWA](https://img.shields.io/badge/PWA-Supported-orange.svg)](https://web.dev/progressive-web-apps/)
 
-一个现代化的 Web 应用，提供类似微信的界面来查看和管理您的聊天记录。
-专注于隐私保护、极致性能与流畅体验。
+**读 · 看 · 搜 · 发** — 一个前端，打通微信聊天记录的完整链路。
 
-[在线演示](https://xlight.github.io/chatlog-session/) •
-[功能特性](#-功能特性) •
-[更新日志](docs/changelog/) •
-[界面预览](#-界面预览) •
-[快速开始](#-快速开始) •
-[文档](#-文档)
+[快速开始](#-快速开始) ·
+[功能特性](#-功能特性) ·
+[界面预览](#-界面预览) ·
+[更新日志](docs/changelog/) ·
+[文档](docs/README.md)
 
 </div>
 
 ---
 
-## 📖 简介
+## 这是什么？
 
-**Chatlog Session** 是一个专为 [Chatlog](https://github.com/sjzar/chatlog) 设计的现代化前端客户端。它采用 Vue 3 + TypeScript + Vite 技术栈构建，旨在为您提供一个熟悉、流畅且功能强大的聊天记录管理界面。
+Chatlog Session 是一个**纯前端的微信聊天记录浏览器**。它连接本地运行的 [Chatlog API](https://github.com/sjzar/chatlog)，把加密的微信数据库变成你熟悉的聊天界面——能看、能搜、能导出，还能直接回消息。
 
-### 🔒 核心承诺：100% 隐私保护
+```mermaid
+flowchart LR
+    A["微信<br/>本地加密数据库"] -->|"Chatlog API<br/> 解密"| B["结构化<br/>JSON 数据"]
+    B -->|"HTTP API"| C["Chatlog Session<br/>浏览器渲染"]
+    C -->|"IndexedDB"| D["本地缓存<br/>离线可用"]
+```
 
-> **这是一个纯前端应用**。
->
-> 所有数据都在您的浏览器本地处理（IndexedDB）和展示，**绝对不会上传到任何第三方服务器**。您的聊天记录、联系人信息等敏感数据完全由您掌控。
+> **数据从不离开你的设备**。前端只在你浏览器里跑，后端只读你的本地数据库。没有云上传，没有第三方。
+
+---
 
 ## ✨ 功能特性
 
-### 🆕 最新亮点 (v0.28.0)
+### 消息浏览
 
-- 🎬 **视频预览增强**：ImageViewer 新增视频预览模式，消息气泡中的视频可加入预览队列逐个播放，无需下载。
-- 📋 **聊天导出剪贴板复制**：导出功能新增一键复制到剪贴板，分享更便捷。
-- ⌨️ **自定义发送快捷键**：支持 Enter 或 Ctrl+Enter 发送消息，适配不同输入习惯。
-- 😀 **表情选择器**：发送消息时可插入表情，SendBox 组件重构支持多消息发送状态追踪。
-- 📎 **文件/图片发送**：支持粘贴和拖拽上传文件与图片（v0.27.0）。
-- 💬 **发送消息功能**：集成 wechat-sendmsg，可在聊天界面直接发送文本消息（v0.26.0）。
+- 🎨 **微信原生体验** — 深度复刻聊天界面，零学习成本
+- ⚡ **十万级消息流畅** — 虚拟滚动 + LRU 缓存 + 智能分页
+- 📂 **全消息类型** — 文本、图片、视频、语音、表情、文件、位置、名片、引用、转发、接龙、转账、红包、收藏、直播、小程序……
+- 🖼️ **内置预览器** — 图片缩放/轮播、视频队列播放、Live Photo 支持
+- 📱 **PWA 离线安装** — 装到桌面就是 App，离线也能翻已缓存的消息
 
-> 📌 详细变更请查看：`docs/changelog/CHANGELOG_v0.28.0.md` 与 `docs/changelog/`
+### 搜索与导出
 
-### 核心功能
+- 🔍 **全文搜索** — 搜索联系人、群聊、消息内容，支持拼音
+- 📊 **数据仪表盘** — 聊天频次、消息类型分布、活跃时段统计
+- 📤 **多格式导出** — JSON / CSV / TXT / Markdown / 剪贴板
 
-- 🎨 **原生体验**：深度复刻微信 UI 设计，零学习成本，上手即用。
-- ⚡ **极致性能**：采用虚拟滚动技术，轻松应对十万级消息列表，流畅不卡顿。
-- 📱 **PWA 支持**：可安装至桌面/手机主屏幕，支持离线访问，体验接近原生 App。
-- 🔄 **实时同步**：自动同步最新消息，支持后台静默刷新。
-- 📂 **多媒体支持**：完美支持文本、图片、视频、语音、表情、引用回复等多种消息类型。
-- 🔎 **全局搜索**：支持搜索联系人、群聊及聊天记录内容。
+### 消息发送
 
-### 💬 消息发送能力
+- 💬 **聊天框直接发送** — 看消息和发消息在同一个界面
+- 📎 **图片 / 文件** — 支持粘贴、拖拽、选择文件
+- 😀 **表情选择器** — 内置常用表情
+- ⌨️ **自定义快捷键** — Enter 或 Ctrl+Enter 发送
 
-Chatlog Session 不仅是聊天记录查看器——集成了 [wechat-sendmsg](https://github.com/xlight/wechat-sendmsg) 后，您可以直接在浏览器中回复消息，无需切换到微信客户端。
-
-> **"看完就能回"** — 查看记录与发送消息在同一界面完成。
-
-**支持的发送类型：**
-
-| 类型 | 方式 | 版本 |
-|------|------|------|
-| 文本消息 | 输入框直接发送 | v0.26.0 |
-| 表情 | 内置表情选择器 | v0.28.0 |
-| 图片 | 粘贴 / 拖拽 / 选择文件 | v0.27.0 |
-| 文件 | 粘贴 / 拖拽 / 选择文件 | v0.27.0 |
-
-**工作原理：**
+<details>
+<summary>📡 消息发送的工作原理</summary>
 
 ```mermaid
-flowchart TB
-    Browser["浏览器（Chatlog Session）"]
-    SendMsg["wechat-sendmsg<br/>本地 Python 服务 :8765"]
-    WeChat["微信桌面客户端"]
-
-    Browser -- "HTTP POST" --> SendMsg
-    SendMsg -- "GUI 自动化" --> WeChat
-
-    classDef browser fill:#e1f5fe,stroke:#0288d1
-    classDef service fill:#f3e5f5,stroke:#7b1fa2
-    classDef wechat fill:#fff3e0,stroke:#f57c00
-    class Browser browser
-    class SendMsg service
-    class WeChat wechat
+flowchart LR
+    Browser["Chatlog Session<br/>浏览器输入"] -- "HTTP POST" --> SendMsg["wechat-sendmsg<br/>Python 服务 :8765"]
+    SendMsg -- "GUI 自动化" --> WeChat["微信桌面客户端"]
+    SendMsg --> Queue["SQLite 队列<br/>持久化 + 自动重试"]
 ```
 
-wechat-sendmsg 作为本地 Python 服务运行，通过 GUI 自动化操作微信桌面客户端完成消息发送。消息经 SQLite 队列持久化，支持自动重试。
+发送功能依赖 [wechat-sendmsg](https://github.com/xlight/wechat-sendmsg)（需额外安装），通过 GUI 自动化操作微信客户端完成发送。消息经 SQLite 队列持久化，失败自动重试。
 
-**配置方式：**
+> ⚠️ 发送功能**默认关闭**。配置路径：**设置 → 发送设置**。需微信桌面客户端保持登录状态。
 
-1. 安装并启动 [wechat-sendmsg](https://github.com/xlight/wechat-sendmsg)（默认监听 `http://127.0.0.1:8765`）。
-2. 在 Chatlog Session 中进入 **设置 → 发送设置**，启用消息发送并配置 API 地址。
-3. 点击 **测试连接** 确认微信状态可用，即可在聊天界面底部看到发送框。
+</details>
 
-> ⚠️ 消息发送功能默认关闭（opt-in），需手动启用。wechat-sendmsg 需要微信桌面客户端处于登录状态。
+---
 
 ## 📸 界面预览
 
 <div align="center">
-  <h3>📊 数据仪表盘</h3>
-  <p>直观的统计视图，让数据不再枯燥</p>
-  <img src="public/screenshots/dashboard.png" alt="数据仪表盘" width="800" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-</div>
-
-<br>
-
-<div align="center">
-  <h3>💬 会话与联系人</h3>
-  <p>熟悉的界面布局，流畅的操作体验</p>
-  <table style="border: none;">
+  <table>
     <tr>
-      <td align="center" style="border: none;">
-        <img src="public/screenshots/pic-1.png" width="300" alt="会话列表" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-        <br><b>会话列表</b>
-      </td>
-      <td width="20"></td>
-      <td align="center" style="border: none;">
-        <img src="public/screenshots/pic-2.png" width="300" alt="联系人列表" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-        <br><b>联系人列表</b>
-      </td>
+      <td><img src="public/screenshots/pic-1.png" alt="会话列表" width="320"></td>
+      <td><img src="public/screenshots/pic-2.png" alt="联系人列表" width="320"></td>
     </tr>
+    <tr><td align="center"><b>会话列表</b></td><td align="center"><b>联系人列表</b></td></tr>
   </table>
+  <br>
+  <img src="public/screenshots/dashboard.png" alt="数据仪表盘" width="660">
+  <p><b>数据仪表盘</b></p>
+  <br>
+  <img src="public/screenshots/pic-3.png" alt="搜索界面" width="660">
+  <p><b>全局搜索</b></p>
 </div>
 
-<br>
-
-<div align="center">
-  <h3>🔍 全局搜索</h3>
-  <p>快速定位人、群、聊天记录</p>
-  <img src="public/screenshots/pic-3.png" alt="搜索界面" width="800" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-</div>
+---
 
 ## 🚀 快速开始
 
-### 方式 1: 在线体验（推荐）
+### 前置依赖
 
-直接访问 GitHub Pages 部署的最新版本，无需任何安装：
+Chatlog Session 是纯前端，但工作需要后端：
+
+| 组件 | 说明 | 必要性 |
+|------|------|:--:|
+| [Chatlog API](https://github.com/sjzar/chatlog) | 聊天记录读取 & 解密服务 (Golang) | **必须** |
+| [wechat-sendmsg](https://github.com/xlight/wechat-sendmsg) | 消息发送服务 (Python) | 发送时必需 |
+| 微信桌面客户端 | wechat-sendmsg 需要微信保持登录 | 发送时必需 |
+
+### 方式一：使用 GitHub Pages 部署
 
 👉 **[https://xlight.github.io/chatlog-session/](https://xlight.github.io/chatlog-session/)**
 
-**首次使用步骤：**
+1. 打开上方链接
+2. 进入 **设置 → API 设定**，填入 Chatlog API 地址（如 `http://localhost:5030`）
+3. 点击 **测试连接** 确认连通
 
-1. 打开上述链接。
-2. 进入 **设置 (Settings) → API 设定**。
-3. 输入您的 Chatlog API 地址（例如 `http://localhost:5030`）。
-   ⚠️可能会由于浏览器安全策略，无法连接 API 地址，请使用 Chrome 并允许不安全内容，或将 API 部署为 HTTPS。
-4. 点击 **测试连接** 确认成功，即可开始浏览。
+> ⚠️ 在线页面是 HTTPS，连接本地 HTTP API 可能被浏览器拦截。用 Chrome 并允许不安全内容，或把 API 部署为 HTTPS。
 
-### 方式 2: 本地部署
-
-如果您希望完全在本地运行代码：
+### 方式二：本地运行
 
 ```bash
-# 1. 克隆仓库
 git clone https://github.com/xlight/chatlog-session.git
 cd chatlog-session
 
-# 2. 启用 pnpm（若尚未启用）
-corepack enable
-
-# 3. 安装依赖
-pnpm install
-
-# 4. 启动开发服务器
-pnpm dev
-# 访问 http://localhost:5173
+corepack enable        # 启用 pnpm
+pnpm install          # 安装依赖
+pnpm dev              # 启动 → http://localhost:5173
 ```
+
+---
 
 ## 🛠️ 技术栈
 
-本项目基于以下优秀的开源技术构建：
+| 层 | 技术 |
+|---|---|
+| **框架** | Vue 3 · TypeScript 6 · Vite 8 |
+| **状态** | Pinia 3 · Pinia PersistedState |
+| **UI** | Element Plus · vue-virtual-scroller |
+| **工具库** | dayjs · marked · pinyin-pro · DOMPurify · VueUse |
+| **存储** | IndexedDB (idb) · SessionStorage LRU 缓存 |
+| **后端依赖** | [Chatlog API](https://github.com/sjzar/chatlog) · [wechat-sendmsg](https://github.com/xlight/wechat-sendmsg) |
+| **测试** | Vitest 4 · @vue/test-utils · jsdom · 覆盖率 V8 |
 
-| 类型         | 技术                 | 说明                         |
-| ------------ | -------------------- | ---------------------------- |
-| **核心框架** | Vue 3                | 组合式 API, `<script setup>` |
-| **语言**     | TypeScript           | 类型安全，开发体验极佳       |
-| **构建工具** | Vite                 | 极速冷启动与热更新           |
-| **状态管理** | Pinia                | 直观、轻量的状态管理库       |
-| **UI 组件**  | Element Plus         | 优雅的桌面端组件库           |
-| **性能优化** | vue-virtual-scroller | 处理海量数据的虚拟滚动方案   |
-| **本地存储** | IndexedDB (idb)      | 浏览器端高性能大容量存储     |
-| **后端服务** | [Chatlog API](https://github.com/sjzar/chatlog) | 聊天记录读取 & 解密服务 |
-| **消息发送** | [wechat-sendmsg](https://github.com/xlight/wechat-sendmsg) | 微信消息发送服务 (GUI 自动化) |
+---
 
 ## 🗺️ 路线图
 
-### ✅ 已完成
+上一时间线的大致规划，具体工作随需求调整。
 
-- [x] **v0.28.0**: 视频预览增强、聊天导出剪贴板复制、自定义发送快捷键、表情选择器、SendBox 重构
-- [x] **v0.27.0**: 文件/图片发送（粘贴+拖拽）、消息气泡溢出修复、timeRange 计算修复
-- [x] **v0.26.0**: 发送消息功能集成、TypeScript 6.0 / ESLint / Vite 主版本升级
-- [x] **v0.25.0**: 链接消息 subType=1、服务端置顶修复、强制下载、Live Photo 高清修复、图片预览器重构、Vite v8 构建
-- [x] **v0.24.0**: 收藏消息类型支持、富文本消息 fallback、依赖升级
-- [x] **v0.23.0**: 会话搜索拼音与多字段匹配优化
-- [x] **v0.22.0**: Gap消息优化
-- [x] **v0.21.0**: 图片会话级串行预览、预览质量与高清加载状态指示、媒体点击行为收敛
-- [x] **v0.20.0**: 历史消息空窗口探测优化、相邻 EmptyRange 自动合并
-- [x] **v0.19.0**: 消息时间归一与有序合并，提升消息顺序稳定性
-- [x] **v0.18.0**: MessageBubble 多类型消息点击处理能力补齐
-- [x] **v0.17.0**: 后台联系人刷新性能优化、聊天记录导出功能
-- [x] **v0.16.0**: 聊天记录导出（JSON/CSV/TXT/MARKDOWN）、进度追踪与取消功能
-- [x] **v0.15.0**: 本地会话置顶、Dashboard 重构、Live Photo 支持
-- [x] **v0.14.0**: 聊天记录/转发消息增强、消息列表体验优化
-- [x] **v0.13.0**: PWA 核心功能（Service Worker、Manifest）
-- [x] **v0.12.0**: 通知优化、隐私设置增强
-- [x] **v0.11.0**: 图片占位符、消息自动刷新与缓存
+### 近期
 
-### 🔮 规划中
+- [x] **v0.28.0** — 视频预览、导出剪贴板、表情选择器、发送快捷键
+- [ ] **下一版本** — 导出体验升级、失败重试、断点续导
 
-- [ ] **v0.29.0**: 导出体验升级（导出模板、批量任务、失败重试与断点续导）
-- [ ] **v1.0.0**: 正式版发布
+### 远期
 
-> 详细路线图请参考 [ROADMAP.md](https://github.com/xlight/chatlog-session-docs/blob/main/ROADMAP.md)
+- [ ] **v1.0.0** — 正式版发布
 
-> 历史版本说明请参考 [docs/changelog/](docs/changelog/)
+> 历史版本详见 [docs/changelog/](docs/changelog/)。完整规划见 [ROADMAP.md](https://github.com/xlight/chatlog-session-docs/blob/main/ROADMAP.md)。
+
+---
 
 ## ❓ 常见问题
 
 <details>
-<summary><b>Q: 为什么我的图片无法显示？</b></summary>
+<summary><b>为什么我的图片/视频显示不出来？</b></summary>
 
-1. 确保您的 Chatlog API 服务正常运行。
-2. 检查 **设置** 中的 API 地址是否正确。
-3. 由于 chatlog 需要 img_key 才能访问图片资源，请确保您的 API 服务已正确配置并能够提供 img_key。
-4. 如果是在线版（HTTPS）连接本地 HTTP API，可能会遇到 Mixed Content 问题。建议使用 Chrome 浏览器并允许不安全内容，或将 API 部署为 HTTPS。
+1. 确认 Chatlog API 服务正常运行，且正确返回 `img_key`
+2. 视频/图片可能需要先在 PC 微信客户端中点击查看，触发下载到本地
+3. HTTPS 页面连 HTTP API 会被浏览器拦截（Mixed Content），用 Chrome 并允许不安全内容
+
 </details>
 
 <details>
-<summary><b>Q: 数据是存在哪里的？</b></summary>
+<summary><b>数据存在哪里？安全吗？</b></summary>
 
-所有数据仅存储在您的浏览器 **本地缓存** 中。当您清除浏览器缓存或卸载 PWA 应用时，这些数据会被清除。我们不会上传任何数据到云端。
+所有聊天数据只在你的浏览器 IndexedDB 中缓存。后端 Chatlog API **只读**你的本地数据库。没有任何数据上传到云端。
 
 </details>
 
+<details>
+<summary><b>支持哪些版本的微信？</b></summary>
+
+Chatlog Session 本身不限制版本。具体微信版本兼容性由后端 [Chatlog](https://github.com/sjzar/chatlog) 决定，请查看其文档。
+
+</details>
+
+更多问题见 [docs/faq.md](docs/faq.md)。
+
+---
+
 ## 📄 许可证
 
-本项目采用 **Apache License 2.0** 许可证。详见 [LICENSE](LICENSE) 文件。
+[Apache License 2.0](LICENSE)
 
 ## 🙏 致谢
 
-感谢以下项目为 Chatlog Session 提供的支持与灵感：
+- [Chatlog](https://github.com/sjzar/chatlog) — 聊天记录读取 & 解密引擎
+- [Vue.js](https://vuejs.org/) · [Vite](https://vitejs.dev/) · [Element Plus](https://element-plus.org/)
 
-- [Chatlog](https://github.com/sjzar/chatlog) - 强大的后端 API 支持
-- [Vue.js](https://vuejs.org/) & [Vite](https://vitejs.dev/) - 优秀的前端开发生态
+## 📞 交流
 
-## 📞 联系方式
+- 🐛 [GitHub Issues](https://github.com/xlight/chatlog-session/issues) — Bug 反馈 & 功能建议
+- 📖 [项目文档](docs/README.md) — 完整文档索引（321 篇）
+- 🐧 **QQ 交流群：1013023266**
 
-- 📧 **提交 Issue** - 发现 Bug 或有功能建议？请通过 [GitHub Issues](https://github.com/xlight/chatlog-session/issues) 告诉我们
-- 📖 **查阅文档** - 详细信息请参阅 [项目文档](docs/README.md)
-- 🐧 **QQ 交流群** - 欢迎扫码加入 QQ 群，与其他用户和开发者互动
-
-  <div align="center">
-    <img src="public/qq-group.jpg" alt="Chatlog Session QQ Group" width="250">
-    <p><strong>QQ 群号: 1013023266</strong></p>
-  </div>
-
-## 🌟 Star History
-
-如果这个项目对您有帮助，请给我们一个 ⭐️
-
-[![Star History Chart](https://api.star-history.com/svg?repos=xlight/chatlog-session&type=Date)](https://star-history.com/#xlight/chatlog-session&Date)
+<div align="center">
+  <img src="public/qq-group.jpg" alt="QQ 群" width="240" style="border-radius: 8px;">
+</div>
 
 ---
 
 <div align="center">
 
-**Built with ❤️ by Chatlog Session Team**
+[![Star History](https://api.star-history.com/svg?repos=xlight/chatlog-session&type=Date)](https://star-history.com/#xlight/chatlog-session&Date)
 
-[⬆ 返回顶部](#chatlog-session)
+**Built with ❤️ by Chatlog Session Team**
 
 </div>
