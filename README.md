@@ -58,6 +58,50 @@ _基于 Chatlog API 的现代化微信聊天记录查看器_
 - 📂 **多媒体支持**：完美支持文本、图片、视频、语音、表情、引用回复等多种消息类型。
 - 🔎 **全局搜索**：支持搜索联系人、群聊及聊天记录内容。
 
+### 💬 消息发送能力
+
+Chatlog Session 不仅是聊天记录查看器——集成了 [wechat-sendmsg](https://github.com/xlight/wechat-sendmsg) 后，您可以直接在浏览器中回复消息，无需切换到微信客户端。
+
+> **"看完就能回"** — 查看记录与发送消息在同一界面完成。
+
+**支持的发送类型：**
+
+| 类型 | 方式 | 版本 |
+|------|------|------|
+| 文本消息 | 输入框直接发送 | v0.26.0 |
+| 表情 | 内置表情选择器 | v0.28.0 |
+| 图片 | 粘贴 / 拖拽 / 选择文件 | v0.27.0 |
+| 文件 | 粘贴 / 拖拽 / 选择文件 | v0.27.0 |
+
+**工作原理：**
+
+```mermaid
+flowchart TB
+    Browser["浏览器（Chatlog Session）"]
+    SendMsg["wechat-sendmsg<br/>本地 Python 服务 :8765"]
+    WeChat["微信桌面客户端"]
+
+    Browser -- "HTTP POST" --> SendMsg
+    SendMsg -- "GUI 自动化" --> WeChat
+
+    classDef browser fill:#e1f5fe,stroke:#0288d1
+    classDef service fill:#f3e5f5,stroke:#7b1fa2
+    classDef wechat fill:#fff3e0,stroke:#f57c00
+    class Browser browser
+    class SendMsg service
+    class WeChat wechat
+```
+
+wechat-sendmsg 作为本地 Python 服务运行，通过 GUI 自动化操作微信桌面客户端完成消息发送。消息经 SQLite 队列持久化，支持自动重试。
+
+**配置方式：**
+
+1. 安装并启动 [wechat-sendmsg](https://github.com/xlight/wechat-sendmsg)（默认监听 `http://127.0.0.1:8765`）。
+2. 在 Chatlog Session 中进入 **设置 → 发送设置**，启用消息发送并配置 API 地址。
+3. 点击 **测试连接** 确认微信状态可用，即可在聊天界面底部看到发送框。
+
+> ⚠️ 消息发送功能默认关闭（opt-in），需手动启用。wechat-sendmsg 需要微信桌面客户端处于登录状态。
+
 ## 📸 界面预览
 
 <div align="center">
@@ -143,6 +187,8 @@ pnpm dev
 | **UI 组件**  | Element Plus         | 优雅的桌面端组件库           |
 | **性能优化** | vue-virtual-scroller | 处理海量数据的虚拟滚动方案   |
 | **本地存储** | IndexedDB (idb)      | 浏览器端高性能大容量存储     |
+| **后端服务** | [Chatlog API](https://github.com/sjzar/chatlog) | 聊天记录读取 & 解密服务 |
+| **消息发送** | [wechat-sendmsg](https://github.com/xlight/wechat-sendmsg) | 微信消息发送服务 (GUI 自动化) |
 
 ## 🗺️ 路线图
 
@@ -193,8 +239,6 @@ pnpm dev
 所有数据仅存储在您的浏览器 **本地缓存** 中。当您清除浏览器缓存或卸载 PWA 应用时，这些数据会被清除。我们不会上传任何数据到云端。
 
 </details>
-
-更多问题请查看 [FAQ 文档](docs/user-guide/faq.md)。
 
 ## 📄 许可证
 
