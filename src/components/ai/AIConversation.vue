@@ -62,10 +62,10 @@ function handleStop() {
   stopGeneration()
 }
 
-async function handleFeedContext(count?: number) {
+function handleFeedContext(count?: number) {
   if (!currentSession.value) return
   const n = count ?? feedCount.value
-  const systemContent = await feedSessionContext(
+  const systemContent = feedSessionContext(
     currentSession.value,
     n
   )

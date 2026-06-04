@@ -1,13 +1,8 @@
 import { ref, computed } from 'vue'
 import type { ContextTag } from '@/types/ai'
 import type { Session } from '@/types'
-import { chatlogAPI } from '@/api/chatlog'
+import { useChatMessagesStore } from '@/stores/chatMessages'
 
-/**
- * 上下文投喂组合函数
- *
- * 提取会话的最近消息，格式化为 system message 注入到对话中
- */
 function formatTime(rawTime: string, createTime: number): string {
   if (rawTime) {
     try {
@@ -33,9 +28,22 @@ function formatTime(rawTime: string, createTime: number): string {
   return ''
 }
 
+function formatMessage(msg: {
+  time: string
+  createTime: number
+  senderName?: string
+  sender?: string
+  content?: string
+}): string {
+  const sender = msg.senderName || msg.sender || '未知'
+  const t = formatTime(msg.time, msg.createTime)
+  return `[${t}] ${sender}: ${msg.content || ''}`
+}
+
 export function useContextFeed() {
   const contextTags = ref<ContextTag[]>([])
   const feeding = ref(false)
+  const chatMessagesStore = useChatMessagesStore()
 
   const contextSummary = computed(() => {
     if (contextTags.value.length === 0) return ''
@@ -46,52 +54,38 @@ export function useContextFeed() {
       .join('；')
   })
 
-  async function feedSessionContext(
+  function feedSessionContext(
     session: Session,
     messageCount: number = 20
-  ): Promise<string> {
+  ): string {
     feeding.value = true
-    try {
-      const messages = await chatlogAPI.getChatlog({
-        talker: session.id,
-        time: '',
-        limit: messageCount,
-      })
 
-      if (!messages || messages.length === 0) {
-        return ''
-      }
+    const allMessages = chatMessagesStore.currentMessages
 
-      const firstTime = formatTime(messages[0].time, messages[0].createTime)
-      const lastTime = formatTime(
-        messages[messages.length - 1].time,
-        messages[messages.length - 1].createTime
-      )
-      const tag: ContextTag = {
-        id: `ctx-${Date.now()}`,
-        sessionId: session.id,
-        sessionName: session.name || session.talkerName || '未知会话',
-        messageCount: messages.length,
-        timeRange: `${firstTime} ~ ${lastTime}`,
-        fedAt: Date.now(),
-      }
-      contextTags.value.push(tag)
-
-      const content = messages
-        .map((m) => {
-          const sender = m.senderName || m.sender || '未知'
-          const t = formatTime(m.time, m.createTime)
-          return `[${t}] ${sender}: ${m.content || ''}`
-        })
-        .join('\n')
-
-      return content
-    } catch (err) {
-      console.error('投喂上下文失败:', err)
-      return ''
-    } finally {
+    if (!allMessages || allMessages.length === 0) {
       feeding.value = false
+      return ''
     }
+
+    const messages = allMessages.slice(-messageCount)
+
+    const firstTime = formatTime(messages[0].time, messages[0].createTime)
+    const lastTime = formatTime(
+      messages[messages.length - 1].time,
+      messages[messages.length - 1].createTime
+    )
+    const tag: ContextTag = {
+      id: `ctx-${Date.now()}`,
+      sessionId: session.id,
+      sessionName: session.name || session.talkerName || '未知会话',
+      messageCount: messages.length,
+      timeRange: `${firstTime} ~ ${lastTime}`,
+      fedAt: Date.now(),
+    }
+    contextTags.value.push(tag)
+
+    feeding.value = false
+    return messages.map(formatMessage).join('\n')
   }
 
   function removeContextTag(id: string) {
