@@ -128,7 +128,10 @@ export const useNotificationStore = defineStore('notification', () => {
    * 初始化
    */
   async function init() {
-    if (initialized.value) return
+    if (initialized.value) {
+      console.log('🔔 Notification store already initialized')
+      return
+    }
 
     loadConfig()
     loadHistory()
@@ -137,13 +140,14 @@ export const useNotificationStore = defineStore('notification', () => {
 
     initialized.value = true
 
-    const appStore = useAppStore()
-    if (appStore.isDebug) {
-      console.log('🔔 Notification store initialized', {
-        permission: permission.value,
-        enabled: isEnabled.value,
-      })
-    }
+    console.log('🔔 Notification store initialized', {
+      permission: permission.value,
+      enabled: config.value.enabled,
+      isEnabled: isEnabled.value,
+      myWxid: config.value.myWxid,
+      enableMessage: config.value.enableMessage,
+      enableMention: config.value.enableMention,
+    })
   }
 
   /**
@@ -194,7 +198,17 @@ export const useNotificationStore = defineStore('notification', () => {
    */
   function loadConfig() {
     try {
-      const data = sessionStorage.getItem(CONFIG_KEY)
+      // 迁移：如果 localStorage 无数据但 sessionStorage 有数据，迁移过来
+      const localData = localStorage.getItem(CONFIG_KEY)
+      if (!localData) {
+        const sessionData = sessionStorage.getItem(CONFIG_KEY)
+        if (sessionData) {
+          localStorage.setItem(CONFIG_KEY, sessionData)
+          sessionStorage.removeItem(CONFIG_KEY)
+        }
+      }
+
+      const data = localStorage.getItem(CONFIG_KEY)
       if (data) {
         config.value = { ...config.value, ...JSON.parse(data) }
       }
@@ -208,7 +222,7 @@ export const useNotificationStore = defineStore('notification', () => {
    */
   function saveConfig() {
     try {
-      sessionStorage.setItem(CONFIG_KEY, JSON.stringify(config.value))
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(config.value))
     } catch (error) {
       console.error('Failed to save notification config:', error)
     }
@@ -232,7 +246,17 @@ export const useNotificationStore = defineStore('notification', () => {
    */
   function loadHistory() {
     try {
-      const data = sessionStorage.getItem(HISTORY_KEY)
+      // 迁移：sessionStorage → localStorage
+      const localData = localStorage.getItem(HISTORY_KEY)
+      if (!localData) {
+        const sessionData = sessionStorage.getItem(HISTORY_KEY)
+        if (sessionData) {
+          localStorage.setItem(HISTORY_KEY, sessionData)
+          sessionStorage.removeItem(HISTORY_KEY)
+        }
+      }
+
+      const data = localStorage.getItem(HISTORY_KEY)
       if (data) {
         history.value = JSON.parse(data)
       }
@@ -251,7 +275,7 @@ export const useNotificationStore = defineStore('notification', () => {
         .sort((a, b) => b.timestamp - a.timestamp)
         .slice(0, 100)
 
-      sessionStorage.setItem(HISTORY_KEY, JSON.stringify(recent))
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(recent))
     } catch (error) {
       console.error('Failed to save notification history:', error)
     }
@@ -262,7 +286,17 @@ export const useNotificationStore = defineStore('notification', () => {
    */
   function loadNotifiedIds() {
     try {
-      const data = sessionStorage.getItem(NOTIFIED_KEY)
+      // 迁移：sessionStorage → localStorage
+      const localData = localStorage.getItem(NOTIFIED_KEY)
+      if (!localData) {
+        const sessionData = sessionStorage.getItem(NOTIFIED_KEY)
+        if (sessionData) {
+          localStorage.setItem(NOTIFIED_KEY, sessionData)
+          sessionStorage.removeItem(NOTIFIED_KEY)
+        }
+      }
+
+      const data = localStorage.getItem(NOTIFIED_KEY)
       if (data) {
         notifiedIds.value = new Set(JSON.parse(data))
       }
@@ -277,7 +311,7 @@ export const useNotificationStore = defineStore('notification', () => {
   function saveNotifiedIds() {
     try {
       const ids = Array.from(notifiedIds.value).slice(-1000)  // 只保留最近 1000 个
-      sessionStorage.setItem(NOTIFIED_KEY, JSON.stringify(ids))
+      localStorage.setItem(NOTIFIED_KEY, JSON.stringify(ids))
     } catch (error) {
       console.error('Failed to save notified IDs:', error)
     }
@@ -288,7 +322,10 @@ export const useNotificationStore = defineStore('notification', () => {
    */
   function shouldNotify(message: Message, talker: string, myWxid?: string): NotificationType | null {
     // 如果未启用通知
-    if (!isEnabled.value) return null
+    if (!isEnabled.value) {
+      console.log('🔔 shouldNotify: disabled', { enabled: config.value.enabled, permission: permission.value })
+      return null
+    }
 
     // 如果是我自己发的消息
     if (message.isSend) return null
@@ -302,19 +339,23 @@ export const useNotificationStore = defineStore('notification', () => {
 
     // 检测 @我
     if (config.value.enableMention && isMentioned(message, myWxid)) {
+      console.log('🔔 shouldNotify: mention detected', { talker, myWxid })
       return NotificationType.MENTION
     }
 
     // 检测引用我
     if (config.value.enableQuote && isQuoted(message, myWxid)) {
+      console.log('🔔 shouldNotify: quote detected', { talker, myWxid })
       return NotificationType.QUOTE
     }
 
     // 普通消息
     if (config.value.enableMessage) {
+      console.log('🔔 shouldNotify: message notification', { talker })
       return NotificationType.MESSAGE
     }
 
+    console.log('🔔 shouldNotify: no notification type matched', { enableMention: config.value.enableMention, enableQuote: config.value.enableQuote, enableMessage: config.value.enableMessage })
     return null
   }
 
@@ -415,9 +456,16 @@ export const useNotificationStore = defineStore('notification', () => {
         silent: !config.value.enableSound,
       })
 
+      console.log('🔔 Notification created:', { title, body, talker, permission: permission.value, isEnabled: isEnabled.value })
+
       // 通知点击事件
       notification.onclick = () => {
         handleNotificationClick(messageId, talker, message)
+      }
+
+      notification.onerror = () => {
+        activeNotifications.value.delete(messageId)
+        console.error('通知显示失败:', { title, body, talker })
       }
 
       // 通知关闭事件
@@ -462,53 +510,56 @@ export const useNotificationStore = defineStore('notification', () => {
     talkerName: string,
     message: Message
   ): { title: string; body: string; icon: string } {
-    const icon = '/logo.png'
+    const icon = '/logo.svg'
 
-    // 获取发送者显示名称
+    // 获取发送者显示名称：优先用 message.senderName，其次从联系人列表查找
     const contactStore = useContactStore()
-    const sender = contactStore.contacts.find(c => c.wxid === message.talker)
-    const senderName = sender?.remark || sender?.nickname || message.talker
+    const senderContact = contactStore.contacts.find(c => c.wxid === message.sender)
+    const senderName = senderContact?.remark || senderContact?.nickname || message.senderName || message.sender
+
+    // 群聊：title = 群名，body = 发送者：内容
+    // 私聊：title = 发送者，body = 内容
+    const isGroup = message.isChatRoom
 
     let title = ''
     let body = ''
 
-    // 根据隐私设置决定是否显示具体内容
     if (config.value.showMessageContent) {
       const preview = getMessagePreview(message)
 
       switch (type) {
         case NotificationType.MENTION:
-          title = `${talkerName} - ${senderName} 提到了你`
-          body = preview
+          title = isGroup ? talkerName : senderName
+          body = isGroup ? `${senderName} 提到了你：${preview}` : `提到了你：${preview}`
           break
         case NotificationType.QUOTE:
-          title = `${talkerName} - ${senderName} 引用了你`
-          body = preview
+          title = isGroup ? talkerName : senderName
+          body = isGroup ? `${senderName} 引用了你：${preview}` : `引用了你：${preview}`
           break
         case NotificationType.MESSAGE:
-          title = `${talkerName} - ${senderName}`
-          body = preview
+          title = isGroup ? talkerName : senderName
+          body = isGroup ? `${senderName}：${preview}` : preview
           break
         default:
-          title = talkerName
+          title = isGroup ? talkerName : senderName
           body = preview
       }
     } else {
       switch (type) {
         case NotificationType.MENTION:
-          title = `${talkerName}`
-          body = `${senderName} 提到了你`
+          title = isGroup ? talkerName : senderName
+          body = isGroup ? `${senderName} 提到了你` : '提到了你'
           break
         case NotificationType.QUOTE:
-          title = `${talkerName}`
-          body = `${senderName} 引用了你`
+          title = isGroup ? talkerName : senderName
+          body = isGroup ? `${senderName} 引用了你` : '引用了你'
           break
         case NotificationType.MESSAGE:
-          title = `${talkerName}`
-          body = `${senderName} 发来了新消息`
+          title = isGroup ? talkerName : senderName
+          body = isGroup ? `${senderName} 发来了新消息` : '发来了新消息'
           break
         default:
-          title = talkerName
+          title = isGroup ? talkerName : senderName
           body = '您有新消息'
       }
     }
@@ -727,7 +778,7 @@ export const useNotificationStore = defineStore('notification', () => {
       try {
         const notification = new Notification('Chatlog Session 通知测试', {
           body: '通知功能正常工作！✨',
-          icon: '/logo.png',
+          icon: '/logo.svg',
           tag: 'test-notification',
           requireInteraction: false,
         })

@@ -73,11 +73,20 @@ const testNotification = () => {
   try {
     const notification = new Notification('测试通知', {
       body: '这是一条测试通知消息',
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
+      icon: '/icons/favicon-196.png',
+      badge: '/icons/favicon-196.png',
       tag: 'test-notification',
       requireInteraction: false,
     })
+
+    notification.onerror = () => {
+      console.error('通知显示失败')
+      ElMessage.warning('通知显示失败，请检查系统通知设置')
+    }
+
+    notification.onshow = () => {
+      console.log('通知已显示')
+    }
 
     if (props.modelValue.enableSound) {
       // 播放通知声音

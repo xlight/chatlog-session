@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { usePWAStore } from '@/stores/pwa'
+import { useNotificationStore } from '@/stores/notification'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import InstallPrompt from '@/components/PWA/InstallPrompt.vue'
 import UpdateNotification from '@/components/PWA/UpdateNotification.vue'
@@ -9,13 +10,15 @@ import KeyboardShortcutsHelp from '@/components/common/KeyboardShortcutsHelp.vue
 
 const appStore = useAppStore()
 const pwaStore = usePWAStore()
+const notificationStore = useNotificationStore()
 
 // 初始化全局键盘快捷键
 const { showHelp } = useKeyboardShortcuts()
 
-onMounted(() => {
+onMounted(async () => {
   appStore.init()
   pwaStore.init()
+  await notificationStore.init()
 })
 </script>
 

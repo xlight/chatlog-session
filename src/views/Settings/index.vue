@@ -78,9 +78,7 @@ onMounted(async () => {
   // 尝试从旧格式迁移（仅首次）
   settingsStore.migrateFromLegacyStorage()
 
-  // 初始化通知 Store
-  await notificationStore.init()
-  // 从 notificationStore 加载设置
+  // 从 notificationStore 加载设置（init 已在 App.vue 中调用）
   settingsStore.notification.myWxid = notificationStore.config.myWxid || ''
   settingsStore.notification.showMessageContent = notificationStore.config.showMessageContent
   // 同步通知设置

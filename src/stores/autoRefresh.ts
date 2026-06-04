@@ -863,13 +863,21 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
       const notificationStore = useNotificationStore()
       const contactStore = useContactStore()
       
+      // 防御性懒初始化：确保 notificationStore 已初始化
+      if (!notificationStore.initialized) {
+        console.log('🔔 checkAndNotify: lazy init notificationStore')
+        await notificationStore.init()
+      }
+
       // 如果通知未启用，直接返回
       if (!notificationStore.isEnabled) {
+        console.log('🔔 checkAndNotify: notification disabled', { enabled: notificationStore.config.enabled, permission: notificationStore.permission })
         return
       }
 
       // 如果没有缓存，说明是首次加载，不发送通知
       if (!cachedMessages || cachedMessages.length === 0) {
+        console.log('🔔 checkAndNotify: no cache, skip (first load)')
         return
       }
 
@@ -882,14 +890,13 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
         return
       }
 
-      const appStore = useAppStore()
-      if (appStore.isDebug) {
-        console.log(`🔔 Found ${actualNewMessages.length} new messages for ${talker}`)
-      }
+      console.log(`🔔 checkAndNotify: found ${actualNewMessages.length} new messages for ${talker}`)
 
-      // 获取联系人信息
+      // 获取会话名称：优先从消息中获取 talkerName，其次从联系人列表查找
       const contact = contactStore.contacts.find(c => c.wxid === talker)
-      const talkerName = contact?.remark || contact?.nickname || talker
+      const talkerName = contact?.remark || contact?.nickname
+        || actualNewMessages[0]?.talkerName
+        || talker
 
       // 获取当前用户的 wxid（用于检测 @我）
       const myWxid = notificationStore.config.myWxid

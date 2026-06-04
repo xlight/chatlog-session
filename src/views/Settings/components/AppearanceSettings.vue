@@ -92,7 +92,7 @@ const handleThemeChange = (val: string | number | boolean | undefined) => {
           <el-radio-button
             v-for="option in fontSizeOptions"
             :key="option.value"
-            :label="option.value"
+            :value="option.value"
           >
             {{ option.label }}
           </el-radio-button>
