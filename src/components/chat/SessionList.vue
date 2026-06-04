@@ -143,35 +143,22 @@ const handleSessionAction = async (command: string, session: Session) => {
   }
 }
 
-// 刷新列表（根据当前状态选择刷新方式）
-const handleRefresh = () => {
+// 刷新列表（等同于一次自动刷新周期）
+const handleRefresh = async () => {
   // 如果当前有数据，使用无感知刷新
   if (sessionStore.hasSessions) {
-    silentRefresh()
+    await silentRefresh()
   } else {
     // 如果没有数据，使用常规加载
-    loadSessions()
+    await loadSessions()
   }
-}
 
-// 自动刷新（包含会话列表刷新和消息刷新检测）
-const autoRefresh = async () => {
-  // 1. 刷新会话列表
-  handleRefresh()
-
-  // 2. 等待会话列表更新完成
-  await new Promise(resolve => setTimeout(resolve, 500))
-
-  // 3. 检测需要刷新消息的会话
+  // 检测需要刷新消息的会话（与自动刷新一致）
   if (autoRefreshStore.config.enabled) {
     try {
       await autoRefreshStore.detectNeedsRefresh()
 
-      // 注意：detectNeedsRefresh 内部已经清空并重新填充 needsRefreshTalkers
-      // 所以这里的长度就是本次检测的结果
       const needsRefreshCount = autoRefreshStore.needsRefreshTalkers.length
-
-      // 显示提示
       if (appStore.isDebug && needsRefreshCount > 0) {
         ElMessage.info({
           message: `正在后台刷新 ${needsRefreshCount} 个会话的消息...`,
@@ -182,6 +169,11 @@ const autoRefresh = async () => {
       console.error('❌ 检测需要刷新的会话失败:', error)
     }
   }
+}
+
+// 自动刷新（等同于手动刷新按钮）
+const autoRefresh = async () => {
+  await handleRefresh()
 }
 
 // 跳转到设置页面
