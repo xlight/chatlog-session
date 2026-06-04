@@ -892,11 +892,11 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
 
       console.log(`🔔 checkAndNotify: found ${actualNewMessages.length} new messages for ${talker}`)
 
-      // 获取会话名称：优先从消息中获取 talkerName，其次从联系人列表查找
-      const contact = contactStore.contacts.find(c => c.wxid === talker)
-      const talkerName = contact?.remark || contact?.nickname
-        || actualNewMessages[0]?.talkerName
-        || talker
+      // 获取会话名称：优先从联系人 store 获取，若返回原始 wxid 则 fallback 到消息中的 talkerName
+      const contactName = contactStore.getContactDisplayNameSync(talker)
+      const talkerName = (contactName && contactName !== talker)
+        ? contactName
+        : (actualNewMessages[0]?.talkerName || talker)
 
       // 获取当前用户的 wxid（用于检测 @我）
       const myWxid = notificationStore.config.myWxid

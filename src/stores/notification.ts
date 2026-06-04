@@ -447,20 +447,40 @@ export const useNotificationStore = defineStore('notification', () => {
         closeOldestNotification()
       }
 
-      // 创建通知
-      const notification = new Notification(title, {
+      const notificationOptions: NotificationOptions & Record<string, any> = {
         body,
         icon,
-        tag: talker,  // 使用 talker 作为 tag，相同联系人的通知会替换
+        tag: talker,
+        renotify: true,
         requireInteraction: config.value.autoClose === 0,
         silent: !config.value.enableSound,
-      })
+      }
+
+      // 添加操作按钮（仅部分浏览器支持，如 Chrome）
+      if (type === NotificationType.MENTION || type === NotificationType.QUOTE) {
+        notificationOptions.actions = [
+          { action: 'view', title: '查看' },
+          { action: 'dismiss', title: '忽略' },
+        ]
+      }
+
+      const notification = new Notification(title, notificationOptions)
 
       console.log('🔔 Notification created:', { title, body, talker, permission: permission.value, isEnabled: isEnabled.value })
 
-      // 通知点击事件
       notification.onclick = () => {
         handleNotificationClick(messageId, talker, message)
+      }
+
+      // 处理 action 按钮点击（Chrome 扩展属性）
+      const notificationAny = notification as any
+      if (notificationAny.onaction !== undefined) {
+        notificationAny.onaction = (event: { action: string }) => {
+          if (event.action === 'view') {
+            handleNotificationClick(messageId, talker, message)
+          }
+          notification.close()
+        }
       }
 
       notification.onerror = () => {
@@ -468,19 +488,16 @@ export const useNotificationStore = defineStore('notification', () => {
         console.error('通知显示失败:', { title, body, talker })
       }
 
-      // 通知关闭事件
       notification.onclose = () => {
         activeNotifications.value.delete(messageId)
       }
 
-      // 自动关闭
       if (config.value.autoClose > 0) {
         setTimeout(() => {
           notification.close()
         }, config.value.autoClose * 1000)
       }
 
-      // 保存通知对象
       activeNotifications.value.set(messageId, notification)
 
       // 震动
@@ -512,10 +529,12 @@ export const useNotificationStore = defineStore('notification', () => {
   ): { title: string; body: string; icon: string } {
     const icon = '/logo.svg'
 
-    // 获取发送者显示名称：优先用 message.senderName，其次从联系人列表查找
+    // 获取发送者显示名称：优先从联系人 store 获取，若返回原始 wxid 则 fallback 到 message.senderName
     const contactStore = useContactStore()
-    const senderContact = contactStore.contacts.find(c => c.wxid === message.sender)
-    const senderName = senderContact?.remark || senderContact?.nickname || message.senderName || message.sender
+    const contactSenderName = contactStore.getContactDisplayNameSync(message.sender)
+    const senderName = (contactSenderName && contactSenderName !== message.sender)
+      ? contactSenderName
+      : (message.senderName || message.sender)
 
     // 群聊：title = 群名，body = 发送者：内容
     // 私聊：title = 发送者，body = 内容
@@ -529,37 +548,37 @@ export const useNotificationStore = defineStore('notification', () => {
 
       switch (type) {
         case NotificationType.MENTION:
-          title = isGroup ? talkerName : senderName
-          body = isGroup ? `${senderName} 提到了你：${preview}` : `提到了你：${preview}`
+          title = isGroup ? `💬 ${talkerName}` : `💬 ${senderName}`
+          body = isGroup ? `${senderName} @了你：${preview}` : `@了你：${preview}`
           break
         case NotificationType.QUOTE:
-          title = isGroup ? talkerName : senderName
+          title = isGroup ? `↩️ ${talkerName}` : `↩️ ${senderName}`
           body = isGroup ? `${senderName} 引用了你：${preview}` : `引用了你：${preview}`
           break
         case NotificationType.MESSAGE:
-          title = isGroup ? talkerName : senderName
+          title = isGroup ? `💬 ${talkerName}` : `📩 ${senderName}`
           body = isGroup ? `${senderName}：${preview}` : preview
           break
         default:
-          title = isGroup ? talkerName : senderName
+          title = isGroup ? `💬 ${talkerName}` : `📩 ${senderName}`
           body = preview
       }
     } else {
       switch (type) {
         case NotificationType.MENTION:
-          title = isGroup ? talkerName : senderName
-          body = isGroup ? `${senderName} 提到了你` : '提到了你'
+          title = isGroup ? `💬 ${talkerName}` : `💬 ${senderName}`
+          body = isGroup ? `${senderName} @了你` : '@了你'
           break
         case NotificationType.QUOTE:
-          title = isGroup ? talkerName : senderName
+          title = isGroup ? `↩️ ${talkerName}` : `↩️ ${senderName}`
           body = isGroup ? `${senderName} 引用了你` : '引用了你'
           break
         case NotificationType.MESSAGE:
-          title = isGroup ? talkerName : senderName
+          title = isGroup ? `💬 ${talkerName}` : `📩 ${senderName}`
           body = isGroup ? `${senderName} 发来了新消息` : '发来了新消息'
           break
         default:
-          title = isGroup ? talkerName : senderName
+          title = isGroup ? `💬 ${talkerName}` : `📩 ${senderName}`
           body = '您有新消息'
       }
     }
