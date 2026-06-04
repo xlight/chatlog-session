@@ -23,6 +23,7 @@
     "dompurify": "^3.4.2",
     "element-plus": "^2.13.7",
     "marked": "^18.0.4",
+    "openai": "^6.42.0",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
     "pinyin-pro": "^3.27.0",

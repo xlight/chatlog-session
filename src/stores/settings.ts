@@ -65,6 +65,14 @@ export interface SendmsgSettingsData {
   sendShortcut: SendShortcut
 }
 
+export interface AISettingsData {
+  llmBaseUrl: string
+  llmApiKey: string
+  llmDefaultModel: string
+  enabled: boolean
+  privacyAcknowledged: boolean
+}
+
 // ==================== 默认值 ====================
 
 const defaultApiSettings: ApiSettingsData = {
@@ -121,6 +129,14 @@ const defaultSendmsgSettings: SendmsgSettingsData = {
   sendShortcut: 'enter',
 }
 
+const defaultAISettings: AISettingsData = {
+  llmBaseUrl: 'https://api.deepseek.com/v1',
+  llmApiKey: '',
+  llmDefaultModel: 'deepseek-chat',
+  enabled: false,
+  privacyAcknowledged: false,
+}
+
 export const useSettingsStore = defineStore('settings', () => {
   // ==================== State ====================
 
@@ -131,6 +147,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const privacy = ref<PrivacySettingsData>({ ...defaultPrivacySettings })
   const advanced = ref<AdvancedSettingsData>({ ...defaultAdvancedSettings })
   const sendmsg = ref<SendmsgSettingsData>({ ...defaultSendmsgSettings })
+  const ai = ref<AISettingsData>({ ...defaultAISettings })
 
   // ==================== Getters ====================
 
@@ -145,6 +162,7 @@ export const useSettingsStore = defineStore('settings', () => {
     ...privacy.value,
     ...advanced.value,
     ...sendmsg.value,
+    ...ai.value,
   }))
 
   /**
@@ -234,6 +252,7 @@ export const useSettingsStore = defineStore('settings', () => {
     privacy.value = { ...defaultPrivacySettings }
     advanced.value = { ...defaultAdvancedSettings }
     sendmsg.value = { ...defaultSendmsgSettings }
+    ai.value = { ...defaultAISettings }
   }
 
   /**
@@ -257,6 +276,7 @@ export const useSettingsStore = defineStore('settings', () => {
     privacy,
     advanced,
     sendmsg,
+    ai,
 
     // Getters
     allSettings,
@@ -271,6 +291,6 @@ export const useSettingsStore = defineStore('settings', () => {
 }, {
   persist: {
     key: 'chatlog-settings',
-    pick: ['api', 'appearance', 'notification', 'chat', 'privacy', 'advanced', 'sendmsg'],
+    pick: ['api', 'appearance', 'notification', 'chat', 'privacy', 'advanced', 'sendmsg', 'ai'],
   },
 })

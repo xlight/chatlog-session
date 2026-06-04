@@ -93,6 +93,11 @@ export const useAppStore = defineStore('app', () => {
   const currentMobileContactId = ref<string | undefined>(undefined)
   const error = ref<Error | null>(null)
 
+  /** AI 面板是否打开 */
+  const aiPanelOpen = ref(false)
+  /** AI 面板宽度百分比 */
+  const aiPanelWidth = ref(40)
+
   // ==================== Getters ====================
 
   /**
@@ -344,6 +349,8 @@ export const useAppStore = defineStore('app', () => {
     }
     sidebarCollapsed.value = false
     activeNav.value = 'chat'
+    aiPanelOpen.value = false
+    aiPanelWidth.value = 40
     error.value = null
     Object.keys(loading.value).forEach(key => {
       loading.value[key as keyof typeof loading.value] = false
@@ -367,6 +374,8 @@ export const useAppStore = defineStore('app', () => {
     showContactDetail,
     currentMobileSessionId,
     currentMobileContactId,
+    aiPanelOpen,
+    aiPanelWidth,
 
     // Getters
     isDark,

@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CopyDocument, Delete, Star, Download } from '@element-plus/icons-vue'
+import { CopyDocument, Delete, Star, Download, Cpu } from '@element-plus/icons-vue'
 import type { Message } from '@/types'
+import { useAppStore } from '@/stores/app'
+import { useAIConversationStore } from '@/stores/ai/conversation'
+
+const visible = ref(false)
 
 interface Props {
   message: Message
@@ -30,8 +34,8 @@ const emit = defineEmits<{
   favorite: [message: Message]
 }>()
 
-// 下拉菜单显示状态
-const visible = ref(false)
+const appStore = useAppStore()
+const conversation = useAIConversationStore()
 
 /**
  * 复制消息内容
@@ -80,6 +84,21 @@ const handleDownload = () => {
 }
 
 /**
+ * 发送到 AI
+ */
+const handleSendToAI = () => {
+  const text = props.message.content || ''
+  if (!text) {
+    ElMessage.warning('无可发送的文本内容')
+    return
+  }
+  appStore.aiPanelOpen = true
+  conversation.addMessage({ role: 'user', content: text })
+  ElMessage.success('已发送到 AI 面板')
+  visible.value = false
+}
+
+/**
  * 处理命令
  */
 const handleCommand = (command: string) => {
@@ -95,6 +114,9 @@ const handleCommand = (command: string) => {
       break
     case 'download':
       handleDownload()
+      break
+    case 'send-to-ai':
+      handleSendToAI()
       break
   }
 }
@@ -134,8 +156,14 @@ const hasMedia = () => {
         <!-- 收藏 -->
         <el-dropdown-item command="favorite" :icon="Star"> 收藏消息 </el-dropdown-item>
 
-        <!-- 收藏 -->
-        <el-dropdown-item command="favorite" :icon="Star"> 收藏消息 </el-dropdown-item>
+        <!-- 发送到 AI -->
+        <el-dropdown-item
+          v-if="hasTextContent()"
+          command="send-to-ai"
+          :icon="Cpu"
+        >
+          <span style="color: var(--el-color-primary)">发送到 AI</span>
+        </el-dropdown-item>
 
         <!-- 下载 -->
         <el-dropdown-item v-if="hasMedia()" command="download" :icon="Download" divided>

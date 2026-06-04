@@ -11,6 +11,7 @@ import { useMobileSessionInfo } from '@/composables/useMobileSessionInfo'
 import { useSessionDetail } from '@/composables/useSessionDetail'
 import { useMessageSearch } from '@/composables/useMessageSearch'
 import { useContactAutoLoad } from '@/composables/useContactAutoLoad'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import SessionList from '@/components/chat/SessionList.vue'
 import MessageList from '@/components/chat/MessageList.vue'
 import SendBox from '@/components/chat/SendBox.vue'
@@ -19,6 +20,8 @@ import MobileNavBar from '@/components/layout/MobileNavBar.vue'
 import SearchDialog from '@/components/chat/SearchDialog.vue'
 import ContactDetail from '@/views/Contact/ContactDetail.vue'
 import ChatExportDialog from '@/components/chat/ChatExportDialog.vue'
+import AIPanel from '@/components/ai/AIPanel.vue'
+import AIConversation from '@/components/ai/AIConversation.vue'
 import { useDisplayName } from '@/components/chat/composables'
 import type { Session, SessionFilterType } from '@/types'
 
@@ -170,6 +173,17 @@ const handleBeforeUnload = (e: BeforeUnloadEvent) => {
 
 // 手势相关 - 已移动到 useMobileGesture composable
 
+// 键盘快捷键 - AI 面板
+const { register: registerShortcut, unregister: unregisterShortcut } = useKeyboardShortcuts()
+const aiShortcut = {
+  key: 'k',
+  ctrlOrCmd: true,
+  callback: () => {
+    appStore.aiPanelOpen = !appStore.aiPanelOpen
+  },
+  description: '打开/关闭 AI 面板',
+}
+
 onMounted(async () => {
   // 初始化 chatStore（缓存、自动刷新、事件监听）
   chatMessagesStore.init()
@@ -193,9 +207,15 @@ onMounted(async () => {
 
   // 添加 beforeunload 事件监听
   window.addEventListener('beforeunload', handleBeforeUnload)
+
+  // 注册 AI 面板快捷键
+  registerShortcut(aiShortcut)
 })
 
 onUnmounted(() => {
+  // 注销 AI 面板快捷键
+  unregisterShortcut(aiShortcut)
+
   // 清理自动刷新管理器
   cleanupAutoRefresh()
 
@@ -338,7 +358,19 @@ onUnmounted(() => {
             @search="handleSearchMessages"
             @export="handleExport"
             @info="handleShowSessionDetail"
-          />
+          >
+            <template #actions>
+              <el-tooltip content="AI 助手" placement="bottom">
+                <el-button
+                  text
+                  :type="appStore.aiPanelOpen ? 'primary' : 'default'"
+                  @click="appStore.aiPanelOpen = !appStore.aiPanelOpen"
+                >
+                  <el-icon><Cpu /></el-icon>
+                </el-button>
+              </el-tooltip>
+            </template>
+          </ChatHeader>
 
           <!-- 搜索对话框 -->
           <SearchDialog
@@ -390,6 +422,13 @@ onUnmounted(() => {
           />
         </template>
       </div>
+
+      <!-- AI 面板 -->
+      <AIPanel>
+        <template #default>
+          <AIConversation />
+        </template>
+      </AIPanel>
     </div>
   </div>
 </template>

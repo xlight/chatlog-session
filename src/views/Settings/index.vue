@@ -19,6 +19,7 @@ import {
   AdvancedSettings,
   AboutSettings,
   SendmsgSettings,
+  AISettings,
 } from './components'
 
 const appStore = useAppStore()
@@ -36,6 +37,7 @@ const menuItems = [
   { key: 'notifications', label: '通知设置', icon: 'Bell' },
   { key: 'chat', label: '聊天设置', icon: 'ChatDotRound' },
   { key: 'sendmsg', label: '发送设置', icon: 'Promotion' },
+  { key: 'ai', label: 'AI 助手', icon: 'ChatLineSquare' },
   { key: 'privacy', label: '隐私设置', icon: 'Lock' },
   { key: 'advanced', label: '高级设置', icon: 'Setting' },
   { key: 'about', label: '关于', icon: 'InfoFilled' },
@@ -320,6 +322,9 @@ const resetSettings = async () => {
 
             <!-- 发送设置 -->
             <SendmsgSettings v-show="activeMenu === 'sendmsg'" v-model="settingsStore.sendmsg" />
+
+            <!-- AI 设置 -->
+            <AISettings v-show="activeMenu === 'ai'" v-model="settingsStore.ai" />
 
             <!-- 隐私设置 -->
             <PrivacySettings
