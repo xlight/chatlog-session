@@ -16,6 +16,9 @@ export const useAIConversationStore = defineStore('aiConversation', () => {
   const thinkingContent = ref('')
   const thinkingVisible = ref(true)
 
+  // Mermaid 系统提示词注入状态
+  const hasMermaidPrompt = ref(false)
+
   // ==================== Getters ====================
 
   const hasMessages = computed(() => messages.value.length > 0)
@@ -103,6 +106,19 @@ export const useAIConversationStore = defineStore('aiConversation', () => {
     usage.value = null
     thinkingContent.value = ''
     thinkingVisible.value = true
+    hasMermaidPrompt.value = false
+  }
+
+  function ensureMermaidPrompt() {
+    if (hasMermaidPrompt.value) return
+    const MERMAID_SYSTEM_PROMPT = `当需要展示图表、流程图、时序图、类图、甘特图等可视化内容时，优先使用 Mermaid 格式，使用 \`\`\`mermaid 代码块标记。
+示例：
+\`\`\`mermaid
+graph TD
+    A[开始] --> B[处理] --> C[结束]
+\`\`\``
+    messages.value.unshift({ role: 'system', content: MERMAID_SYSTEM_PROMPT })
+    hasMermaidPrompt.value = true
   }
 
   function abortStream() {
@@ -129,6 +145,7 @@ export const useAIConversationStore = defineStore('aiConversation', () => {
     thinkingContent,
     thinkingVisible,
     abortController,
+    hasMermaidPrompt,
 
     // Getters
     hasMessages,
@@ -147,6 +164,7 @@ export const useAIConversationStore = defineStore('aiConversation', () => {
     appendThinkingContent,
     setThinkingVisible,
     clearConversation,
+    ensureMermaidPrompt,
     abortStream,
     $reset,
   }

@@ -68,6 +68,7 @@ watch(
 )
 
 function handleSend(text: string) {
+  conversation.ensureMermaidPrompt()
   sendMessage(text)
 }
 
@@ -128,9 +129,10 @@ function handleContextTagRemove(id: string) {
 
 function handleClearContext() {
   clearContextTags()
-  conversation.messages = conversation.messages.filter(
-    (m) => m.role !== 'system'
-  )
+  conversation.messages = conversation.messages.filter((m) => {
+    if (m.role !== 'system') return true
+    return conversation.hasMermaidPrompt && m.content.includes('Mermaid')
+  })
 }
 </script>
 
