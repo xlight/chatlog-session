@@ -47,7 +47,7 @@ async function highlightCodeBlocks(container: HTMLElement) {
 
 // --- 代码块复制按钮 ---
 function addCopyButtons(container: HTMLElement) {
-  container.querySelectorAll('pre').forEach((pre) => {
+  container.querySelectorAll<HTMLElement>('pre:not(.mermaid-code)').forEach((pre) => {
     if (pre.querySelector('.copy-btn')) return
     const btn = document.createElement('button')
     btn.className = 'copy-btn'
@@ -76,14 +76,78 @@ async function renderMermaid(container: HTMLElement, isDark: boolean) {
     startOnLoad: false,
     fontFamily: 'inherit',
   })
+
   const nodes = container.querySelectorAll<HTMLElement>('.mermaid-code')
   if (nodes.length === 0) return
+
+  // 保存原始代码 + 从 data-mermaid-code 恢复（暗色模式切换时节点内容已是 SVG）
+  const originals = new Map<HTMLElement, string>()
+  nodes.forEach((n) => {
+    const stored = n.getAttribute('data-mermaid-code')
+    if (stored) {
+      n.textContent = stored
+      originals.set(n, stored)
+    } else {
+      originals.set(n, n.textContent || '')
+      n.setAttribute('data-mermaid-code', n.textContent || '')
+    }
+  })
+
   try {
     await mermaidInstance.default.run({ nodes: [...nodes] })
+    // 成功：为每个节点添加代码预览切换
+    nodes.forEach((n) => addCodePreviewToggle(n, originals.get(n) || ''))
   } catch (err) {
-    nodes.forEach((n) => n.classList.remove('mermaid-code'))
+    // 失败：恢复原始代码，降级为普通代码块
+    nodes.forEach((n) => {
+      n.textContent = originals.get(n) || ''
+      n.classList.remove('mermaid-code')
+    })
+    // 给降级后的代码块补上复制按钮
+    addCopyButtons(container)
     console.warn('[Mermaid] 渲染失败，降级为代码块:', err)
   }
+}
+
+/**
+ * 在成功渲染的 Mermaid 节点上添加复制按钮 + 代码预览切换
+ */
+function addCodePreviewToggle(container: HTMLElement, originalCode: string) {
+  if (container.querySelector('.mermaid-toggle')) return
+
+  // 复制按钮（在容器上 hover 显示，复制原始 Mermaid 代码）
+  container.style.position = 'relative'
+  const copyBtn = document.createElement('button')
+  copyBtn.className = 'copy-btn'
+  copyBtn.textContent = '复制'
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(originalCode)
+    copyBtn.textContent = '已复制'
+    setTimeout(() => { copyBtn.textContent = '复制' }, 2000)
+  })
+  container.appendChild(copyBtn)
+
+  // 源代码预览（初始隐藏）
+  const codePreview = document.createElement('pre')
+  codePreview.className = 'mermaid-code-preview'
+  codePreview.textContent = originalCode
+  codePreview.style.display = 'none'
+
+  // 切换按钮
+  const toggleBtn = document.createElement('button')
+  toggleBtn.className = 'mermaid-toggle'
+  toggleBtn.textContent = '查看代码'
+  toggleBtn.addEventListener('click', () => {
+    const svg = container.querySelector('svg')
+    if (!svg) return
+    const isShowingCode = codePreview.style.display === 'block'
+    svg.style.display = isShowingCode ? '' : 'none'
+    codePreview.style.display = isShowingCode ? 'none' : 'block'
+    toggleBtn.textContent = isShowingCode ? '查看代码' : '查看图表'
+  })
+
+  container.appendChild(codePreview)
+  container.appendChild(toggleBtn)
 }
 
 // --- 内容更新后处理（高亮 + 复制 + Mermaid） ---
@@ -165,7 +229,7 @@ onBeforeUnmount(() => {
       <div
         ref="contentRef"
         class="ai-message__content"
-        :class="{ 'ai-message__content--markdown': isAssistant && content }"
+        :class="{ 'ai-message__content--markdown markdown-body': isAssistant && content }"
       >
         <template v-if="content">
           <div v-if="isAssistant" v-html="renderedContent" />
@@ -265,33 +329,10 @@ onBeforeUnmount(() => {
     &--markdown {
       white-space: normal;
 
-      // --- 表格 ---
-      :deep(table) {
-        border-collapse: collapse;
-        width: 100%;
-        margin: 8px 0;
-        overflow-x: auto;
-        display: block;
-
-        th, td {
-          border: 1px solid var(--el-border-color);
-          padding: 6px 12px;
-          text-align: left;
-        }
-
-        th {
-          background-color: var(--el-fill-color);
-          font-weight: 600;
-        }
-
-        tr:nth-child(even) {
-          background-color: var(--el-fill-color-lighter);
-        }
-      }
-
-      // --- 代码块 ---
+      // --- 代码块样式覆盖（配合 github-markdown-css）---
       :deep(pre) {
-        background-color: var(--el-fill-color-darker);
+        position: relative;
+        background-color: var(--bgColor-muted, var(--el-fill-color-darker));
         border-radius: 6px;
         padding: 12px 16px;
         margin: 8px 0;
@@ -300,7 +341,7 @@ onBeforeUnmount(() => {
         line-height: 1.5;
 
         code {
-          font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+          font-family: var(--fontStack-monospace, 'Menlo', 'Monaco', 'Courier New', monospace);
           background: none;
           padding: 0;
           border-radius: 0;
@@ -314,8 +355,8 @@ onBeforeUnmount(() => {
           font-size: 12px;
           border: none;
           border-radius: 4px;
-          background-color: var(--el-fill-color);
-          color: var(--el-text-color-regular);
+          background-color: var(--bgColor-neutral-muted, var(--el-fill-color));
+          color: var(--fgColor-muted, var(--el-text-color-regular));
           cursor: pointer;
           opacity: 0;
           transition: opacity 0.2s;
@@ -332,82 +373,17 @@ onBeforeUnmount(() => {
       }
 
       :deep(code) {
-        font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-        background-color: var(--el-fill-color-darker);
+        font-family: var(--fontStack-monospace, 'Menlo', 'Monaco', 'Courier New', monospace);
+        background-color: var(--bgColor-muted, var(--el-fill-color-darker));
         padding: 2px 6px;
         border-radius: 3px;
         font-size: 0.9em;
       }
 
-      // --- 引用块 ---
-      :deep(blockquote) {
-        margin: 8px 0;
-        padding: 4px 16px;
-        border-left: 4px solid var(--el-color-primary-light-5);
-        background-color: var(--el-fill-color-lighter);
-        color: var(--el-text-color-regular);
-
-        p {
-          margin: 4px 0;
-        }
-      }
-
-      // --- 列表 ---
-      :deep(ul), :deep(ol) {
-        padding-left: 24px;
-        margin: 4px 0;
-
-        li {
-          margin: 2px 0;
-        }
-      }
-
-      // --- 标题 ---
-      :deep(h1) { font-size: 1.5em; margin: 12px 0 8px; font-weight: 700; }
-      :deep(h2) { font-size: 1.3em; margin: 10px 0 6px; font-weight: 700; }
-      :deep(h3) { font-size: 1.15em; margin: 8px 0 4px; font-weight: 600; }
-      :deep(h4) { font-size: 1em; margin: 6px 0 4px; font-weight: 600; }
-      :deep(h5) { font-size: 0.95em; margin: 4px 0 2px; font-weight: 600; }
-      :deep(h6) { font-size: 0.9em; margin: 4px 0 2px; font-weight: 600; }
-
-      // --- 图片 ---
-      :deep(img) {
-        max-width: 100%;
-        border-radius: 6px;
-        margin: 4px 0;
-      }
-
-      // --- 任务列表 ---
-      :deep(input[type="checkbox"]) {
-        margin-right: 6px;
-        accent-color: var(--el-color-primary);
-      }
-
-      // --- 水平线 ---
-      :deep(hr) {
-        border: none;
-        border-top: 1px solid var(--el-border-color);
-        margin: 12px 0;
-      }
-
-      // --- 链接 ---
-      :deep(a) {
-        color: var(--el-color-primary);
-        text-decoration: none;
-
-        &:hover {
-          text-decoration: underline;
-        }
-      }
-
-      // --- 段落 ---
-      :deep(p) {
-        margin: 4px 0;
-      }
-
       // --- Mermaid 图表 ---
       :deep(.mermaid-code) {
-        background-color: var(--el-fill-color-darker);
+        position: relative;
+        background-color: var(--bgColor-muted, var(--el-fill-color-darker));
         border-radius: 6px;
         padding: 12px;
         margin: 8px 0;
@@ -416,6 +392,50 @@ onBeforeUnmount(() => {
 
       :deep(svg) {
         max-width: 100%;
+      }
+
+      // --- Mermaid 失败降级后的代码块 ---
+      :deep(.mermaid-code.mermaid-fallback) {
+        text-align: left;
+        font-family: var(--fontStack-monospace, 'Menlo', 'Monaco', 'Courier New', monospace);
+        font-size: 13px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      // --- Mermaid 代码预览（渲染成功后的源代码展示区）---
+      :deep(.mermaid-code-preview) {
+        text-align: left;
+        font-family: var(--fontStack-monospace, 'Menlo', 'Monaco', 'Courier New', monospace);
+        font-size: 13px;
+        line-height: 1.5;
+        background-color: var(--bgColor-muted, var(--el-fill-color-darker));
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin: 8px 0;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      // --- Mermaid 切换按钮 ---
+      :deep(.mermaid-toggle) {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 2px 10px;
+        font-size: 12px;
+        border: 1px solid var(--borderColor-default, var(--el-border-color));
+        border-radius: 4px;
+        background-color: var(--bgColor-muted, var(--el-fill-color));
+        color: var(--fgColor-muted, var(--el-text-color-secondary));
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          background-color: var(--el-color-primary-light-5);
+          border-color: var(--el-color-primary-light-3);
+          color: var(--el-color-primary);
+        }
       }
     }
   }

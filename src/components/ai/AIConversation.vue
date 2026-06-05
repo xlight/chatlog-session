@@ -21,7 +21,6 @@ const {
 const sessionStore = useSessionStore()
 const promptStore = useAIPromptStore()
 
-const messagesEndRef = ref<HTMLDivElement | null>(null)
 const currentFeedRange = ref({ seconds: 3600, label: '最近1小时' })
 
 const displayMessages = computed(() => conversation.messages)
@@ -200,7 +199,6 @@ function handleClearContext() {
         </el-text>
       </div>
 
-      <div ref="messagesEndRef" />
     </div>
 
     <AIInputBox

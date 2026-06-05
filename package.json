@@ -22,6 +22,7 @@
     "dayjs": "^1.11.10",
     "dompurify": "^3.4.2",
     "element-plus": "^2.13.7",
+    "github-markdown-css": "^5.9.0",
     "highlight.js": "^11.11.1",
     "marked": "^18.0.4",
     "mermaid": "^11.15.0",

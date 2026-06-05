@@ -27,6 +27,10 @@ renderer.code = ({ text, lang }: { text: string; lang?: string }) => {
   const langClass = lang ? ` class="language-${lang}"` : ''
   return `<pre><code${langClass}>${escaped}</code></pre>`
 }
+renderer.link = ({ href, title, text }: { href: string; title?: string | null; text: string }) => {
+  const titleAttr = title ? ` title="${escapeHtml(title)}"` : ''
+  return `<a href="${escapeHtml(href)}"${titleAttr} target="_blank" rel="noopener noreferrer">${text}</a>`
+}
 
 // 配置 marked：启用 GFM + breaks
 marked.setOptions({
@@ -53,6 +57,7 @@ const purifyConfig = {
     'stroke-width', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin',
     'fill-opacity', 'fill-rule', 'opacity', 'preserveAspectRatio',
     'gradientUnits', 'gradientTransform', 'patternUnits', 'scale',
+    'target', 'rel',
   ],
   ALLOW_DATA_ATTR: false,
 }
