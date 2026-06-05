@@ -574,9 +574,9 @@ defineExpose({
   }
 
   &__scroll-bottom {
-    position: fixed;
-    bottom: 80px;
-    right: 40px;
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
     z-index: 1000;
     display: flex;
     flex-direction: column;

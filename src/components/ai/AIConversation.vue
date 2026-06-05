@@ -22,7 +22,7 @@ const sessionStore = useSessionStore()
 const promptStore = useAIPromptStore()
 
 const messagesEndRef = ref<HTMLDivElement | null>(null)
-const feedCount = ref(20)
+const currentFeedRange = ref({ seconds: 3600, label: '最近1小时' })
 
 const displayMessages = computed(() => conversation.messages)
 
@@ -33,15 +33,28 @@ const currentSession = computed(() => {
 })
 
 const feedOptions = [
-  { value: 20, label: '20条' },
-  { value: 50, label: '50条' },
-  { value: 100, label: '100条' },
-  { value: 200, label: '200条' },
+  { value: { seconds: 3600, label: '最近1小时' }, label: '最近1小时' },
+  { value: { seconds: 21600, label: '最近6小时' }, label: '最近6小时' },
+  { value: { type: 'today', label: '今天' }, label: '今天' },
+  { value: { seconds: 259200, label: '最近3天' }, label: '最近3天' },
+  { value: { seconds: 604800, label: '最近7天' }, label: '最近7天' },
+  { value: { type: 'all', label: '全部' }, label: '全部' },
 ]
+
+watch(
+  () => sessionStore.currentSessionId,
+  () => {
+    conversation.clearConversation()
+    clearContextTags()
+  }
+)
 
 async function scrollToBottom() {
   await nextTick()
-  messagesEndRef.value?.scrollIntoView({ behavior: 'smooth' })
+  const container = document.querySelector('.ai-conversation__messages')
+  if (container) {
+    container.scrollTop = container.scrollHeight
+  }
 }
 
 watch(
@@ -62,27 +75,27 @@ function handleStop() {
   stopGeneration()
 }
 
-function handleFeedContext(count?: number) {
-  if (!currentSession.value) return
-  const n = count ?? feedCount.value
+function handleFeedContext(range?: { seconds?: number; type?: string; label: string }) {
+  if (!currentSession.value || !range) return
+  currentFeedRange.value = range as { seconds: number; label: string }
   const systemContent = feedSessionContext(
     currentSession.value,
-    n
+    range as any
   )
   if (!systemContent) return
 
   const session = currentSession.value
   const sessionName = session.name || session.talkerName || '未知会话'
+  const timeLabel = range.label
   const systemMsg = {
     role: 'system' as const,
-    content: `以下是会话「${sessionName}」的最近 ${n} 条聊天记录作为上下文：\n\n${systemContent}`,
+    content: `以下是会话「${sessionName}」在 ${timeLabel} 的聊天记录作为上下文：\n\n${systemContent}`,
   }
   const existingSystem = conversation.messages.filter(
     (m) => m.role === 'system'
   )
   const nonSystem = conversation.messages.filter((m) => m.role !== 'system')
   conversation.messages = [...existingSystem, systemMsg, ...nonSystem]
-  feedCount.value = n
 }
 
 function handlePromptSelect(promptId: string) {
@@ -99,10 +112,8 @@ function handlePromptSelect(promptId: string) {
     vars
   )
 
-  conversation.addMessage({
-    role: 'system',
-    content: substituted,
-  })
+  // 直接发送 prompt 内容作为用户消息
+  sendMessage(substituted)
 }
 
 function handleContextTagRemove(id: string) {
@@ -145,7 +156,7 @@ function handleClearContext() {
                 text
                 size="small"
                 :loading="feeding"
-                @click="handleFeedContext()"
+                @click="handleFeedContext(currentFeedRange)"
               >
                 投喂当前会话上下文
               </el-button>
@@ -204,7 +215,7 @@ function handleClearContext() {
           <el-dropdown
             v-if="currentSession && !conversation.streaming"
             trigger="click"
-            @command="(val: number) => handleFeedContext(val)"
+            @command="(val: { seconds?: number; type?: string; label: string }) => handleFeedContext(val)"
           >
             <el-button size="small" text>
               <el-icon><FolderOpened /></el-icon>
@@ -214,7 +225,7 @@ function handleClearContext() {
               <el-dropdown-menu>
                 <el-dropdown-item
                   v-for="opt in feedOptions"
-                  :key="opt.value"
+                  :key="opt.label"
                   :command="opt.value"
                 >
                   {{ opt.label }}

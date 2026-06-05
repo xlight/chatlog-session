@@ -3,6 +3,8 @@ import type { ContextTag } from '@/types/ai'
 import type { Session } from '@/types'
 import { useChatMessagesStore } from '@/stores/chatMessages'
 
+export type FeedTimeRange = { seconds: number; label: string } | { type: 'today'; label: string } | { type: 'all'; label: string }
+
 function formatTime(rawTime: string, createTime: number): string {
   if (rawTime) {
     try {
@@ -26,6 +28,36 @@ function formatTime(rawTime: string, createTime: number): string {
     })
   }
   return ''
+}
+
+function getTimestamp(msg: { time: string; createTime: number }): number {
+  if (msg.time) {
+    const t = new Date(msg.time).getTime()
+    if (!isNaN(t)) return t
+  }
+  return msg.createTime < 10000000000 ? msg.createTime * 1000 : msg.createTime
+}
+
+function filterByTimeRange(
+  messages: Array<{ time: string; createTime: number }>,
+  range: FeedTimeRange
+): Array<{ time: string; createTime: number }> {
+  const now = Date.now()
+
+  let cutoff: number
+  if ('type' in range) {
+    if (range.type === 'today') {
+      const d = new Date()
+      cutoff = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+    } else {
+      // all - no filter
+      return [...messages]
+    }
+  } else {
+    cutoff = now - range.seconds * 1000
+  }
+
+  return messages.filter((msg) => getTimestamp(msg) >= cutoff)
 }
 
 function formatMessage(msg: {
@@ -56,7 +88,7 @@ export function useContextFeed() {
 
   function feedSessionContext(
     session: Session,
-    messageCount: number = 20
+    range: FeedTimeRange
   ): string {
     feeding.value = true
 
@@ -67,25 +99,30 @@ export function useContextFeed() {
       return ''
     }
 
-    const messages = allMessages.slice(-messageCount)
+    const filtered = filterByTimeRange(allMessages, range)
 
-    const firstTime = formatTime(messages[0].time, messages[0].createTime)
+    if (filtered.length === 0) {
+      feeding.value = false
+      return ''
+    }
+
+    const firstTime = formatTime(filtered[0].time, filtered[0].createTime)
     const lastTime = formatTime(
-      messages[messages.length - 1].time,
-      messages[messages.length - 1].createTime
+      filtered[filtered.length - 1].time,
+      filtered[filtered.length - 1].createTime
     )
     const tag: ContextTag = {
       id: `ctx-${Date.now()}`,
       sessionId: session.id,
       sessionName: session.name || session.talkerName || '未知会话',
-      messageCount: messages.length,
+      messageCount: filtered.length,
       timeRange: `${firstTime} ~ ${lastTime}`,
       fedAt: Date.now(),
     }
     contextTags.value.push(tag)
 
     feeding.value = false
-    return messages.map(formatMessage).join('\n')
+    return filtered.map(formatMessage).join('\n')
   }
 
   function removeContextTag(id: string) {
