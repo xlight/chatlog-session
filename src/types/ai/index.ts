@@ -7,6 +7,7 @@
 
 /** OpenAI Chat 消息格式 */
 export interface ChatMessage {
+  id?: string
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
   name?: string
@@ -153,4 +154,14 @@ export interface ContextTag {
   messageCount: number
   timeRange: string
   fedAt: number
+}
+
+/** 「帮我回复」/「分析消息」生成的最近一次 AI 草稿（RecentReplyCard 显示用） */
+export interface LastReply {
+  messageId: string
+  content: string
+  promptType: 'reply' | 'analyze'
+  sourceMessageId: string
+  generatedAt: number
+  injected: boolean
 }

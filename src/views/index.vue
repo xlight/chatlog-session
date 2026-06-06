@@ -7,6 +7,7 @@ import ChatView from './Chat/index.vue'
 import ContactView from './Contact/index.vue'
 import SearchView from './Search/index.vue'
 import SettingsView from './Settings/index.vue'
+import AgentConsoleView from './AgentConsole/index.vue'
 import MobileTabBar from '@/components/layout/MobileTabBar.vue'
 import logoUrl from '/logo.svg?url'
 
@@ -20,8 +21,11 @@ const contactStore = useContactStore()
 // 联系人后台加载状态
 const isContactLoading = computed(() => contactStore.isBackgroundLoading)
 
+// Agent 控制台是否在侧边栏显示
+const showConsoleInSidebar = computed(() => settingsStore.ai.showConsoleInSidebar)
+
 // 当前激活的视图
-type ViewType = 'chat' | 'contact' | 'search' | 'dashboard' | 'settings'
+type ViewType = 'chat' | 'contact' | 'search' | 'dashboard' | 'settings' | 'agent'
 const currentView = ref<ViewType>('chat')
 
 // 同步 activeNav 和 currentView
@@ -84,6 +88,8 @@ const CurrentViewComponent = computed(() => {
       return DashboardView
     case 'settings':
       return SettingsView
+    case 'agent':
+      return AgentConsoleView
     default:
       return ChatView
   }
@@ -151,6 +157,22 @@ const CurrentViewComponent = computed(() => {
           >
             <el-icon size="24">
               <DataLine />
+            </el-icon>
+          </div>
+        </el-tooltip>
+
+        <el-tooltip
+          v-if="showConsoleInSidebar"
+          content="Agent 控制台"
+          placement="right"
+        >
+          <div
+            class="nav-item"
+            :class="{ active: isActive('agent') }"
+            @click="switchView('agent')"
+          >
+            <el-icon size="24">
+              <Cpu />
             </el-icon>
           </div>
         </el-tooltip>

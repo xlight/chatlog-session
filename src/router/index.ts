@@ -58,6 +58,15 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/agent/console',
+    name: 'AgentConsole',
+    component: () => import('@/views/AgentConsole/index.vue'),
+    meta: {
+      title: 'Agent 控制台',
+      icon: 'Cpu',
+    },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     redirect: { name: 'Home' },

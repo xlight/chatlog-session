@@ -71,6 +71,7 @@ export interface AISettingsData {
   llmDefaultModel: string
   enabled: boolean
   privacyAcknowledged: boolean
+  showConsoleInSidebar: boolean
 }
 
 // ==================== 默认值 ====================
@@ -135,6 +136,7 @@ const defaultAISettings: AISettingsData = {
   llmDefaultModel: 'deepseek-chat',
   enabled: false,
   privacyAcknowledged: false,
+  showConsoleInSidebar: true,
 }
 
 export const useSettingsStore = defineStore('settings', () => {

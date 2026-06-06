@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ChatMessage, AIError, UsageInfo } from '@/types/ai'
+import type { ChatMessage, AIError, LastReply, UsageInfo } from '@/types/ai'
 
 export const useAIConversationStore = defineStore('aiConversation', () => {
   // ==================== State ====================
@@ -18,6 +18,9 @@ export const useAIConversationStore = defineStore('aiConversation', () => {
 
   // Mermaid 系统提示词注入状态
   const hasMermaidPrompt = ref(false)
+
+  // 最近一次「帮我回复」/「分析消息」生成的草稿（RecentReplyCard 显示用）
+  const lastReply = ref<LastReply | null>(null)
 
   // ==================== Getters ====================
 
@@ -129,10 +132,30 @@ graph TD
     streaming.value = false
   }
 
+  function removeLastAssistant() {
+    for (let i = messages.value.length - 1; i >= 0; i--) {
+      if (messages.value[i].role === 'assistant' && !messages.value[i].content) {
+        messages.value.splice(i, 1)
+        return
+      }
+    }
+  }
+
+  function setLastReply(reply: LastReply | null) {
+    lastReply.value = reply
+  }
+
+  function markLastReplyInjected() {
+    if (lastReply.value) {
+      lastReply.value = { ...lastReply.value, injected: true }
+    }
+  }
+
   function $reset() {
     clearConversation()
     currentModel.value = ''
     streaming.value = false
+    lastReply.value = null
   }
 
   return {
@@ -146,6 +169,7 @@ graph TD
     thinkingVisible,
     abortController,
     hasMermaidPrompt,
+    lastReply,
 
     // Getters
     hasMessages,
@@ -166,6 +190,9 @@ graph TD
     clearConversation,
     ensureMermaidPrompt,
     abortStream,
+    removeLastAssistant,
+    setLastReply,
+    markLastReplyInjected,
     $reset,
   }
 })
