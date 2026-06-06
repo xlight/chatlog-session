@@ -76,6 +76,21 @@ const builtinPrompts: PromptTemplate[] = [
     ],
     tags: ['人物', '画像'],
   },
+  {
+    id: 'graph',
+    name: '关系图',
+    description: '根据聊天内容构建关系图',
+    category: 'builtin',
+    content:
+      '请根据以下聊天记录，为参与对话的人物和话题构建关系图谱，连线文字用于表示人物对话题的观点。'
+      + '注意要尽可能的多的层次，避免同级别内容过多导致图谱宽度过大。'
+      + '人物使用圆形，话题使用方形。',
+    variables: [
+      { name: 'sessionName', description: '会话名称', source: 'auto' },
+      { name: 'content', description: '聊天内容', source: 'auto' },
+    ],
+    tags: ['人物', '画像'],
+  },
 ]
 
 export const useAIPromptStore = defineStore('aiPrompt', () => {

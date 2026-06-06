@@ -115,17 +115,27 @@ async function renderMermaid(container: HTMLElement, isDark: boolean) {
 function addCodePreviewToggle(container: HTMLElement, originalCode: string) {
   if (container.querySelector('.mermaid-toggle')) return
 
-  // 复制按钮（在容器上 hover 显示，复制原始 Mermaid 代码）
-  container.style.position = 'relative'
+  // 创建工具栏容器（放在画布外面）
+  const toolbar = document.createElement('div')
+  toolbar.className = 'mermaid-toolbar'
+
+  // 复制按钮
   const copyBtn = document.createElement('button')
-  copyBtn.className = 'copy-btn'
+  copyBtn.className = 'mermaid-toolbar-btn'
   copyBtn.textContent = '复制'
   copyBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(originalCode)
     copyBtn.textContent = '已复制'
     setTimeout(() => { copyBtn.textContent = '复制' }, 2000)
   })
-  container.appendChild(copyBtn)
+
+  // 切换按钮
+  const toggleBtn = document.createElement('button')
+  toggleBtn.className = 'mermaid-toolbar-btn mermaid-toggle'
+  toggleBtn.textContent = '查看代码'
+
+  toolbar.appendChild(copyBtn)
+  toolbar.appendChild(toggleBtn)
 
   // 源代码预览（初始隐藏）
   const codePreview = document.createElement('pre')
@@ -133,10 +143,6 @@ function addCodePreviewToggle(container: HTMLElement, originalCode: string) {
   codePreview.textContent = originalCode
   codePreview.style.display = 'none'
 
-  // 切换按钮
-  const toggleBtn = document.createElement('button')
-  toggleBtn.className = 'mermaid-toggle'
-  toggleBtn.textContent = '查看代码'
   toggleBtn.addEventListener('click', () => {
     const svg = container.querySelector('svg')
     if (!svg) return
@@ -146,8 +152,9 @@ function addCodePreviewToggle(container: HTMLElement, originalCode: string) {
     toggleBtn.textContent = isShowingCode ? '查看代码' : '查看图表'
   })
 
-  container.appendChild(codePreview)
-  container.appendChild(toggleBtn)
+  // 顺序：画布 → 代码预览 → 工具栏（始终在最下面）
+  container.parentNode?.insertBefore(codePreview, container.nextSibling)
+  container.parentNode?.insertBefore(toolbar, codePreview.nextSibling)
 }
 
 // --- 内容更新后处理（高亮 + 复制 + Mermaid） ---
@@ -382,7 +389,6 @@ onBeforeUnmount(() => {
 
       // --- Mermaid 图表 ---
       :deep(.mermaid-code) {
-        position: relative;
         background-color: var(--bgColor-muted, var(--el-fill-color-darker));
         border-radius: 6px;
         padding: 12px;
@@ -392,6 +398,30 @@ onBeforeUnmount(() => {
 
       :deep(svg) {
         max-width: 100%;
+      }
+
+      // --- Mermaid 工具栏（画布外面）---
+      :deep(.mermaid-toolbar) {
+        display: flex;
+        gap: 4px;
+        margin-top: 4px;
+      }
+
+      :deep(.mermaid-toolbar-btn) {
+        padding: 2px 8px;
+        font-size: 12px;
+        border: 1px solid var(--borderColor-default, var(--el-border-color));
+        border-radius: 4px;
+        background-color: var(--bgColor-muted, var(--el-fill-color));
+        color: var(--fgColor-muted, var(--el-text-color-secondary));
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          background-color: var(--el-color-primary-light-5);
+          border-color: var(--el-color-primary-light-3);
+          color: var(--el-color-primary);
+        }
       }
 
       // --- Mermaid 失败降级后的代码块 ---
@@ -416,26 +446,6 @@ onBeforeUnmount(() => {
         overflow-x: auto;
         white-space: pre-wrap;
         word-break: break-word;
-      }
-
-      // --- Mermaid 切换按钮 ---
-      :deep(.mermaid-toggle) {
-        display: inline-block;
-        margin-top: 8px;
-        padding: 2px 10px;
-        font-size: 12px;
-        border: 1px solid var(--borderColor-default, var(--el-border-color));
-        border-radius: 4px;
-        background-color: var(--bgColor-muted, var(--el-fill-color));
-        color: var(--fgColor-muted, var(--el-text-color-secondary));
-        cursor: pointer;
-        transition: all 0.2s;
-
-        &:hover {
-          background-color: var(--el-color-primary-light-5);
-          border-color: var(--el-color-primary-light-3);
-          color: var(--el-color-primary);
-        }
       }
     }
   }
