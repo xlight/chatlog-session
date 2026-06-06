@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, provide } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAppStore } from '@/stores/app'
 import { useSessionStore } from '@/stores/session'
@@ -12,6 +13,7 @@ import { useSessionDetail } from '@/composables/useSessionDetail'
 import { useMessageSearch } from '@/composables/useMessageSearch'
 import { useContactAutoLoad } from '@/composables/useContactAutoLoad'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { INJECT_DRAFT_KEY } from '@/composables/injectDraftKey'
 import SessionList from '@/components/chat/SessionList.vue'
 import MessageList from '@/components/chat/MessageList.vue'
 import SendBox from '@/components/chat/SendBox.vue'
@@ -174,6 +176,7 @@ const handleBeforeUnload = (e: BeforeUnloadEvent) => {
 // 手势相关 - 已移动到 useMobileGesture composable
 
 // 键盘快捷键 - AI 面板
+const router = useRouter()
 const { register: registerShortcut, unregister: unregisterShortcut } = useKeyboardShortcuts()
 const aiShortcut = {
   key: 'k',
@@ -183,6 +186,22 @@ const aiShortcut = {
   },
   description: '打开/关闭 AI 面板',
 }
+
+const consoleShortcut = {
+  key: 'k',
+  ctrlOrCmd: true,
+  shift: true,
+  callback: () => {
+    router.push('/agent/console')
+  },
+  description: '打开 Agent 控制台',
+}
+
+const sendBoxRef = ref<InstanceType<typeof import('@/components/chat/SendBox.vue').default> | null>(null)
+
+provide(INJECT_DRAFT_KEY, (text: string) => {
+  sendBoxRef.value?.injectDraft(text)
+})
 
 onMounted(async () => {
   // 初始化 chatStore（缓存、自动刷新、事件监听）
@@ -210,11 +229,13 @@ onMounted(async () => {
 
   // 注册 AI 面板快捷键
   registerShortcut(aiShortcut)
+  registerShortcut(consoleShortcut)
 })
 
 onUnmounted(() => {
   // 注销 AI 面板快捷键
   unregisterShortcut(aiShortcut)
+  unregisterShortcut(consoleShortcut)
 
   // 清理自动刷新管理器
   cleanupAutoRefresh()
@@ -417,6 +438,7 @@ onUnmounted(() => {
           <!-- 消息发送框 -->
           <SendBox
             v-if="settingsStore.sendmsg.enabled"
+            ref="sendBoxRef"
             :session="currentSession"
             @refresh="handleRefreshMessages"
           />

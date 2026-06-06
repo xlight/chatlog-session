@@ -14,6 +14,7 @@ import { MoreFilled } from '@element-plus/icons-vue'
 import { MESSAGE_COMPONENT_REGISTRY } from './message-types/registry'
 import ForwardedDialog from './message-types/ForwardedDialog.vue'
 import FavoriteDialog from './message-types/FavoriteDialog.vue'
+import MessageQuickActions from './MessageQuickActions.vue'
 
 interface Props {
   message: Message
@@ -31,7 +32,12 @@ const props = withDefaults(defineProps<Props>(), {
 // 定义 emits
 const emit = defineEmits<{
   'gap-click': [message: Message]
+  delete: [message: Message]
+  favorite: [message: Message]
 }>()
+
+const handleQuickDelete = (msg: Message) => emit('delete', msg)
+const handleQuickFavorite = (msg: Message) => emit('favorite', msg)
 
 // 获取 stores
 const appStore = useAppStore()
@@ -413,6 +419,14 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
 
         <!-- 消息主体 - 使用动态组件 -->
         <div class="message-bubble__body">
+          <MessageQuickActions
+            v-if="!isSystemMessage && !isRevokeMessage && !isGapMessage && !isEmptyRangeMessage"
+            :message="message"
+            class="message-bubble__quick-actions"
+            @delete="handleQuickDelete"
+            @favorite="handleQuickFavorite"
+          />
+
           <!-- 动态组件渲染 -->
           <template v-if="dynamicComponent">
             <component

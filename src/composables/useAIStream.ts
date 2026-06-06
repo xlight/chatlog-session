@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import type { Ref } from 'vue'
 import { chatStream, mapError, showAIErrorToast } from '@/api/llm'
 import type { AIError, ChatMessage, UsageInfo } from '@/types/ai'
 

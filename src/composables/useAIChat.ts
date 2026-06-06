@@ -28,7 +28,7 @@ export function useAIChat() {
   }
 
   function clearConversation() {
-    conversation.clearConversation()
+    ;(conversation as unknown as { clearConversation: () => void }).clearConversation()
   }
 
   return {

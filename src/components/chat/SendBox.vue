@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CirclePlus, PictureRounded } from '@element-plus/icons-vue'
 import { sendmsgAPI } from '@/api/sendmsg'
@@ -10,6 +10,18 @@ import type { Session } from '@/types/session'
 const settingsStore = useSettingsStore()
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
+
+const inputRef = ref<InstanceType<typeof import('element-plus').ElInput> | null>(null)
+
+function injectDraft(text: string) {
+  messageText.value = text
+  nextTick(() => {
+    const el = inputRef.value?.$el?.querySelector('textarea') as HTMLTextAreaElement | null
+    el?.focus()
+  })
+}
+
+defineExpose({ injectDraft })
 
 const props = defineProps<{
   session: Session
@@ -407,6 +419,7 @@ onUnmounted(() => {
       </el-popover>
 
       <el-input
+        ref="inputRef"
         v-model="messageText"
         type="textarea"
         :rows="2"

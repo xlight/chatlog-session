@@ -249,7 +249,7 @@ export const useAIConsoleStore = defineStore(
   {
     persist: {
       storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
-      paths: ['sessions', 'currentSessionId', 'activeTab'],
+      pick: ['sessions', 'currentSessionId', 'activeTab'],
     },
-  }
+  } as never
 )

@@ -8,6 +8,7 @@ import AIMessageBubble from './AIMessageBubble.vue'
 import AIInputBox from './AIInputBox.vue'
 import ContextBar from './ContextBar.vue'
 import PromptSelector from './PromptSelector.vue'
+import RecentReplyCard from './RecentReplyCard.vue'
 
 const { conversation, sendMessage, stopGeneration } =
   useAIChat()
@@ -137,6 +138,7 @@ function handleClearContext() {
 
 <template>
   <div class="ai-conversation">
+    <RecentReplyCard />
     <ContextBar
       :tags="contextTags"
       @remove="handleContextTagRemove"

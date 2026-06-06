@@ -205,6 +205,7 @@ onBeforeUnmount(() => {
       'ai-message--assistant': !isUser && !isSystem,
       'ai-message--system': isSystem,
     }"
+    :data-ai-message-id="message.id"
   >
     <!-- 角色标识 -->
     <div class="ai-message__avatar">

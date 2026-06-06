@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CopyDocument, Delete, Star, Download, Cpu } from '@element-plus/icons-vue'
+import { CopyDocument, Delete, Star, Download, Cpu, ChatLineRound, DataAnalysis } from '@element-plus/icons-vue'
 import type { Message } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAIConversationStore } from '@/stores/ai/conversation'
+import { useAIPromptStore } from '@/stores/ai/prompt'
+import { useAIActivityLogStore } from '@/stores/ai/activityLog'
+import { useAIChat } from '@/composables/useAIChat'
+import type { LastReply } from '@/types/ai'
 
 const visible = ref(false)
 
@@ -36,10 +40,10 @@ const emit = defineEmits<{
 
 const appStore = useAppStore()
 const conversation = useAIConversationStore()
+const promptStore = useAIPromptStore()
+const activityLog = useAIActivityLogStore()
+const aiChat = useAIChat()
 
-/**
- * 复制消息内容
- */
 const handleCopy = async () => {
   try {
     const content = props.message.content || ''
@@ -47,8 +51,6 @@ const handleCopy = async () => {
       ElMessage.warning('无内容可复制')
       return
     }
-
-    // 使用浏览器 Clipboard API
     await navigator.clipboard.writeText(content)
     ElMessage.success('已复制到剪贴板')
   } catch (error) {
@@ -58,34 +60,22 @@ const handleCopy = async () => {
   visible.value = false
 }
 
-/**
- * 收藏消息
- */
 const handleFavorite = () => {
   emit('favorite', props.message)
   ElMessage.success('已收藏')
   visible.value = false
 }
 
-/**
- * 删除消息
- */
 const handleDelete = () => {
   emit('delete', props.message)
   visible.value = false
 }
 
-/**
- * 下载媒体
- */
 const handleDownload = () => {
   ElMessage.info('下载功能开发中...')
   visible.value = false
 }
 
-/**
- * 发送到 AI
- */
 const handleSendToAI = () => {
   const text = props.message.content || ''
   if (!text) {
@@ -98,9 +88,70 @@ const handleSendToAI = () => {
   visible.value = false
 }
 
-/**
- * 处理命令
- */
+function runBuiltinPrompt(
+  promptId: 'builtin-reply' | 'builtin-analyze',
+  promptType: LastReply['promptType'],
+  emptyWarning: string
+) {
+  const text = props.message.content || ''
+  if (!text) {
+    ElMessage.warning(emptyWarning)
+    visible.value = false
+    return
+  }
+  const prompt = promptStore.getPromptById(promptId)
+  if (!prompt) {
+    ElMessage.error('Prompt 模板未找到')
+    visible.value = false
+    return
+  }
+  const variables: Record<string, string> = { content: text }
+  if (promptType === 'reply') {
+    variables.tone = '友好'
+  }
+  const finalContent = promptStore.substituteVariables(prompt.content, variables)
+
+  appStore.aiPanelOpen = true
+
+  const userMsg = { id: crypto.randomUUID(), role: 'user' as const, content: finalContent }
+  conversation.addMessage(userMsg)
+
+  void aiChat.sendMessage(finalContent).then(() => {
+    const msgs = conversation.messages
+    const last = msgs[msgs.length - 1]
+    if (last && last.role === 'assistant') {
+      const messageId = last.id || crypto.randomUUID()
+      if (!last.id) {
+        conversation.messages[conversation.messages.length - 1] = { ...last, id: messageId }
+      }
+      conversation.setLastReply({
+        messageId,
+        content: last.content,
+        promptType,
+        sourceMessageId: props.message.id,
+        generatedAt: Date.now(),
+        injected: false,
+      })
+    }
+  })
+
+  activityLog.addEntry(
+    promptType === 'reply' ? 'ai_reply' : 'ai_analyze',
+    promptType === 'reply' ? '对消息使用「帮我回复」' : '对消息使用「分析消息」'
+  )
+
+  ElMessage.success(promptType === 'reply' ? '已请求 AI 生成回复' : '已请求 AI 分析消息')
+  visible.value = false
+}
+
+function handleAIReply() {
+  runBuiltinPrompt('builtin-reply', 'reply', '无可回复的内容')
+}
+
+function handleAIAnalyze() {
+  runBuiltinPrompt('builtin-analyze', 'analyze', '无可分析的内容')
+}
+
 const handleCommand = (command: string) => {
   switch (command) {
     case 'copy':
@@ -118,18 +169,22 @@ const handleCommand = (command: string) => {
     case 'send-to-ai':
       handleSendToAI()
       break
+    case 'ai-reply':
+      handleAIReply()
+      break
+    case 'ai-analyze':
+      handleAIAnalyze()
+      break
   }
 }
 
-// 是否有内容可复制
 const hasTextContent = () => {
   return !!props.message.content
 }
 
-// 是否有媒体可下载
 const hasMedia = () => {
   const type = props.message.type
-  return type === 3 || type === 34 || type === 43 || type === 47 // 图片、语音、视频、动画表情
+  return type === 3 || type === 34 || type === 43 || type === 47
 }
 </script>
 
@@ -148,15 +203,28 @@ const hasMedia = () => {
 
     <template #dropdown>
       <el-dropdown-menu>
-        <!-- 复制 -->
         <el-dropdown-item v-if="hasTextContent()" command="copy" :icon="CopyDocument">
           复制内容
         </el-dropdown-item>
 
-        <!-- 收藏 -->
         <el-dropdown-item command="favorite" :icon="Star"> 收藏消息 </el-dropdown-item>
 
-        <!-- 发送到 AI -->
+        <el-dropdown-item
+          v-if="hasTextContent()"
+          command="ai-reply"
+          :icon="ChatLineRound"
+        >
+          帮我回复
+        </el-dropdown-item>
+
+        <el-dropdown-item
+          v-if="hasTextContent()"
+          command="ai-analyze"
+          :icon="DataAnalysis"
+        >
+          分析消息
+        </el-dropdown-item>
+
         <el-dropdown-item
           v-if="hasTextContent()"
           command="send-to-ai"
@@ -165,12 +233,10 @@ const hasMedia = () => {
           <span style="color: var(--el-color-primary)">发送到 AI</span>
         </el-dropdown-item>
 
-        <!-- 下载 -->
         <el-dropdown-item v-if="hasMedia()" command="download" :icon="Download" divided>
           下载媒体
         </el-dropdown-item>
 
-        <!-- 删除 -->
         <el-dropdown-item command="delete" :icon="Delete" :divided="!hasMedia()">
           <span style="color: var(--el-color-danger)">删除消息</span>
         </el-dropdown-item>

@@ -61,7 +61,7 @@ export const useAIActivityLogStore = defineStore(
   {
     persist: {
       storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
-      paths: ['entries'],
+      pick: ['entries'],
     },
-  }
+  } as never
 )
