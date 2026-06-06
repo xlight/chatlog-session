@@ -287,6 +287,7 @@ function handleDrop(e: DragEvent) {
 function handleKeydown(e: Event | KeyboardEvent) {
   const ke = e as KeyboardEvent
   if (ke.key !== 'Enter') return
+  if (ke.isComposing) return
 
   const shortcut = settingsStore.sendmsg.sendShortcut
   if (shortcut === 'ctrl-enter') {

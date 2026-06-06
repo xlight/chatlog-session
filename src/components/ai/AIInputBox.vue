@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useSettingsStore } from '@/stores/settings'
+
+const settingsStore = useSettingsStore()
 
 const emit = defineEmits<{
   send: [message: string]
@@ -22,9 +25,20 @@ function handleSend() {
 
 function handleKeydown(e: KeyboardEvent | Event) {
   const ke = e as KeyboardEvent
-  if (ke.key === 'Enter' && !ke.shiftKey) {
-    e.preventDefault()
-    handleSend()
+  if (ke.key !== 'Enter') return
+  if (ke.isComposing) return
+
+  const shortcut = settingsStore.sendmsg.sendShortcut
+  if (shortcut === 'ctrl-enter') {
+    if ((ke.metaKey || ke.ctrlKey) && !ke.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  } else {
+    if (!ke.shiftKey && !ke.metaKey && !ke.ctrlKey) {
+      e.preventDefault()
+      handleSend()
+    }
   }
 }
 </script>
