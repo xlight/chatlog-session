@@ -201,7 +201,7 @@ const sessionTags = computed(() => {
 
     <ContextFeedDialog
       v-if="feedOpen"
-      v-model:visible="feedOpen"
+      v-model="feedOpen"
       :session-id="currentSessionId ?? ''"
     />
   </div>

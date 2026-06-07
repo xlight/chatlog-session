@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { ActivityAction, ActivityLogEntry } from '@/types/ai/console'
 
 const RECENT_LIMIT = 50
+const MAX_ENTRIES = 200
 
 function generateId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -29,6 +30,9 @@ export const useAIActivityLogStore = defineStore(
         detail,
         sessionId,
       })
+      if (entries.value.length > MAX_ENTRIES) {
+        entries.value.splice(0, entries.value.length - MAX_ENTRIES)
+      }
     }
 
     function clearAll(): void {
