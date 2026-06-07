@@ -66,6 +66,9 @@ const consoleAdapter: AIStreamStore = {
   setThinkingVisible() {},
   setUsage() {},
   setCurrentModel() {},
+  abortStream() {
+    if (currentSessionId.value) consoleStore.abortStream(currentSessionId.value)
+  },
   removeLastAssistant() {
     if (currentSessionId.value) {
       const s = consoleStore.sessions.find((x) => x.id === currentSessionId.value)

@@ -91,6 +91,10 @@ export const useAIConversationStore = defineStore('aiConversation', () => {
     currentModel.value = model
   }
 
+  function setAbortController(ctrl: AbortController | null) {
+    abortController.value = ctrl
+  }
+
   function setThinkingContent(content: string) {
     thinkingContent.value = content
   }
@@ -184,6 +188,7 @@ graph TD
     setError,
     setUsage,
     setCurrentModel,
+    setAbortController,
     setThinkingContent,
     appendThinkingContent,
     setThinkingVisible,

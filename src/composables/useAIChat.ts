@@ -15,7 +15,7 @@ export function useAIChat() {
 
   const stream = useAIStream(conversation, {
     getMessages: () =>
-      (conversation as unknown as { messages: { value: ChatMessage[] } }).messages.value,
+      (conversation as unknown as { messages: ChatMessage[] }).messages,
     getModel: () => settingsStore.ai.llmDefaultModel,
   })
 

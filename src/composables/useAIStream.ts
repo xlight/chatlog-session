@@ -20,6 +20,7 @@ export interface AIStreamStore {
   setUsage(usage: UsageInfo): void
   setCurrentModel(model: string): void
   ensureMermaidPrompt?(): void
+  abortStream?(): void
   removeLastAssistant?(): void
 }
 
@@ -77,7 +78,7 @@ export function useAIStream(store: AIStreamStore, options: UseAIStreamOptions) {
 
     try {
       for await (const chunk of chatStream({
-        messages: readRef(store.messages),
+        messages: options.getMessages(),
         model,
         signal: ctrl.signal,
       })) {
@@ -119,12 +120,16 @@ export function useAIStream(store: AIStreamStore, options: UseAIStreamOptions) {
   }
 
   function stopGeneration(): void {
-    const ctrl = readRef(store.abortController)
-    if (ctrl) {
-      ctrl.abort()
-      store.setAbortController(null)
+    if (store.abortStream) {
+      store.abortStream()
+    } else {
+      const ctrl = readRef(store.abortController)
+      if (ctrl) {
+        ctrl.abort()
+        store.setAbortController(null)
+      }
+      store.setStreaming(false)
     }
-    store.setStreaming(false)
   }
 
   return { sendMessage, stopGeneration }
