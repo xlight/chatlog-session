@@ -82,9 +82,25 @@ const builtinPrompts: PromptTemplate[] = [
     description: '根据聊天内容构建关系图',
     category: 'builtin',
     content:
-      '请根据以下聊天记录，为参与对话的人物和话题构建关系图谱，连线文字用于表示人物对话题的观点。'
-      + '注意要尽可能的多的层次，避免同级别内容过多导致图谱宽度过大。'
-      + '人物使用圆形，话题使用方形。',
+      '# Role\n你是一位专业的数据可视化专家，擅长将非结构化文本转化为清晰的 Mermaid 知识图谱。\n'
+      + '# Task\n请分析提供的【聊天记录】，提取关键人物、核心话题以及人物对观点的见解，生成一个 Mermaid 关系图谱代码。\n'
+      + '# Constraints & Layout Rules (关键约束)\n'
+      + '1. **布局方向**：必须使用 graph TD (从上到下)，严禁使用 `LR` 或 `RL`。\n'
+      + '2. **控制宽度（核心要求）**：\n'
+      + '   - **禁止扁平化**：不要将所有节点放在同一层级。\n'
+      + '   - **强制分层**：请先建立宏观分类（如“科技”、“投资”、“生活”），再将具体话题归类到这些宏观分类下。\n'
+      + '   - **利用子图**：请务必使用 `subgraph` 将相关的话题包裹起来，通过嵌套子图来增加深度，从而减少单行节点的数量。\n'
+      + '3. **节点样式**：\n'
+      + '   - **人物**：必须使用圆形，并在末尾添加样式类 `:::person`。\n'
+      + '   - **话题**：必须使用矩形（方形），并在末尾添加样式类 `:::topic`。\n'
+      + '4. **连线与标签**：\n'
+      + '   - 连线方向：人物 --> 话题。\n'
+      + '   - 标签内容：简要概括该人物对该话题的核心观点（尽量精简文字）。\n'
+
+      + '# Class Definitions\n'
+      + '请在代码顶部定义以下样式：\n'
+      + '- person: shape: circle, fill: #e1f5fe, stroke: #01579b\n'
+      + '- topic: shape: rect, fill: #fff3e0, stroke: #ff6f00',
     variables: [
       { name: 'sessionName', description: '会话名称', source: 'auto' },
       { name: 'content', description: '聊天内容', source: 'auto' },

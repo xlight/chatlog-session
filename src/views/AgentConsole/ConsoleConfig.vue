@@ -4,12 +4,14 @@
 
 import { onMounted, ref } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
+import { useAIAgentStore } from '@/stores/ai/agent'
 import { ElMessage } from 'element-plus'
 import { Connection, Refresh } from '@element-plus/icons-vue'
 import { listModels, testConnection } from '@/api/llm'
 import type { ModelInfo } from '@/types/ai'
 
 const settingsStore = useSettingsStore()
+const agentStore = useAIAgentStore()
 
 const isLoading = ref(false)
 const modelOptions = ref<ModelInfo[]>([])
@@ -125,6 +127,70 @@ async function handleTestConnection() {
           >
             测试连接
           </el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card class="config-card" shadow="never" style="margin-top: 16px">
+      <template #header>
+        <span>自动回复</span>
+      </template>
+      <el-form label-position="top" class="config-form">
+        <el-form-item label="启用自动回复">
+          <el-switch
+            v-model="agentStore.config.enabled"
+            active-text="开"
+            inactive-text="关"
+          />
+          <span class="form-hint">
+            开启后 Agent 将根据配置自动生成回复
+          </span>
+        </el-form-item>
+
+        <el-form-item label="回复模式">
+          <el-radio-group v-model="agentStore.config.mode">
+            <el-radio value="draft">草稿模式</el-radio>
+            <el-radio value="auto">自动发送</el-radio>
+          </el-radio-group>
+          <span class="form-hint">
+            草稿模式需确认后发送，自动模式直接发送
+          </span>
+        </el-form-item>
+
+        <el-form-item label="发送前确认">
+          <el-switch
+            v-model="agentStore.config.requireConfirm"
+            active-text="需要"
+            inactive-text="不需要"
+            :disabled="agentStore.config.mode === 'auto'"
+          />
+          <span class="form-hint">
+            草稿模式下是否需要手动确认发送
+          </span>
+        </el-form-item>
+
+        <el-form-item label="最大自动回复次数">
+          <el-input-number
+            v-model="agentStore.config.maxAutoReplies"
+            :min="0"
+            :step="1"
+            controls-position="right"
+          />
+          <span class="form-hint">
+            0 表示无限制
+          </span>
+        </el-form-item>
+
+        <el-form-item label="冷却时间（毫秒）">
+          <el-input-number
+            v-model="agentStore.config.cooldownMs"
+            :min="0"
+            :step="1000"
+            controls-position="right"
+          />
+          <span class="form-hint">
+            两次自动回复之间的最小间隔
+          </span>
         </el-form-item>
       </el-form>
     </el-card>

@@ -15,13 +15,14 @@ const inputRef = ref<InstanceType<typeof import('element-plus').ElInput> | null>
 
 function injectDraft(text: string) {
   messageText.value = text
+  draftText.value = text
   nextTick(() => {
     const el = inputRef.value?.$el?.querySelector('textarea') as HTMLTextAreaElement | null
     el?.focus()
   })
 }
 
-defineExpose({ injectDraft })
+defineExpose({ injectDraft, sendDraft, clearDraft, draftText })
 
 const props = defineProps<{
   session: Session
@@ -29,11 +30,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   refresh: []
+  draftSent: [draftId: string, messageId: number]
 }>()
 
 // ==================== 状态 ====================
 
 const messageText = ref('')
+const draftText = ref('')
 const serviceAvailable = ref(true)
 const wechatLoggedIn = ref(true)
 const serviceStatusMessage = ref('')
@@ -143,6 +146,41 @@ async function sendMessage() {
   } catch (error: unknown) {
     updatePendingMessage(pendingId, 'error', error instanceof Error ? error.message : '发送请求失败')
   }
+}
+
+// ==================== 文件发送逻辑 ====================
+
+async function sendDraft(draftId: string, content: string): Promise<{ ok: boolean; messageId?: number; error?: string }> {
+  if (!content || !canSend.value) return { ok: false, error: '无法发送' }
+
+  const pendingId = addPendingMessage(content)
+
+  try {
+    const result = await sendmsgAPI.send(contactName.value, content)
+
+    if (!result.ok) {
+      updatePendingMessage(pendingId, 'error', result.error || result.message || '发送失败')
+      return { ok: false, error: result.error || result.message || '发送失败' }
+    }
+
+    if (result.message_id !== undefined) {
+      startPolling(result.message_id, pendingId)
+      emit('draftSent', draftId, result.message_id)
+      return { ok: true, messageId: result.message_id }
+    } else {
+      updatePendingMessage(pendingId, 'success')
+      emit('refresh')
+      return { ok: true }
+    }
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : '发送请求失败'
+    updatePendingMessage(pendingId, 'error', msg)
+    return { ok: false, error: msg }
+  }
+}
+
+function clearDraft() {
+  draftText.value = ''
 }
 
 // ==================== 文件发送逻辑 ====================
@@ -398,6 +436,9 @@ onUnmounted(() => {
         </span>
       </div>
     </div>
+
+    <!-- 草稿插槽 -->
+    <slot name="draft" />
 
     <!-- 输入区域 -->
     <div class="send-box-input">

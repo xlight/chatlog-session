@@ -72,6 +72,13 @@ export interface ServiceStatus {
   error?: string
 }
 
+/** 取消任务响应 */
+export interface CancelJobResponse {
+  ok: boolean
+  message?: string
+  error?: string
+}
+
 /** 连接测试结果 */
 export interface TestConnectionResult {
   success: boolean
@@ -172,6 +179,16 @@ export const sendmsgAPI = {
   async getQueueStatus(messageId: number): Promise<QueueMessageStatusResponse> {
     const client = createSendmsgClient()
     const { data } = await client.get(`/api/v1/queue/messages/${messageId}`)
+    return data
+  },
+
+  /**
+   * 取消队列中的发送任务
+   * POST /api/v1/queue/messages/{messageId}/cancel
+   */
+  async cancelJob(messageId: number): Promise<CancelJobResponse> {
+    const client = createSendmsgClient()
+    const { data } = await client.post(`/api/v1/queue/messages/${messageId}/cancel`)
     return data
   },
 

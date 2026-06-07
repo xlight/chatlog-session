@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CopyDocument, Delete, Star, Download, Cpu, ChatLineRound, DataAnalysis } from '@element-plus/icons-vue'
+import { CopyDocument, Delete, Star, Download, Cpu, ChatLineRound, DataAnalysis, EditPen } from '@element-plus/icons-vue'
 import type { Message } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAIConversationStore } from '@/stores/ai/conversation'
 import { useAIPromptStore } from '@/stores/ai/prompt'
 import { useAIActivityLogStore } from '@/stores/ai/activityLog'
+import { useAIAgentStore } from '@/stores/ai/agent'
 import { useAIChat } from '@/composables/useAIChat'
+import { useSessionStore } from '@/stores/session'
+import { useDisplayName } from './composables/useDisplayName'
 import type { LastReply } from '@/types/ai'
 
 const visible = ref(false)
@@ -42,7 +45,14 @@ const appStore = useAppStore()
 const conversation = useAIConversationStore()
 const promptStore = useAIPromptStore()
 const activityLog = useAIActivityLogStore()
+const agentStore = useAIAgentStore()
+const sessionStore = useSessionStore()
 const aiChat = useAIChat()
+
+const { displayName: agentContactName } = useDisplayName({
+  id: computed(() => props.message?.talker),
+  defaultName: computed(() => props.message?.talkerName),
+})
 
 const handleCopy = async () => {
   try {
@@ -152,6 +162,57 @@ function handleAIAnalyze() {
   runBuiltinPrompt('builtin-analyze', 'analyze', '无可分析的内容')
 }
 
+function handleAgentDraft() {
+  const text = props.message.content || ''
+  if (!text) {
+    ElMessage.warning('无可生成草稿的内容')
+    visible.value = false
+    return
+  }
+
+  const prompt = promptStore.getPromptById('builtin-reply')
+  if (!prompt) {
+    ElMessage.error('Prompt 模板未找到')
+    visible.value = false
+    return
+  }
+
+  const variables: Record<string, string> = { content: text, tone: '友好' }
+  const finalContent = promptStore.substituteVariables(prompt.content, variables)
+
+  appStore.aiPanelOpen = true
+
+  const userMsg = { id: crypto.randomUUID(), role: 'user' as const, content: finalContent }
+  conversation.addMessage(userMsg)
+
+  void aiChat.sendMessage(finalContent).then(() => {
+    const msgs = conversation.messages
+    const last = msgs[msgs.length - 1]
+    if (last && last.role === 'assistant' && last.content) {
+      const currentSession = sessionStore.sessions.find(
+        (s) => s.id === sessionStore.currentSessionId
+      )
+      const sessionId = currentSession?.id || ''
+      const sessionName = currentSession?.name || currentSession?.talkerName || '未知会话'
+      const contactName = agentContactName.value || props.message.talkerName || ''
+
+      agentStore.addDraft({
+        sourceMessageId: String(props.message.id),
+        sessionId,
+        sessionName,
+        contactName,
+        content: last.content,
+        generatedAt: Date.now(),
+      })
+    }
+  })
+
+  activityLog.addEntry('ai_reply', '对消息使用「Agent 生成草稿」')
+
+  ElMessage.success('已请求 AI 生成草稿')
+  visible.value = false
+}
+
 const handleCommand = (command: string) => {
   switch (command) {
     case 'copy':
@@ -174,6 +235,9 @@ const handleCommand = (command: string) => {
       break
     case 'ai-analyze':
       handleAIAnalyze()
+      break
+    case 'agent-draft':
+      handleAgentDraft()
       break
   }
 }
@@ -223,6 +287,14 @@ const hasMedia = () => {
           :icon="DataAnalysis"
         >
           分析消息
+        </el-dropdown-item>
+
+        <el-dropdown-item
+          v-if="hasTextContent()"
+          command="agent-draft"
+          :icon="EditPen"
+        >
+          Agent 生成草稿
         </el-dropdown-item>
 
         <el-dropdown-item
