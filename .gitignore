@@ -3,7 +3,7 @@ openspec/changes/archive/
 openspec/
 
 .opencode/
-
+AGENTS.md
 # Logs
 logs
 *.log

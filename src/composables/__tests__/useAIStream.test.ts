@@ -187,7 +187,8 @@ describe('useAIStream', () => {
 
       expect(bundle.spies.setStreaming).toHaveBeenCalledWith(true)
       expect(bundle.spies.updateLastAssistantContent).toHaveBeenCalled()
-      const lastCall = bundle.spies.updateLastAssistantContent.mock.calls.at(-1)
+      const calls = bundle.spies.updateLastAssistantContent.mock.calls
+const lastCall = calls[calls.length - 1]
       expect(lastCall?.[0]).toBe('Hello World')
     })
 

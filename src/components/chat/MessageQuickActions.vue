@@ -128,7 +128,7 @@ function runBuiltinPrompt(
         messageId,
         content: last.content,
         promptType,
-        sourceMessageId: props.message.id,
+        sourceMessageId: String(props.message.id),
         generatedAt: Date.now(),
         injected: false,
       })
