@@ -1,6 +1,27 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ChatMessage, AIError, LastReply, UsageInfo } from '@/types/ai'
+import type { ChatMessage, AIError, LastReply, UsageInfo, ContextTag } from '@/types/ai'
+
+// ==================== 持久化常量 ====================
+
+const SAVE_VERSION = 1
+const STORAGE_KEY_PREFIX = 'chatlog_ai_conv_'
+const MAX_SAVED_MESSAGES = 100
+
+interface SavedConversationData {
+  version: number
+  messages: ChatMessage[]
+  hasMermaidPrompt: boolean
+  thinkingContent: string
+  thinkingVisible: boolean
+  contextTags: ContextTag[]
+}
+
+// ==================== 辅助函数 ====================
+
+function storageKey(sessionId: string): string {
+  return `${STORAGE_KEY_PREFIX}${sessionId}`
+}
 
 export const useAIConversationStore = defineStore('aiConversation', () => {
   // ==================== State ====================
@@ -155,6 +176,52 @@ graph TD
     }
   }
 
+  // ==================== Persistence ====================
+
+  function saveToSession(sessionId: string): void {
+    const data: SavedConversationData = {
+      version: SAVE_VERSION,
+      messages: messages.value.slice(0, MAX_SAVED_MESSAGES),
+      hasMermaidPrompt: hasMermaidPrompt.value,
+      thinkingContent: thinkingContent.value,
+      thinkingVisible: thinkingVisible.value,
+      contextTags: [],
+    }
+    try {
+      sessionStorage.setItem(storageKey(sessionId), JSON.stringify(data))
+    } catch {
+      // sessionStorage 配额满或其他写入错误时静默失败
+    }
+  }
+
+  function loadFromSession(sessionId: string): ContextTag[] {
+    try {
+      const raw = sessionStorage.getItem(storageKey(sessionId))
+      if (!raw) return []
+      const data: SavedConversationData = JSON.parse(raw)
+      if (data.version !== SAVE_VERSION) {
+        sessionStorage.removeItem(storageKey(sessionId))
+        return []
+      }
+      messages.value = data.messages ?? []
+      hasMermaidPrompt.value = data.hasMermaidPrompt ?? false
+      thinkingContent.value = data.thinkingContent ?? ''
+      thinkingVisible.value = data.thinkingVisible ?? true
+      return data.contextTags ?? []
+    } catch {
+      sessionStorage.removeItem(storageKey(sessionId))
+      return []
+    }
+  }
+
+  function removeSession(sessionId: string): void {
+    try {
+      sessionStorage.removeItem(storageKey(sessionId))
+    } catch {
+      // 静默失败
+    }
+  }
+
   function $reset() {
     clearConversation()
     currentModel.value = ''
@@ -198,6 +265,9 @@ graph TD
     removeLastAssistant,
     setLastReply,
     markLastReplyInjected,
+    saveToSession,
+    loadFromSession,
+    removeSession,
     $reset,
   }
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { useAIChat } from '@/composables/useAIChat'
 import { useContextFeed } from '@/composables/useContextFeed'
 import { useSessionStore } from '@/stores/session'
@@ -18,6 +18,7 @@ const {
   feedSessionContext,
   removeContextTag,
   clearContextTags,
+  restoreTags,
 } = useContextFeed()
 const sessionStore = useSessionStore()
 const promptStore = useAIPromptStore()
@@ -43,11 +44,24 @@ const feedOptions = [
 
 watch(
   () => sessionStore.currentSessionId,
-  () => {
+  (newId, oldId) => {
+    if (oldId) conversation.saveToSession(oldId)
     conversation.clearConversation()
     clearContextTags()
+    if (newId) {
+      const tags = conversation.loadFromSession(newId)
+      if (tags.length > 0) restoreTags(tags)
+    }
   }
 )
+
+onMounted(() => {
+  const sid = sessionStore.currentSessionId
+  if (sid) {
+    const tags = conversation.loadFromSession(sid)
+    if (tags.length > 0) restoreTags(tags)
+  }
+})
 
 async function scrollToBottom() {
   await nextTick()
@@ -74,6 +88,13 @@ function handleSend(text: string) {
 
 function handleStop() {
   stopGeneration()
+}
+
+function handleClearConversation() {
+  const sid = sessionStore.currentSessionId
+  conversation.clearConversation()
+  clearContextTags()
+  if (sid) conversation.removeSession(sid)
 }
 
 function handleFeedContext(range?: { seconds?: number; type?: string; label: string }) {
@@ -210,6 +231,14 @@ function handleClearContext() {
     >
       <template #extra>
         <div class="ai-conversation__feed-actions">
+          <el-button
+            v-if="conversation.hasMessages && !conversation.streaming"
+            text
+            size="small"
+            @click="handleClearConversation"
+          >
+            清空对话
+          </el-button>
           <PromptSelector
             v-if="!conversation.streaming"
             @select="handlePromptSelect"

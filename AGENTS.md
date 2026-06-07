@@ -3,8 +3,9 @@
 ## 使用中文
 
 - 本项目的注释和文档均使用中文编写
-- LLM 输出保持中文
+- LLM Think和输出保持中文
 - 用户提示和错误信息使用中文
+- 不要在文档中写大段的代码
 
 ## Project Overview
 
@@ -203,10 +204,43 @@ src/
 
 ## Caching Architecture
 
-- **SessionStorage**: 消息缓存 (LRU + TTL, `stores/messageCache.ts`)
+- **SessionStorage**: 消息缓存 (LRU + TTL, `stores/messageCache.ts`)、AI Console 会话、AI 活动日志 (上限 200 条避免配额超限)
 - **IndexedDB**: 联系人和群聊信息持久化 (`utils/db.ts`)
 - **localStorage**: 用户设置、置顶会话、API 配置
 - 缓存事件: `window.dispatchEvent(new CustomEvent('chatlog-cache-updated', ...))`
+
+## AI Module (Phase B1+)
+
+Agent Console 与消息右键 AI 操作相关模块：
+
+- **`composables/useAIStream.ts`** — 共享流式对话组合函数，鸭子类型 `AIStreamStore` 接口，同时支持 AI Panel (`useAIConversationStore`) 与 Agent Console (`useAIConsoleStore` per-session delegation)
+- **`composables/injectDraftKey.ts`** — `INJECT_DRAFT_KEY: InjectionKey<InjectDraftFn>` 类型化 provide/inject，作用域限定在 `Chat/index.vue` 页面
+- **`composables/useAIChat.ts`** — 已重构为 useAIStream 的薄包装，公共 API 保持不变
+- **`stores/ai/console.ts`** — Agent Console 会话管理，per-session `streamingMap` 支持并行会话，`deleteSession` 自动 abort
+- **`stores/ai/activityLog.ts`** — AI 活动日志（调用次数、操作历史），sessionStorage 持久化
+- **`stores/ai/conversation.ts`** — 扩展 `lastReply` / `setLastReply` / `markLastReplyInjected` 支持「填入输入框」功能
+- **`stores/ai/prompt.ts`** — 新增 `builtin-reply`（{content}/{tone}）与 `builtin-analyze`（{content}）模板
+- **`types/ai/console.ts`** — Agent Console 类型定义：`ConsoleChatSession`、`ContextSource`、`ActivityLogEntry` 等
+- **`types/ai/index.ts`** — 新增 `LastReply`、`ChatMessage.id` 字段
+- **`components/ai/RecentReplyCard.vue`** — AI 对话顶部浮动卡片，显示最近一次 AI 生成的回复/分析，点击预览滚动到原消息
+- **`views/AgentConsole/`** — Agent Console 5 Tab 页面：
+  - `index.vue` — Tab 壳层 + 生命周期 abortAllStreams
+  - `ConsoleChat.vue` — 双栏聊天主界面 + per-session streaming
+  - `ConsoleSessionList.vue` — 会话列表（最多 50）
+  - `ContextFeedDialog.vue` — 上下文喂入对话框（最近 1h/6h/今天/3 天/7 天/全部）
+  - `ConsoleOverview.vue` — 概览页（统计 + 最近活动）
+  - `ConsoleActivityLog.vue` — 活动日志列表
+  - `ConsoleSessions.vue` — 会话管理页（重命名/删除）
+  - `ConsoleConfig.vue` — Console 配置（启用、模型、侧边栏显示）
+
+### 路由与快捷键
+
+- `/agent/console` 路由（懒加载）
+- `Cmd/Ctrl+Shift+K` 切换 Agent Console（`useKeyboardShortcuts.register()` with `allowedInInput: true`）
+
+### 设置项
+
+- `settings.ai.showConsoleInSidebar: boolean` (默认 true) — 侧边栏是否显示 Agent Console 入口
 
 ## Auto-generated Files (勿手动编辑)
 
@@ -242,8 +276,8 @@ pnpm test:coverage  # 生成覆盖率报告（输出到 coverage/ 目录）
 
 ### 当前测试状态
 
-- **17 个测试文件**，**469 个测试用例**，全部通过
-- 覆盖范围：utils/（10 文件）、stores/chat/utils.ts（22 函数）、stores/（4 文件）、api/base.ts（1 文件）
+- **20 个测试文件**，**511 个测试用例**，全部通过
+- 覆盖范围：utils/（10 文件）、stores/chat/utils.ts（22 函数）、stores/（4 文件）、api/base.ts（1 文件）、AI Module（3 文件：useAIStream、console、activityLog）
 - CI 已集成：`.github/workflows/deploy.yml` 在 build 前执行 `pnpm test`
 
 ## Common Gotchas

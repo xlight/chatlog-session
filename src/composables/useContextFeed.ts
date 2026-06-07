@@ -133,6 +133,10 @@ export function useContextFeed() {
     contextTags.value = []
   }
 
+  function restoreTags(tags: ContextTag[]) {
+    contextTags.value = tags
+  }
+
   return {
     contextTags,
     feeding,
@@ -140,5 +144,6 @@ export function useContextFeed() {
     feedSessionContext,
     removeContextTag,
     clearContextTags,
+    restoreTags,
   }
 }

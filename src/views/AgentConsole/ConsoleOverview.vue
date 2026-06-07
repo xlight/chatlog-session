@@ -32,7 +32,7 @@ const recentActivities = computed<ActivityLogEntry[]>(() =>
 
 // 调试日志门控示例（保持与其他模块一致的写法）
 if (appStore.isDebug) {
-  // eslint-disable-next-line no-console
+   
   console.log('📊 ConsoleOverview 渲染', stats.value)
 }
 
