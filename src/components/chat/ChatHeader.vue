@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue'
 import type { Session, SessionDetail } from '@/types'
 import { useDisplayName } from './composables'
 import { useChatroomStore } from '@/stores/chatroom'
+import { useAIAgentStore } from '@/stores/ai/agent'
+import SessionAgentConfigDialog from './SessionAgentConfigDialog.vue'
 
 interface Props {
   session?: Session | SessionDetail | null
@@ -25,9 +27,42 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const chatroomStore = useChatroomStore()
+const agentStore = useAIAgentStore()
 
 // 群聊成员数量
 const memberCount = ref<number | null>(null)
+
+// 会话级 Agent 配置弹窗
+const showAgentDialog = ref(false)
+
+// Agent 权限颜色
+const agentPermissionColor = computed(() => {
+  if (!props.session?.id) return '#c0c4cc'
+  const config = agentStore.getEffectiveConfig(props.session.id)
+  switch (config.sendPermission) {
+    case 'forbidden': return '#c0c4cc'
+    case 'draft_confirm': return '#e6a23c'
+    case 'send_cancellable': return '#409eff'
+    case 'full_auto': return '#67c23a'
+    default: return '#c0c4cc'
+  }
+})
+
+// Agent 状态摘要文本
+const agentStatusLabel = computed(() => {
+  if (!props.session?.id) return ''
+  const config = agentStore.getEffectiveConfig(props.session.id)
+  const parts: string[] = []
+  switch (config.sendPermission) {
+    case 'forbidden': parts.push('禁用'); break
+    case 'draft_confirm': parts.push('草稿'); break
+    case 'send_cancellable': parts.push('自动†'); break
+    case 'full_auto': parts.push('全自动'); break
+  }
+  if (config.observer.enabled) parts.push('旁观')
+  if (config.keywordMonitor.enabled) parts.push('关键词')
+  return parts.join(' | ')
+})
 
 // 使用 displayName composable
 const { displayName } = useDisplayName({
@@ -95,6 +130,14 @@ const handleBack = () => {
 const handleRefresh = () => {
   emit('refresh')
 }
+
+function handleDropdownCommand(cmd: string) {
+  if (cmd === 'agent-settings') {
+    showAgentDialog.value = true
+  } else {
+    ;(emit as any)(cmd)
+  }
+}
 </script>
 
 <template>
@@ -125,8 +168,62 @@ const handleRefresh = () => {
         </el-button>
       </el-tooltip>
 
+      <!-- Agent 状态指示器 -->
+      <el-popover
+        v-if="session?.id"
+        placement="bottom"
+        trigger="click"
+        :width="220"
+      >
+        <template #reference>
+          <el-tooltip :content="agentStatusLabel" placement="bottom">
+            <el-button text class="agent-indicator">
+              <el-icon :style="{ color: agentPermissionColor }">
+                <Cpu />
+              </el-icon>
+            </el-button>
+          </el-tooltip>
+        </template>
+        <div class="agent-quick-toggle">
+          <div class="toggle-row">
+            <span>旁观模式</span>
+            <el-switch
+              size="small"
+              :model-value="agentStore.getEffectiveConfig(session?.id ?? '').observer.enabled"
+              @update:model-value="agentStore.setSessionConfig(session!.id, { observer: { ...agentStore.getEffectiveConfig(session!.id).observer, enabled: $event } })"
+            />
+          </div>
+          <div class="toggle-row">
+            <span>关键词监测</span>
+            <el-switch
+              size="small"
+              :model-value="agentStore.getEffectiveConfig(session?.id ?? '').keywordMonitor.enabled"
+              @update:model-value="agentStore.setSessionConfig(session!.id, { keywordMonitor: { ...agentStore.getEffectiveConfig(session!.id).keywordMonitor, enabled: $event } })"
+            />
+          </div>
+          <div class="toggle-row">
+            <span>发送权限</span>
+            <el-select
+              size="small"
+              :model-value="agentStore.getEffectiveConfig(session?.id ?? '').sendPermission"
+              @update:model-value="agentStore.setSessionConfig(session!.id, { sendPermission: $event })"
+              style="width: 120px"
+            >
+              <el-option label="禁止" value="forbidden" />
+              <el-option label="草稿确认" value="draft_confirm" />
+              <el-option label="可取消发送" value="send_cancellable" />
+              <el-option label="全自动" value="full_auto" />
+            </el-select>
+          </div>
+          <el-divider style="margin: 8px 0" />
+          <el-button text size="small" @click="showAgentDialog = true">
+            打开完整设置
+          </el-button>
+        </div>
+      </el-popover>
+
       <!-- 更多操作 -->
-      <el-dropdown trigger="click" @command="(cmd: string) => emit(cmd as any)">
+      <el-dropdown trigger="click" @command="handleDropdownCommand">
         <el-button text>
           <el-icon><MoreFilled /></el-icon>
         </el-button>
@@ -144,6 +241,10 @@ const handleRefresh = () => {
               <el-icon><InfoFilled /></el-icon>
               <span>会话详情</span>
             </el-dropdown-item>
+            <el-dropdown-item command="agent-settings" divided>
+              <el-icon><Cpu /></el-icon>
+              <span>Agent 设置</span>
+            </el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -151,6 +252,14 @@ const handleRefresh = () => {
       <!-- 额外操作 -->
       <slot name="actions"></slot>
     </div>
+
+    <!-- Agent 设置对话框 -->
+    <SessionAgentConfigDialog
+      v-if="session?.id"
+      v-model="showAgentDialog"
+      :session-id="session.id"
+      :session-name="displayName"
+    />
   </div>
 </template>
 
@@ -207,9 +316,30 @@ const handleRefresh = () => {
   &__right {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     flex-shrink: 0;
   }
+}
+
+.agent-indicator {
+  :deep(.el-icon) {
+    font-size: 18px;
+  }
+}
+
+.agent-quick-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+  }
+}
 }
 
 // 响应式设计

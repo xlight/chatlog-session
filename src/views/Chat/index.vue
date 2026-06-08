@@ -18,6 +18,10 @@ import SessionList from '@/components/chat/SessionList.vue'
 import MessageList from '@/components/chat/MessageList.vue'
 import SendBox from '@/components/chat/SendBox.vue'
 import ChatHeader from '@/components/chat/ChatHeader.vue'
+import AgentObserverCard from '@/components/chat/AgentObserverCard.vue'
+import AgentKeywordCard from '@/components/chat/AgentKeywordCard.vue'
+import { useAgentObserver } from '@/composables/useAgentObserver'
+import { useKeywordMonitor } from '@/composables/useKeywordMonitor'
 import MobileNavBar from '@/components/layout/MobileNavBar.vue'
 import SearchDialog from '@/components/chat/SearchDialog.vue'
 import ContactDetail from '@/views/Contact/ContactDetail.vue'
@@ -203,6 +207,10 @@ provide(INJECT_DRAFT_KEY, (text: string) => {
   sendBoxRef.value?.injectDraft(text)
 })
 
+// Agent Observer 和 Keyword Monitor
+const agentObserver = useAgentObserver(computed(() => currentSession.value?.id ?? ''))
+const keywordMonitor = useKeywordMonitor(computed(() => currentSession.value?.id ?? ''))
+
 onMounted(async () => {
   // 初始化 chatStore（缓存、自动刷新、事件监听）
   chatMessagesStore.init()
@@ -230,6 +238,10 @@ onMounted(async () => {
   // 注册 AI 面板快捷键
   registerShortcut(aiShortcut)
   registerShortcut(consoleShortcut)
+
+  // 启动 Agent Observer 和 Keyword Monitor
+  agentObserver.start()
+  keywordMonitor.start()
 })
 
 onUnmounted(() => {
@@ -248,6 +260,10 @@ onUnmounted(() => {
 
   // 移除 beforeunload 事件监听
   window.removeEventListener('beforeunload', handleBeforeUnload)
+
+  // 停止 Agent Observer 和 Keyword Monitor
+  agentObserver.stop()
+  keywordMonitor.stop()
 })
 </script>
 
@@ -435,6 +451,15 @@ onUnmounted(() => {
             />
           </div>
 
+          <!-- Agent 结果卡片区域 -->
+          <div
+            v-if="currentSession?.id"
+            class="agent-cards-area"
+          >
+            <AgentObserverCard :session-id="currentSession.id" />
+            <AgentKeywordCard :session-id="currentSession.id" />
+          </div>
+
           <!-- 消息发送框 -->
           <SendBox
             v-if="settingsStore.sendmsg.enabled"
@@ -600,6 +625,15 @@ onUnmounted(() => {
   .message-welcome {
     display: none;
   }
+}
+
+// Agent 结果卡片区域
+.agent-cards-area {
+  border-top: 1px solid var(--el-border-color-light);
+  background: var(--el-bg-color-page);
+  padding: 4px 16px;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 // 响应式设计

@@ -280,6 +280,178 @@ describe('canAutoReply', () => {
   })
 })
 
+describe('persistedConfig defaults', () => {
+  it('Phase C 默认值正确', () => {
+    const store = freshStore()
+    expect(store.persistedConfig.defaults.observerEnabled).toBe(false)
+    expect(store.persistedConfig.defaults.observerIntervalSeconds).toBe(300)
+    expect(store.persistedConfig.defaults.observerMinNewMessages).toBe(5)
+    expect(store.persistedConfig.defaults.keywordEnabled).toBe(false)
+    expect(store.persistedConfig.defaults.keywordMatchPatterns).toEqual([])
+    expect(store.persistedConfig.defaults.promptTemplateId).toBe('builtin-reply')
+    expect(store.persistedConfig.defaults.maxAutoReplies).toBe(0)
+    expect(store.persistedConfig.defaults.cooldownMs).toBe(5000)
+  })
+})
+
+describe('getEffectiveConfig', () => {
+  it('无会话覆盖时返回全局默认值', () => {
+    const store = freshStore()
+    const config = store.getEffectiveConfig('test-session')
+    expect(config.sessionId).toBe('test-session')
+    expect(config.sendPermission).toBe('draft_confirm')
+    expect(config.observer.enabled).toBe(false)
+    expect(config.observer.intervalSeconds).toBe(300)
+    expect(config.observer.minNewMessages).toBe(5)
+    expect(config.keywordMonitor.enabled).toBe(false)
+    expect(config.keywordMonitor.matchPatterns).toEqual([])
+    expect(config.maxAutoReplies).toBe(0)
+    expect(config.cooldownMs).toBe(5000)
+  })
+
+  it('会话覆盖 observer 字段', () => {
+    const store = freshStore()
+    store.setSessionConfig('s1', { observer: { enabled: true, intervalSeconds: 600, minNewMessages: 10 } })
+    const config = store.getEffectiveConfig('s1')
+    expect(config.observer.enabled).toBe(true)
+    expect(config.observer.intervalSeconds).toBe(600)
+    expect(config.observer.minNewMessages).toBe(10)
+  })
+
+  it('会话覆盖 sendPermission', () => {
+    const store = freshStore()
+    store.setSessionConfig('s1', { sendPermission: 'full_auto' })
+    expect(store.getEffectiveConfig('s1').sendPermission).toBe('full_auto')
+  })
+
+  it('清除会话配置后恢复全局默认', () => {
+    const store = freshStore()
+    store.setSessionConfig('s1', { sendPermission: 'full_auto' })
+    store.clearSessionConfig('s1')
+    expect(store.getEffectiveConfig('s1').sendPermission).toBe('draft_confirm')
+  })
+})
+
+describe('canAutoReplySession', () => {
+  it('enabled 为 false 时不可自动回复', () => {
+    const store = freshStore()
+    store.enabled = false
+    expect(store.canAutoReplySession('s1')).toBe(false)
+  })
+
+  it('sendPermission 不为 full_auto 时不可自动回复', () => {
+    const store = freshStore()
+    store.enabled = true
+    store.setSessionConfig('s1', { sendPermission: 'draft_confirm' })
+    expect(store.canAutoReplySession('s1')).toBe(false)
+  })
+
+  it('full_auto 时可自动回复', () => {
+    const store = freshStore()
+    store.enabled = true
+    store.setSessionConfig('s1', { sendPermission: 'full_auto' })
+    expect(store.canAutoReplySession('s1')).toBe(true)
+  })
+
+  it('达到 maxAutoReplies 后不可自动回复', () => {
+    const store = freshStore()
+    store.enabled = true
+    store.setSessionConfig('s1', { sendPermission: 'full_auto', maxAutoReplies: 1 })
+    store.incrementAutoReplyCount()
+    expect(store.canAutoReplySession('s1')).toBe(false)
+  })
+})
+
+describe('observer state actions', () => {
+  it('getObserverState 返回默认状态', () => {
+    const store = freshStore()
+    const state = store.getObserverState('s1')
+    expect(state.sessionId).toBe('s1')
+    expect(state.lastAnalysisTime).toBe(0)
+    expect(state.accumulatedMessageCount).toBe(0)
+    expect(state.isAnalyzing).toBe(false)
+  })
+
+  it('updateObserverState 部分更新', () => {
+    const store = freshStore()
+    store.updateObserverState('s1', { accumulatedMessageCount: 5, isAnalyzing: true })
+    const state = store.getObserverState('s1')
+    expect(state.accumulatedMessageCount).toBe(5)
+    expect(state.isAnalyzing).toBe(true)
+    expect(state.lastAnalysisTime).toBe(0)
+  })
+
+  it('addObserverResult 存入结果', () => {
+    const store = freshStore()
+    const result = {
+      id: 'r1',
+      sessionId: 's1',
+      status: 'success' as const,
+      summary: '测试摘要',
+      keyPoints: ['点1'],
+      suggestions: ['建议1'],
+      analyzedAt: Date.now(),
+      messageCount: 10,
+    }
+    store.addObserverResult('s1', result)
+    const results = store.observerResults.get('s1')
+    expect(results).toHaveLength(1)
+    expect(results![0].summary).toBe('测试摘要')
+  })
+
+  it('clearObserverResults 清空结果', () => {
+    const store = freshStore()
+    const result = {
+      id: 'r1',
+      sessionId: 's1',
+      status: 'success' as const,
+      summary: '测试',
+      keyPoints: [],
+      suggestions: [],
+      analyzedAt: Date.now(),
+      messageCount: 5,
+    }
+    store.addObserverResult('s1', result)
+    store.clearObserverResults('s1')
+    expect(store.observerResults.get('s1')).toBeUndefined()
+  })
+})
+
+describe('keyword actions', () => {
+  it('addKeywordResult 存入结果', () => {
+    const store = freshStore()
+    const result = {
+      id: 'k1',
+      sessionId: 's1',
+      sourceMessageId: 'msg1',
+      matchedPattern: '测试',
+      status: 'success' as const,
+      summary: '匹配摘要',
+      replySuggestion: '好的',
+      analyzedAt: Date.now(),
+    }
+    store.addKeywordResult('s1', result)
+    const results = store.keywordResults.get('s1')
+    expect(results).toHaveLength(1)
+    expect(results![0].matchedPattern).toBe('测试')
+  })
+
+  it('clearKeywordResults 清空结果', () => {
+    const store = freshStore()
+    store.addKeywordResult('s1', {
+      id: 'k1',
+      sessionId: 's1',
+      sourceMessageId: 'msg1',
+      matchedPattern: '测试',
+      status: 'success' as const,
+      summary: '摘要',
+      analyzedAt: Date.now(),
+    })
+    store.clearKeywordResults('s1')
+    expect(store.keywordResults.get('s1')).toBeUndefined()
+  })
+})
+
 describe('$reset', () => {
   it('重置所有状态', () => {
     const store = freshStore()
@@ -294,11 +466,36 @@ describe('$reset', () => {
     })
     store.incrementAutoReplyCount()
 
+    // 设置 observer/keyword 状态
+    store.updateObserverState('s1', { accumulatedMessageCount: 5, isAnalyzing: true })
+    store.addObserverResult('s1', {
+      id: 'r1',
+      sessionId: 's1',
+      status: 'success' as const,
+      summary: '测试',
+      keyPoints: [],
+      suggestions: [],
+      analyzedAt: Date.now(),
+      messageCount: 5,
+    })
+    store.addKeywordResult('s1', {
+      id: 'k1',
+      sessionId: 's1',
+      sourceMessageId: 'msg1',
+      matchedPattern: '测试',
+      status: 'success' as const,
+      summary: '摘要',
+      analyzedAt: Date.now(),
+    })
+
     store.$reset()
 
     expect(store.config.enabled).toBe(false)
     expect(store.drafts).toHaveLength(0)
     expect(store.sendingStatuses).toHaveLength(0)
     expect(store.autoReplyCount).toBe(0)
+    expect(store.observerStates.size).toBe(0)
+    expect(store.observerResults.size).toBe(0)
+    expect(store.keywordResults.size).toBe(0)
   })
 })

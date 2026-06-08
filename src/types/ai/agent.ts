@@ -49,7 +49,7 @@ export type AgentAction =
   | 'extract_todos'
   | 'profile'
 
-/** 会话级 Agent 配置（Phase B2 子集，不包含 observer/mentionMonitor） */
+/** 会话级 Agent 配置（完整版，含 observer 和 keywordMonitor） */
 export interface SessionAgentConfig {
   /** 会话 ID */
   sessionId: string
@@ -64,6 +64,30 @@ export interface SessionAgentConfig {
   }
   /** 是否允许定时消息（预留，Phase B2 无运行时行为） */
   allowScheduledMessages: boolean
+  /** 旁观分析模式配置 */
+  observer: {
+    /** 是否启用 */
+    enabled: boolean
+    /** 两次分析的最小间隔（秒），默认 300 */
+    intervalSeconds: number
+    /** 触发分析的最少新增消息数，默认 5 */
+    minNewMessages: number
+  }
+  /** 关键词监测模式配置 */
+  keywordMonitor: {
+    /** 是否启用 */
+    enabled: boolean
+    /** 关键词列表，任一匹配即触发 */
+    matchPatterns: string[]
+  }
+  /** 覆盖全局 Prompt 模板 ID */
+  promptTemplateId?: string
+  /** 覆盖全局模型（仅影响 Agent 分析调用，不影响 AI Console/Panel） */
+  model?: string
+  /** 最大自动回复次数（0 = 无限） */
+  maxAutoReplies: number
+  /** 冷却时间（毫秒） */
+  cooldownMs: number
 }
 
 /** 全局持久化 Agent 配置（存储在 localStorage）
@@ -77,7 +101,92 @@ export interface PersistedAgentConfig {
     sendPermission: SendPermissionLevel
     /** 默认允许的操作 */
     allowedActions: AgentAction[]
+    /** 默认启动旁观分析 */
+    observerEnabled: boolean
+    /** 默认分析间隔（秒） */
+    observerIntervalSeconds: number
+    /** 默认触发分析的最少新消息数 */
+    observerMinNewMessages: number
+    /** 默认启动关键词监测 */
+    keywordEnabled: boolean
+    /** 默认关键词列表 */
+    keywordMatchPatterns: string[]
+    /** 默认 Prompt 模板 ID */
+    promptTemplateId: string
+    /** 默认最大自动回复次数 */
+    maxAutoReplies: number
+    /** 默认冷却时间（毫秒） */
+    cooldownMs: number
   }
+}
+
+// ==================== Phase C 新类型（Observer + KeywordMonitor） ====================
+
+/** 旁观分析运行时状态（不持久化） */
+export interface ObserverState {
+  /** 会话 ID */
+  sessionId: string
+  /** 上次分析时间戳 */
+  lastAnalysisTime: number
+  /** 自上次分析以来的新增消息数 */
+  accumulatedMessageCount: number
+  /** 是否正在 AI 分析中 */
+  isAnalyzing: boolean
+  /** 上次分析的错误信息 */
+  error?: string
+  /** 最近一次成功的结果（缓存供快速展示） */
+  lastResult?: ObserverResult
+}
+
+/** 旁观分析结果 */
+export interface ObserverResult {
+  /** 唯一 ID */
+  id: string
+  /** 会话 ID */
+  sessionId: string
+  /** 分析状态 */
+  status: 'success' | 'error'
+  /** AI 生成的会话摘要 */
+  summary: string
+  /** 关键点列表 */
+  keyPoints: string[]
+  /** 建议回复或行动 */
+  suggestions: string[]
+  /** 分析失败时的错误消息 */
+  error?: string
+  /** 分析时间戳 */
+  analyzedAt: number
+  /** 本次分析覆盖的消息数 */
+  messageCount: number
+}
+
+/** 关键词匹配结果 */
+export interface KeywordResult {
+  /** 唯一 ID */
+  id: string
+  /** 会话 ID */
+  sessionId: string
+  /** 触发匹配的源消息 ID */
+  sourceMessageId: string
+  /** 匹配到的关键词 */
+  matchedPattern: string
+  /** 分析状态 */
+  status: 'success' | 'error'
+  /** AI 分析摘要 */
+  summary: string
+  /** AI 建议的回复 */
+  replySuggestion?: string
+  /** 分析失败时的错误消息 */
+  error?: string
+  /** 提及上下文（如果消息是回复/引用） */
+  mentionContext?: {
+    /** 提及者名称 */
+    mentionedBy: string
+    /** 对方说的内容摘要 */
+    whatTheyAsk: string
+  }
+  /** 分析时间戳 */
+  analyzedAt: number
 }
 
 // ==================== 不变类型 ====================

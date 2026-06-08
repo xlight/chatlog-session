@@ -9,6 +9,9 @@ import type {
   AgentAction,
   SessionAgentConfig,
   PersistedAgentConfig,
+  ObserverState,
+  ObserverResult,
+  KeywordResult,
 } from '@/types/ai/agent'
 
 const DEFAULT_CONFIG: AgentConfig = {
@@ -25,6 +28,14 @@ const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
   defaults: {
     sendPermission: 'draft_confirm',
     allowedActions: ['draft_reply', 'analyze'],
+    observerEnabled: false,
+    observerIntervalSeconds: 300,
+    observerMinNewMessages: 5,
+    keywordEnabled: false,
+    keywordMatchPatterns: [],
+    promptTemplateId: 'builtin-reply',
+    maxAutoReplies: 0,
+    cooldownMs: 5000,
   },
 }
 
@@ -55,6 +66,11 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
   /** 会话级配置覆盖（localStorage，key = sessionId） */
   const sessionConfigs = ref<Record<string, SessionAgentConfig>>({})
 
+  // --- Phase C 运行时 state（不持久化） ---
+  const observerStates = ref<Map<string, ObserverState>>(new Map())
+  const observerResults = ref<Map<string, ObserverResult[]>>(new Map())
+  const keywordResults = ref<Map<string, KeywordResult[]>>(new Map())
+
   // --- 不变 state ---
   const drafts = ref<AgentDraft[]>([])
   const sendingStatuses = ref<AgentSendingStatus[]>([])
@@ -77,22 +93,39 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
   /** 获取指定会话的有效配置（session override → global defaults） */
   function getEffectiveConfig(sessionId: string): SessionAgentConfig {
+    const defaults = persistedConfig.value.defaults
     const sessionOverride = sessionConfigs.value[sessionId]
-    if (sessionOverride) {
-      return { ...sessionOverride }
-    }
 
-    return {
+    const config: SessionAgentConfig = {
       sessionId,
-      sendPermission: persistedConfig.value.defaults.sendPermission,
+      sendPermission: sessionOverride?.sendPermission ?? defaults.sendPermission,
       userActions: {
         enabled: true,
-        allowedActions: [...persistedConfig.value.defaults.allowedActions],
+        allowedActions: sessionOverride?.userActions?.allowedActions ?? [...defaults.allowedActions],
       },
-      allowScheduledMessages: false,
+      allowScheduledMessages: sessionOverride?.allowScheduledMessages ?? false,
+      observer: {
+        enabled: sessionOverride?.observer?.enabled ?? defaults.observerEnabled,
+        intervalSeconds: sessionOverride?.observer?.intervalSeconds ?? defaults.observerIntervalSeconds,
+        minNewMessages: sessionOverride?.observer?.minNewMessages ?? defaults.observerMinNewMessages,
+      },
+      keywordMonitor: {
+        enabled: sessionOverride?.keywordMonitor?.enabled ?? defaults.keywordEnabled,
+        matchPatterns: sessionOverride?.keywordMonitor?.matchPatterns ?? [...defaults.keywordMatchPatterns],
+      },
+      promptTemplateId: sessionOverride?.promptTemplateId ?? defaults.promptTemplateId,
+      maxAutoReplies: sessionOverride?.maxAutoReplies ?? defaults.maxAutoReplies,
+      cooldownMs: sessionOverride?.cooldownMs ?? defaults.cooldownMs,
     }
+
+    if (sessionOverride?.model) {
+      config.model = sessionOverride.model
+    }
+
+    return config
   }
 
+  /** @deprecated 使用 canAutoReplySession(sessionId) 替代 */
   const canAutoReply = computed(() => {
     if (!enabled.value) return false
     if (config.value.mode !== 'auto') return false
@@ -102,6 +135,18 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     }
     return true
   })
+
+  /** 检查指定会话是否有权限自动回复（per-session 版） */
+  function canAutoReplySession(sessionId: string): boolean {
+    if (!enabled.value) return false
+    const effective = getEffectiveConfig(sessionId)
+    if (effective.sendPermission !== 'full_auto') return false
+    if (effective.maxAutoReplies > 0 && autoReplyCount.value >= effective.maxAutoReplies) return false
+    if (effective.cooldownMs > 0 && lastAutoReplyAt.value) {
+      if (Date.now() - lastAutoReplyAt.value < effective.cooldownMs) return false
+    }
+    return true
+  }
 
   // ==================== Config Actions (B1, deprecated) ====================
 
@@ -260,6 +305,57 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     sendingStatuses.value = []
   }
 
+  // ==================== Observer Actions ====================
+
+  /** 获取指定会话的 Observer 状态 */
+  function getObserverState(sessionId: string): ObserverState {
+    let state = observerStates.value.get(sessionId)
+    if (!state) {
+      state = {
+        sessionId,
+        lastAnalysisTime: 0,
+        accumulatedMessageCount: 0,
+        isAnalyzing: false,
+      }
+      observerStates.value = new Map(observerStates.value).set(sessionId, state)
+    }
+    return state
+  }
+
+  /** 局部更新 Observer 状态 */
+  function updateObserverState(sessionId: string, partial: Partial<ObserverState>): void {
+    const current = getObserverState(sessionId)
+    observerStates.value = new Map(observerStates.value).set(sessionId, { ...current, ...partial })
+  }
+
+  /** 添加 Observer 分析结果 */
+  function addObserverResult(sessionId: string, result: ObserverResult): void {
+    const results = observerResults.value.get(sessionId) ?? []
+    observerResults.value = new Map(observerResults.value).set(sessionId, [...results, result])
+  }
+
+  /** 清空指定会话的 Observer 结果 */
+  function clearObserverResults(sessionId: string): void {
+    const newMap = new Map(observerResults.value)
+    newMap.delete(sessionId)
+    observerResults.value = newMap
+  }
+
+  // ==================== Keyword Actions ====================
+
+  /** 添加关键词匹配结果 */
+  function addKeywordResult(sessionId: string, result: KeywordResult): void {
+    const results = keywordResults.value.get(sessionId) ?? []
+    keywordResults.value = new Map(keywordResults.value).set(sessionId, [...results, result])
+  }
+
+  /** 清空指定会话的关键词匹配结果 */
+  function clearKeywordResults(sessionId: string): void {
+    const newMap = new Map(keywordResults.value)
+    newMap.delete(sessionId)
+    keywordResults.value = newMap
+  }
+
   // ==================== Auto Reply Tracking ====================
 
   function incrementAutoReplyCount(): void {
@@ -302,6 +398,9 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     enabled.value = false
     persistedConfig.value = { ...DEFAULT_PERSISTED_CONFIG }
     sessionConfigs.value = {}
+    observerStates.value = new Map()
+    observerResults.value = new Map()
+    keywordResults.value = new Map()
     drafts.value = []
     sendingStatuses.value = []
     autoReplyCount.value = 0
@@ -314,6 +413,9 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     enabled,
     persistedConfig,
     sessionConfigs,
+    observerStates,
+    observerResults,
+    keywordResults,
     drafts,
     sendingStatuses,
     autoReplyCount,
@@ -340,6 +442,19 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     setSessionConfig,
     clearSessionConfig,
     resetPersistedConfig,
+
+    // Per-session permission
+    canAutoReplySession,
+
+    // Observer Actions
+    getObserverState,
+    updateObserverState,
+    addObserverResult,
+    clearObserverResults,
+
+    // Keyword Actions
+    addKeywordResult,
+    clearKeywordResults,
 
     // Draft Actions
     addDraft,
