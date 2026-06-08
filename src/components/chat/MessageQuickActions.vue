@@ -49,6 +49,20 @@ const agentStore = useAIAgentStore()
 const sessionStore = useSessionStore()
 const aiChat = useAIChat()
 
+const currentSession = computed(() =>
+  sessionStore.sessions.find((s) => s.id === sessionStore.currentSessionId)
+)
+
+const agentPermission = computed(() => {
+  if (!currentSession.value?.id) return null
+  return agentStore.getEffectiveConfig(currentSession.value.id).sendPermission
+})
+
+const canShowAgentDraft = computed(() => {
+  if (!agentPermission.value) return true // 无权限配置时默认可用
+  return agentPermission.value !== 'forbidden'
+})
+
 const { displayName: agentContactName } = useDisplayName({
   id: computed(() => props.message?.talker),
   defaultName: computed(() => props.message?.talkerName),
@@ -163,6 +177,12 @@ function handleAIAnalyze() {
 }
 
 function handleAgentDraft() {
+  if (!canShowAgentDraft.value) {
+    ElMessage.warning('当前会话已禁用 Agent 功能')
+    visible.value = false
+    return
+  }
+
   const text = props.message.content || ''
   if (!text) {
     ElMessage.warning('无可生成草稿的内容')
@@ -290,7 +310,7 @@ const hasMedia = () => {
         </el-dropdown-item>
 
         <el-dropdown-item
-          v-if="hasTextContent()"
+          v-if="hasTextContent() && canShowAgentDraft"
           command="agent-draft"
           :icon="EditPen"
         >

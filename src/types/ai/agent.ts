@@ -4,7 +4,9 @@
  * 定义 Agent 自动回复配置、草稿、发送状态等专用类型
  */
 
-/** Agent 自动回复配置 */
+// ==================== Phase B1 旧类型（保留兼容） ====================
+
+/** @deprecated 使用 `PersistedAgentConfig` + `SessionAgentConfig` 替代 */
 export interface AgentConfig {
   /** 是否启用自动回复 */
   enabled: boolean
@@ -22,16 +24,63 @@ export interface AgentConfig {
   cooldownMs: number
 }
 
-/** 回复模式 */
+/** @deprecated 使用 `SendPermissionLevel` 替代 */
 export type AgentReplyMode = 'draft' | 'auto'
 
-/** 会话过滤条件 */
+/** @deprecated 保留兼容 */
 export interface AgentSessionFilter {
   /** 会话 ID */
   sessionId: string
   /** 会话名称（仅展示用） */
   sessionName: string
 }
+
+// ==================== Phase B2 新类型 ====================
+
+/** 四级发送权限 */
+export type SendPermissionLevel = 'forbidden' | 'draft_confirm' | 'send_cancellable' | 'full_auto'
+
+/** Agent 可执行操作类型 */
+export type AgentAction =
+  | 'analyze'
+  | 'draft_reply'
+  | 'ask_ai'
+  | 'summarize'
+  | 'extract_todos'
+  | 'profile'
+
+/** 会话级 Agent 配置（Phase B2 子集，不包含 observer/mentionMonitor） */
+export interface SessionAgentConfig {
+  /** 会话 ID */
+  sessionId: string
+  /** 发送权限级别 */
+  sendPermission: SendPermissionLevel
+  /** 用户操作权限 */
+  userActions: {
+    /** 是否启用用户操作 */
+    enabled: boolean
+    /** 允许的操作列表 */
+    allowedActions: AgentAction[]
+  }
+  /** 是否允许定时消息（预留，Phase B2 无运行时行为） */
+  allowScheduledMessages: boolean
+}
+
+/** 全局持久化 Agent 配置（存储在 localStorage）
+ *
+ * 注：不包含 `enabled`（由 `settingsStore.ai.enabled` 管理）和 `aiBackend`（运行时 computed）
+ */
+export interface PersistedAgentConfig {
+  /** 全局默认值 */
+  defaults: {
+    /** 默认发送权限 */
+    sendPermission: SendPermissionLevel
+    /** 默认允许的操作 */
+    allowedActions: AgentAction[]
+  }
+}
+
+// ==================== 不变类型 ====================
 
 /** Agent 草稿状态 */
 export interface AgentDraft {

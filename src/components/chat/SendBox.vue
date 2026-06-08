@@ -13,6 +13,23 @@ import type { Session } from '@/types/session'
 const settingsStore = useSettingsStore()
 const agentStore = useAIAgentStore()
 
+const hasAgentPermission = computed(() => {
+  if (!props.session?.id) return false
+  const config = agentStore.getEffectiveConfig(props.session.id)
+  return config.sendPermission !== 'forbidden'
+})
+
+const draftPermissionLabel = computed(() => {
+  if (!props.session?.id) return ''
+  const config = agentStore.getEffectiveConfig(props.session.id)
+  switch (config.sendPermission) {
+    case 'draft_confirm': return '需确认后发送'
+    case 'send_cancellable': return '自动发送（可取消）'
+    case 'full_auto': return '全自动发送'
+    default: return ''
+  }
+})
+
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
 
 const inputRef = ref<InstanceType<typeof import('element-plus').ElInput> | null>(null)
@@ -463,7 +480,10 @@ defineExpose({ injectDraft, sendDraft, clearDraft, draftText })
     </div>
 
     <!-- Agent 草稿卡片 -->
-    <div v-if="agentStore.pendingDrafts.length > 0" class="agent-drafts">
+    <div v-if="hasAgentPermission && agentStore.pendingDrafts.length > 0" class="agent-drafts">
+      <div class="agent-drafts-header">
+        <span>{{ draftPermissionLabel }}</span>
+      </div>
       <AgentDraftCard
         v-for="draft in agentStore.pendingDrafts"
         :key="draft.id"
@@ -677,6 +697,12 @@ defineExpose({ injectDraft, sendDraft, clearDraft, draftText })
   margin-bottom: 6px;
   max-height: 200px;
   overflow-y: auto;
+}
+
+.agent-drafts-header {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  padding: 2px 4px;
 }
 
 .agent-sending-statuses {

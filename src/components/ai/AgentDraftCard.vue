@@ -7,9 +7,12 @@ import type { AgentDraft } from '@/types/ai/agent'
 
 const agentStore = useAIAgentStore()
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   draft: AgentDraft
-}>()
+  showSessionInfo?: boolean
+}>(), {
+  showSessionInfo: true,
+})
 
 const emit = defineEmits<{
   sent: [draftId: string, messageId: number]
@@ -84,7 +87,7 @@ function handleCopy() {
 <template>
   <div class="agent-draft-card" :class="{ 'is-sending': isSending }">
     <div class="draft-header">
-      <span class="draft-session">{{ draft.sessionName }}</span>
+      <span v-if="showSessionInfo" class="draft-session">{{ draft.sessionName }}</span>
       <span class="draft-time">{{ timeLabel }}</span>
     </div>
     <div class="draft-body">
