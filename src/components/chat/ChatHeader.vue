@@ -176,13 +176,11 @@ function handleDropdownCommand(cmd: string) {
         :width="220"
       >
         <template #reference>
-          <el-tooltip :content="agentStatusLabel" placement="bottom">
-            <el-button text class="agent-indicator">
-              <el-icon :style="{ color: agentPermissionColor }">
-                <Cpu />
-              </el-icon>
-            </el-button>
-          </el-tooltip>
+          <el-button text class="agent-indicator" :title="agentStatusLabel">
+            <el-icon :style="{ color: agentPermissionColor }">
+              <Cpu />
+            </el-icon>
+          </el-button>
         </template>
         <div class="agent-quick-toggle">
           <div class="toggle-row">
@@ -339,7 +337,6 @@ function handleDropdownCommand(cmd: string) {
     gap: 8px;
     font-size: 13px;
   }
-}
 }
 
 // 响应式设计
