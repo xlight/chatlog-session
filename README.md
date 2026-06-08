@@ -90,6 +90,14 @@ flowchart LR
     </tr>
     <tr><td align="center"><b>会话列表</b></td><td align="center"><b>联系人列表</b></td></tr>
   </table>
+
+  <table>
+    <tr>
+      <td><img alt="发送消息 1" src="https://github.com/user-attachments/assets/0f15c9d8-ae21-4b9f-ba00-621298b3c79a"  width="320"></td>
+      <td><img alt="发送消息 2" src="https://github.com/user-attachments/assets/a5b5c432-d57b-4e65-bf73-cfec1f52b9e7"  width="320"></td>
+    </tr>
+    <tr><td align="center"><b>发送消息</b></td><td align="center"><b>发送消息中</b></td></tr>
+  </table>    
   <br>
   <img src="public/screenshots/dashboard.png" alt="数据仪表盘" width="660">
   <p><b>数据仪表盘</b></p>
