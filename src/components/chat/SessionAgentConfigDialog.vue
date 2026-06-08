@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAIAgentStore } from '@/stores/ai/agent'
 import type { SendPermissionLevel } from '@/types/ai/agent'
@@ -16,37 +16,40 @@ const emit = defineEmits<{
 
 const agentStore = useAIAgentStore()
 
-const sendPermission = ref<SendPermissionLevel>('draft_confirm')
-const observerEnabled = ref(false)
-const observerInterval = ref(300)
-const observerMinNewMessages = ref(5)
-const keywordEnabled = ref(false)
+// ==================== 响应式配置（从 store 读取，UI 自动跟随 store 变化） ====================
+const effectiveConfig = computed(() => agentStore.getEffectiveConfig(props.sessionId))
+
+const sendPermission = computed(() => effectiveConfig.value.sendPermission)
+const observerEnabled = computed(() => effectiveConfig.value.observer.enabled)
+const observerInterval = computed(() => effectiveConfig.value.observer.intervalSeconds)
+const observerMinNewMessages = computed(() => effectiveConfig.value.observer.minNewMessages)
+const keywordEnabled = computed(() => effectiveConfig.value.keywordMonitor.enabled)
+const maxAutoReplies = computed(() => effectiveConfig.value.maxAutoReplies)
+const cooldownMs = computed(() => effectiveConfig.value.cooldownMs)
+const promptTemplateId = computed(() => effectiveConfig.value.promptTemplateId ?? '')
+
+// ==================== keywordPatterns 特殊处理（文本输入，本地 ref + onBlur 提交） ====================
 const keywordPatterns = ref('')
-const maxAutoReplies = ref(0)
-const cooldownMs = ref(5000)
-const promptTemplateId = ref('')
 
-watch(
-  () => props.modelValue,
-  (open) => {
-    if (open) {
-      loadConfig()
-    }
-  },
-)
-
-function loadConfig() {
-  const config = agentStore.getEffectiveConfig(props.sessionId)
-  sendPermission.value = config.sendPermission
-  observerEnabled.value = config.observer.enabled
-  observerInterval.value = config.observer.intervalSeconds
-  observerMinNewMessages.value = config.observer.minNewMessages
-  keywordEnabled.value = config.keywordMonitor.enabled
-  keywordPatterns.value = config.keywordMonitor.matchPatterns.join(', ')
-  maxAutoReplies.value = config.maxAutoReplies
-  cooldownMs.value = config.cooldownMs
-  promptTemplateId.value = config.promptTemplateId ?? ''
+/** 对话框打开时从 store 加载 keyword patterns 到本地 ref */
+function loadKeywordPatterns() {
+  keywordPatterns.value = effectiveConfig.value.keywordMonitor.matchPatterns.join(', ')
 }
+
+/** 用户输入时实时更新本地 ref + store（解析后的数组） */
+function handlePatternsInput(val: string) {
+  keywordPatterns.value = val // 保持本地显示原文
+  const patterns = val
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const current = agentStore.getEffectiveConfig(props.sessionId).keywordMonitor
+  agentStore.setSessionConfig(props.sessionId, {
+    keywordMonitor: { ...current, matchPatterns: patterns },
+  })
+}
+
+// ==================== 写入操作 ====================
 
 function updateField<K extends keyof import('@/types/ai/agent').SessionAgentConfig>(
   field: K,
@@ -75,17 +78,11 @@ function updateKeyword<K extends keyof import('@/types/ai/agent').SessionAgentCo
   })
 }
 
-function handlePatternsChange(val: string) {
-  const patterns = val
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-  updateKeyword('matchPatterns', patterns)
-}
+// ==================== 重置 & 关闭 ====================
 
 function handleReset() {
   agentStore.clearSessionConfig(props.sessionId)
-  loadConfig()
+  loadKeywordPatterns()
   ElMessage.success('已恢复默认配置')
 }
 
@@ -93,6 +90,11 @@ function handleClose() {
   emit('update:modelValue', false)
 }
 
+function handleOpened() {
+  loadKeywordPatterns()
+}
+
+// 权限选项常量
 const permissionOptions = [
   { value: 'forbidden' as const, label: '禁止' },
   { value: 'draft_confirm' as const, label: '草稿确认' },
@@ -107,6 +109,7 @@ const permissionOptions = [
     title="Agent 设置"
     width="480px"
     @close="handleClose"
+    @opened="handleOpened"
   >
     <el-form label-width="120px" label-position="left" size="small">
       <el-divider content-position="left">发送权限</el-divider>
@@ -165,7 +168,7 @@ const permissionOptions = [
       <el-form-item label="关键词列表">
         <el-input
           :model-value="keywordPatterns"
-          @update:model-value="handlePatternsChange"
+          @update:model-value="handlePatternsInput"
           placeholder="逗号分隔多个关键词"
         />
       </el-form-item>
