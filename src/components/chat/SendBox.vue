@@ -74,6 +74,8 @@ interface PendingMessage {
   content: string
   status: 'sending' | 'success' | 'error'
   error?: string
+  /** 队列消息 ID，用于取消和轮询 */
+  messageId?: number
 }
 
 const pendingMessages = ref<PendingMessage[]>([])
@@ -139,7 +141,22 @@ const contactNameWarning = computed(() => {
 
 const hasText = computed(() => messageText.value.trim().length > 0)
 
-// ==================== 发送逻辑 ====================
+// ==================== 发送 / 取消逻辑 ====================
+
+async function cancelPendingMessage(msg: PendingMessage) {
+  if (!msg.messageId) return
+  try {
+    const result = await sendmsgAPI.cancelJob(msg.messageId)
+    if (result.ok) {
+      stopPolling(msg.messageId)
+      updatePendingMessage(msg.id, 'error', '已取消')
+    } else {
+      ElMessage.error(result.error || '取消失败')
+    }
+  } catch (error: unknown) {
+    ElMessage.error(error instanceof Error ? error.message : '取消失败')
+  }
+}
 
 async function sendMessage() {
   const text = messageText.value.trim()
@@ -157,6 +174,8 @@ async function sendMessage() {
     }
 
     if (result.message_id !== undefined) {
+      const msg = pendingMessages.value.find(m => m.id === pendingId)
+      if (msg) msg.messageId = result.message_id
       startPolling(result.message_id, pendingId)
     } else {
       updatePendingMessage(pendingId, 'success')
@@ -183,6 +202,8 @@ async function sendDraft(draftId: string, content: string): Promise<{ ok: boolea
     }
 
     if (result.message_id !== undefined) {
+      const msg = pendingMessages.value.find(m => m.id === pendingId)
+      if (msg) msg.messageId = result.message_id
       startPolling(result.message_id, pendingId)
       emit('draftSent', draftId, result.message_id)
       return { ok: true, messageId: result.message_id }
@@ -260,6 +281,8 @@ async function sendFileOrImage(file: File) {
     }
 
     if (result.message_id !== undefined) {
+      const msg = pendingMessages.value.find(m => m.id === pendingId)
+      if (msg) msg.messageId = result.message_id
       startPolling(result.message_id, pendingId)
     } else {
       updatePendingMessage(pendingId, 'success')
@@ -476,6 +499,15 @@ defineExpose({ injectDraft, sendDraft, clearDraft, draftText })
         <span class="pending-status">
           {{ msg.status === 'sending' ? '发送中...' : msg.status === 'success' ? '已发送' : msg.error || '发送失败' }}
         </span>
+        <el-button
+          v-if="msg.status === 'sending' && msg.messageId"
+          text
+          size="small"
+          class="pending-cancel"
+          @click="cancelPendingMessage(msg)"
+        >
+          取消
+        </el-button>
       </div>
     </div>
 
@@ -629,6 +661,10 @@ defineExpose({ injectDraft, sendDraft, clearDraft, draftText })
     color: var(--el-color-danger);
     background-color: var(--el-color-danger-light-9);
   }
+}
+
+.pending-cancel {
+  flex-shrink: 0;
 }
 
 .pending-content {
