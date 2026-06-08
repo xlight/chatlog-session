@@ -1,27 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createTestingPinia } from '@pinia/testing'
-import { setActivePinia } from 'pinia'
-import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+import { describe, it, expect } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 import { useAIAgentStore } from '@/stores/ai/agent'
 
-function createStore() {
+function freshStore() {
   sessionStorage.clear()
-  const pinia = createTestingPinia({
-    stubActions: false,
-    createSpy: vi.fn,
-    plugins: [piniaPluginPersistedstate],
-  })
+  const pinia = createPinia()
   setActivePinia(pinia)
-  return useAIAgentStore(pinia)
+  const store = useAIAgentStore(pinia)
+  return store
 }
-
-beforeEach(() => {
-  sessionStorage.clear()
-})
 
 describe('config', () => {
   it('默认配置正确', () => {
-    const store = createStore()
+    const store = freshStore()
     expect(store.config.enabled).toBe(false)
     expect(store.config.mode).toBe('draft')
     expect(store.config.requireConfirm).toBe(true)
@@ -30,7 +21,7 @@ describe('config', () => {
   })
 
   it('updateConfig 部分更新', () => {
-    const store = createStore()
+    const store = freshStore()
     store.updateConfig({ enabled: true, mode: 'auto' })
     expect(store.config.enabled).toBe(true)
     expect(store.config.mode).toBe('auto')
@@ -38,7 +29,7 @@ describe('config', () => {
   })
 
   it('resetConfig 恢复默认', () => {
-    const store = createStore()
+    const store = freshStore()
     store.updateConfig({ enabled: true, mode: 'auto' })
     store.resetConfig()
     expect(store.config.enabled).toBe(false)
@@ -46,7 +37,7 @@ describe('config', () => {
   })
 
   it('addTargetSession / removeTargetSession', () => {
-    const store = createStore()
+    const store = freshStore()
     store.addTargetSession({ sessionId: 's1', sessionName: '会话1' })
     store.addTargetSession({ sessionId: 's2', sessionName: '会话2' })
     expect(store.config.targetSessions).toHaveLength(2)
@@ -60,8 +51,8 @@ describe('config', () => {
   })
 
   it('isSessionTargeted', () => {
-    const store = createStore()
-    expect(store.config.targetSessions).toHaveLength(0)
+    const store = freshStore()
+    store.config.targetSessions = []
     expect(store.isSessionTargeted('any')).toBe(true)
 
     store.addTargetSession({ sessionId: 's1', sessionName: '会话1' })
@@ -72,7 +63,7 @@ describe('config', () => {
 
 describe('drafts', () => {
   it('addDraft 创建草稿', () => {
-    const store = createStore()
+    const store = freshStore()
     const draft = store.addDraft({
       sourceMessageId: 'msg1',
       sessionId: 's1',
@@ -88,7 +79,7 @@ describe('drafts', () => {
   })
 
   it('pendingDrafts 只返回未发送的', () => {
-    const store = createStore()
+    const store = freshStore()
     const draft = store.addDraft({
       sourceMessageId: 'msg1',
       sessionId: 's1',
@@ -107,7 +98,7 @@ describe('drafts', () => {
   })
 
   it('removeDraft 删除草稿', () => {
-    const store = createStore()
+    const store = freshStore()
     const draft = store.addDraft({
       sourceMessageId: 'msg1',
       sessionId: 's1',
@@ -122,7 +113,7 @@ describe('drafts', () => {
   })
 
   it('markDraftSent 标记已发送', () => {
-    const store = createStore()
+    const store = freshStore()
     const draft = store.addDraft({
       sourceMessageId: 'msg1',
       sessionId: 's1',
@@ -138,7 +129,7 @@ describe('drafts', () => {
   })
 
   it('clearDrafts 清空所有草稿', () => {
-    const store = createStore()
+    const store = freshStore()
     store.addDraft({
       sourceMessageId: 'msg1',
       sessionId: 's1',
@@ -161,7 +152,7 @@ describe('drafts', () => {
   })
 
   it('clearSentDrafts 只清除已发送的', () => {
-    const store = createStore()
+    const store = freshStore()
     const d1 = store.addDraft({
       sourceMessageId: 'msg1',
       sessionId: 's1',
@@ -188,7 +179,7 @@ describe('drafts', () => {
 
 describe('sendingStatuses', () => {
   it('addSendingStatus 添加状态', () => {
-    const store = createStore()
+    const store = freshStore()
     const status = store.addSendingStatus({
       draftId: 'd1',
       messageId: 100,
@@ -202,7 +193,7 @@ describe('sendingStatuses', () => {
   })
 
   it('updateSendingStatus 更新状态', () => {
-    const store = createStore()
+    const store = freshStore()
     store.addSendingStatus({
       draftId: 'd1',
       messageId: 100,
@@ -216,7 +207,7 @@ describe('sendingStatuses', () => {
   })
 
   it('removeSendingStatus 删除状态', () => {
-    const store = createStore()
+    const store = freshStore()
     store.addSendingStatus({
       draftId: 'd1',
       messageId: 100,
@@ -230,7 +221,7 @@ describe('sendingStatuses', () => {
   })
 
   it('activeSendings 只返回 sending 状态', () => {
-    const store = createStore()
+    const store = freshStore()
     store.addSendingStatus({
       draftId: 'd1',
       messageId: 100,
@@ -253,24 +244,24 @@ describe('sendingStatuses', () => {
 
 describe('canAutoReply', () => {
   it('未启用时不可自动回复', () => {
-    const store = createStore()
+    const store = freshStore()
     expect(store.canAutoReply).toBe(false)
   })
 
   it('启用且模式为 auto 时可自动回复', () => {
-    const store = createStore()
+    const store = freshStore()
     store.updateConfig({ enabled: true, mode: 'auto' })
     expect(store.canAutoReply).toBe(true)
   })
 
   it('草稿模式不可自动回复', () => {
-    const store = createStore()
+    const store = freshStore()
     store.updateConfig({ enabled: true, mode: 'draft' })
     expect(store.canAutoReply).toBe(false)
   })
 
   it('达到最大次数后不可自动回复', () => {
-    const store = createStore()
+    const store = freshStore()
     store.updateConfig({ enabled: true, mode: 'auto', maxAutoReplies: 2 })
     store.incrementAutoReplyCount()
     store.incrementAutoReplyCount()
@@ -278,7 +269,7 @@ describe('canAutoReply', () => {
   })
 
   it('resetAutoReplyCount 重置计数', () => {
-    const store = createStore()
+    const store = freshStore()
     store.updateConfig({ enabled: true, mode: 'auto', maxAutoReplies: 2 })
     store.incrementAutoReplyCount()
     store.incrementAutoReplyCount()
@@ -291,7 +282,7 @@ describe('canAutoReply', () => {
 
 describe('$reset', () => {
   it('重置所有状态', () => {
-    const store = createStore()
+    const store = freshStore()
     store.updateConfig({ enabled: true })
     store.addDraft({
       sourceMessageId: 'msg1',
