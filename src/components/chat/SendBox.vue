@@ -4,10 +4,14 @@ import { ElMessage } from 'element-plus'
 import { CirclePlus, PictureRounded } from '@element-plus/icons-vue'
 import { sendmsgAPI } from '@/api/sendmsg'
 import { useSettingsStore } from '@/stores/settings'
+import { useAIAgentStore } from '@/stores/ai/agent'
 import { useDisplayName } from './composables/useDisplayName'
+import AgentDraftCard from '@/components/ai/AgentDraftCard.vue'
+import SendingStatusCard from '@/components/ai/SendingStatusCard.vue'
 import type { Session } from '@/types/session'
 
 const settingsStore = useSettingsStore()
+const agentStore = useAIAgentStore()
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
 
@@ -21,8 +25,6 @@ function injectDraft(text: string) {
     el?.focus()
   })
 }
-
-defineExpose({ injectDraft, sendDraft, clearDraft, draftText })
 
 const props = defineProps<{
   session: Session
@@ -181,6 +183,27 @@ async function sendDraft(draftId: string, content: string): Promise<{ ok: boolea
 
 function clearDraft() {
   draftText.value = ''
+}
+
+function onDraftSent(draftId: string, messageId: number) {
+  emit('draftSent', draftId, messageId)
+}
+
+function onDraftDismissed(draftId: string) {
+  agentStore.removeDraft(draftId)
+}
+
+function onSendingCompleted(draftId: string) {
+  agentStore.removeSendingStatus(draftId)
+  emit('refresh')
+}
+
+function onSendingFailed(draftId: string, _error: string) {
+  // 保留失败状态让用户看到，不自动移除
+}
+
+function onSendingCancelled(draftId: string) {
+  agentStore.removeSendingStatus(draftId)
 }
 
 // ==================== 文件发送逻辑 ====================
@@ -399,6 +422,8 @@ onMounted(() => {
 onUnmounted(() => {
   stopAllPolling()
 })
+
+defineExpose({ injectDraft, sendDraft, clearDraft, draftText })
 </script>
 
 <template>
@@ -437,7 +462,30 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 草稿插槽 -->
+    <!-- Agent 草稿卡片 -->
+    <div v-if="agentStore.pendingDrafts.length > 0" class="agent-drafts">
+      <AgentDraftCard
+        v-for="draft in agentStore.pendingDrafts"
+        :key="draft.id"
+        :draft="draft"
+        @sent="onDraftSent"
+        @dismissed="onDraftDismissed"
+      />
+    </div>
+
+    <!-- Agent 发送状态卡片 -->
+    <div v-if="agentStore.sendingStatuses.length > 0" class="agent-sending-statuses">
+      <SendingStatusCard
+        v-for="status in agentStore.sendingStatuses"
+        :key="status.draftId"
+        :status="status"
+        @completed="onSendingCompleted"
+        @failed="onSendingFailed"
+        @cancelled="onSendingCancelled"
+      />
+    </div>
+
+    <!-- 草稿插槽（供外部扩展） -->
     <slot name="draft" />
 
     <!-- 输入区域 -->
@@ -620,5 +668,23 @@ onUnmounted(() => {
   &:hover {
     background-color: var(--el-fill-color-light);
   }
+}
+
+.agent-drafts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.agent-sending-statuses {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+  max-height: 120px;
+  overflow-y: auto;
 }
 </style>
