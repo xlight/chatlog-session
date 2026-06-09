@@ -71,7 +71,11 @@ const agentStatusLabel = computed(() => {
 const presetOptions: AgentLevelPreset[] = ['L0', 'L1', 'L2', 'L3', 'L4', 'Custom']
 
 function handlePresetChange(preset: AgentLevelPreset) {
-  if (!props.session?.id || preset === 'Custom') return
+  if (!props.session?.id) return
+  if (preset === 'Custom') {
+    showAgentDialog.value = true
+    return
+  }
   const patch = applyLevelPreset(preset)
   agentStore.setSessionConfig(props.session.id, patch)
 }
