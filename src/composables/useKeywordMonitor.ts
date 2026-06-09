@@ -40,8 +40,9 @@ export function useKeywordMonitor(sessionId: string | Ref<string>) {
     messageId: number,
     matchedPattern: string,
   ): Promise<void> {
+    const currentSid = sid.value
     try {
-      const contextMessages = await getContextMessages(sid.value, 20)
+      const contextMessages = await getContextMessages(currentSid, 20)
 
       const contextText = contextMessages
         .map((m) => `[${m.isSelf ? '我' : m.talkerName || m.talker}] ${m.content}`)
@@ -79,7 +80,7 @@ ${contextText}
 
       const result: KeywordResult = {
         id: generateId(),
-        sessionId: sid.value,
+        sessionId: currentSid,
         sourceMessageId: String(messageId),
         matchedPattern,
         status: 'success',
@@ -88,13 +89,13 @@ ${contextText}
         analyzedAt: Date.now(),
       }
 
-      agentStore.addKeywordResult(sid.value, result)
+      agentStore.addKeywordResult(currentSid, result)
       results.value = results.value.concat(result)
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : '关键词分析失败'
       const result: KeywordResult = {
         id: generateId(),
-        sessionId: sid.value,
+        sessionId: currentSid,
         sourceMessageId: String(messageId),
         matchedPattern,
         status: 'error',
@@ -102,7 +103,7 @@ ${contextText}
         error: errorMsg,
         analyzedAt: Date.now(),
       }
-      agentStore.addKeywordResult(sid.value, result)
+      agentStore.addKeywordResult(currentSid, result)
       results.value = results.value.concat(result)
     }
   }

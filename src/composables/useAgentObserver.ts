@@ -121,11 +121,12 @@ export function useAgentObserver(sessionId: string | Ref<string>) {
   // ==================== 内部函数 ====================
 
   async function triggerAnalysis(): Promise<void> {
-    const config = agentStore.getEffectiveConfig(sid.value)
+    const currentSid = sid.value
+    const config = agentStore.getEffectiveConfig(currentSid)
 
     if (!config.observer.enabled) return
 
-    const state = agentStore.getObserverState(sid.value)
+    const state = agentStore.getObserverState(currentSid)
 
     if (state.accumulatedMessageCount < config.observer.minNewMessages) return
 
@@ -135,15 +136,15 @@ export function useAgentObserver(sessionId: string | Ref<string>) {
     if (state.isAnalyzing || analysisInProgress) return
 
     analysisInProgress = true
-    agentStore.updateObserverState(sid.value, { isAnalyzing: true, error: undefined })
+    agentStore.updateObserverState(currentSid, { isAnalyzing: true, error: undefined })
     localError.value = null
 
     try {
-      const allMessages = await getContextMessages(sid.value, MAX_CONTEXT_MESSAGES)
+      const allMessages = await getContextMessages(currentSid, MAX_CONTEXT_MESSAGES)
       const messages = allMessages.filter(isRealMessage)
 
       if (messages.length === 0) {
-        agentStore.updateObserverState(sid.value, {
+        agentStore.updateObserverState(currentSid, {
           isAnalyzing: false,
           accumulatedMessageCount: 0,
         })
@@ -165,9 +166,9 @@ export function useAgentObserver(sessionId: string | Ref<string>) {
         content += chunk.choices?.[0]?.delta?.content || ''
       }
 
-      const result = parseAnalysisResult(content, sid.value, messages.length)
-      agentStore.addObserverResult(sid.value, result)
-      agentStore.updateObserverState(sid.value, {
+      const result = parseAnalysisResult(content, currentSid, messages.length)
+      agentStore.addObserverResult(currentSid, result)
+      agentStore.updateObserverState(currentSid, {
         lastAnalysisTime: Date.now(),
         accumulatedMessageCount: 0,
         isAnalyzing: false,
@@ -177,7 +178,7 @@ export function useAgentObserver(sessionId: string | Ref<string>) {
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       localError.value = errMsg
-      agentStore.updateObserverState(sid.value, {
+      agentStore.updateObserverState(currentSid, {
         isAnalyzing: false,
         error: errMsg,
       })
