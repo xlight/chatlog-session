@@ -3,6 +3,7 @@ import { useAIAgentStore } from '@/stores/ai/agent'
 import { useSessionStore } from '@/stores/session'
 import { useChatMessagesStore } from '@/stores/chatMessages'
 import { chatStream } from '@/api/llm'
+import { sendmsgAPI } from '@/api/sendmsg'
 import { getContextMessages } from '@/utils/getContextMessages'
 import type { ChatMessage } from '@/types/ai'
 import type { KeywordResult, SessionAgentConfig } from '@/types/ai/agent'
@@ -159,16 +160,39 @@ ${contextText}
           if (config.cooldownMs > 0 && tracker.lastAt && Date.now() - tracker.lastAt < config.cooldownMs) {
             return
           }
-          // TODO: 调用 sendmsgAPI.send() 发送回复；目前先存草稿，待 sendmsg API 集成后替换
-          agentStore.addDraft({
-            sourceMessageId: result.id,
-            sessionId: currentSid,
-            sessionName,
-            contactName,
-            content: replyContent,
-            generatedAt: Date.now(),
-          })
-          agentStore.incrementAutoReplyTracker(currentSid)
+          try {
+            const sendResult = await sendmsgAPI.send(contactName, replyContent)
+            if (sendResult.ok) {
+              agentStore.incrementAutoReplyTracker(currentSid)
+              if (sendResult.message_id !== undefined) {
+                agentStore.addSendingStatus({
+                  draftId: result.id,
+                  messageId: sendResult.message_id,
+                  contactName,
+                  contentPreview: replyContent.slice(0, 50),
+                  status: 'sending',
+                })
+              }
+            } else {
+              agentStore.addDraft({
+                sourceMessageId: result.id,
+                sessionId: currentSid,
+                sessionName,
+                contactName,
+                content: replyContent,
+                generatedAt: Date.now(),
+              })
+            }
+          } catch {
+            agentStore.addDraft({
+              sourceMessageId: result.id,
+              sessionId: currentSid,
+              sessionName,
+              contactName,
+              content: replyContent,
+              generatedAt: Date.now(),
+            })
+          }
         }
       }
     } catch (err) {

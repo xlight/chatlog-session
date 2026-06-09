@@ -9,6 +9,7 @@ import { useAIAgentStore } from '@/stores/ai/agent'
 import { useSessionStore } from '@/stores/session'
 import { useChatMessagesStore } from '@/stores/chatMessages'
 import { chatStream } from '@/api/llm'
+import { sendmsgAPI } from '@/api/sendmsg'
 import { getContextMessages } from '@/utils/getContextMessages'
 import type { ObserverResult, SessionAgentConfig } from '@/types/ai/agent'
 import type { ChatMessage } from '@/types/ai'
@@ -170,16 +171,41 @@ async function generateAndSendReply(
     if (config.cooldownMs > 0 && tracker.lastAt && Date.now() - tracker.lastAt < config.cooldownMs) {
       return
     }
-    // TODO: 调用 sendmsgAPI.send() 发送回复；目前先存草稿，待 sendmsg API 集成后替换
-    agentStore.addDraft({
-      sourceMessageId: result.id,
-      sessionId: currentSid,
-      sessionName,
-      contactName,
-      content: trimmedContent,
-      generatedAt: Date.now(),
-    })
-    agentStore.incrementAutoReplyTracker(currentSid)
+    try {
+      const result = await sendmsgAPI.send(contactName, trimmedContent)
+      if (result.ok) {
+        agentStore.incrementAutoReplyTracker(currentSid)
+        if (result.message_id !== undefined) {
+          agentStore.addSendingStatus({
+            draftId: result.id,
+            messageId: result.message_id,
+            contactName,
+            contentPreview: trimmedContent.slice(0, 50),
+            status: 'sending',
+          })
+        }
+      } else {
+        // 发送失败，降级为草稿
+        agentStore.addDraft({
+          sourceMessageId: result.id,
+          sessionId: currentSid,
+          sessionName,
+          contactName,
+          content: trimmedContent,
+          generatedAt: Date.now(),
+        })
+      }
+    } catch {
+      // 发送异常，降级为草稿
+      agentStore.addDraft({
+        sourceMessageId: result.id,
+        sessionId: currentSid,
+        sessionName,
+        contactName,
+        content: trimmedContent,
+        generatedAt: Date.now(),
+      })
+    }
   }
 }
 
