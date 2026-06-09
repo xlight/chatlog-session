@@ -24,8 +24,7 @@ const draftPermissionLabel = computed(() => {
   const config = agentStore.getEffectiveConfig(props.session.id)
   switch (config.sendPermission) {
     case 'draft_confirm': return '需确认后发送'
-    case 'send_cancellable': return '自动发送（可取消）'
-    case 'full_auto': return '全自动发送'
+    case 'auto': return '自动发送'
     default: return ''
   }
 })

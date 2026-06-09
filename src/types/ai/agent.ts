@@ -37,8 +37,19 @@ export interface AgentSessionFilter {
 
 // ==================== Phase B2 新类型 ====================
 
-/** 四级发送权限 */
-export type SendPermissionLevel = 'forbidden' | 'draft_confirm' | 'send_cancellable' | 'full_auto'
+/** 三级发送权限（send_cancellable 和 full_auto 合并为 auto） */
+export type SendPermissionLevel = 'forbidden' | 'draft_confirm' | 'auto'
+
+/** Agent 能力预设 — UI 快捷方式，运行时行为由底层独立字段决定 */
+export type AgentLevelPreset = 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'Custom'
+
+/** Per-session 自动回复追踪 */
+export interface AutoReplyTracker {
+  /** 该 session 累计自动回复次数 */
+  count: number
+  /** 该 session 上次自动回复的时间戳，null 表示从未触发 */
+  lastAt: number | null
+}
 
 /** Agent 可执行操作类型 */
 export type AgentAction =
@@ -53,7 +64,9 @@ export type AgentAction =
 export interface SessionAgentConfig {
   /** 会话 ID */
   sessionId: string
-  /** 发送权限级别 */
+  /** UI 预设级别 — 由 deriveLevelPreset() 推导，非真源 */
+  levelPreset: AgentLevelPreset
+  /** 发送权限级别 — 底层独立字段，真源 */
   sendPermission: SendPermissionLevel
   /** 用户操作权限 */
   userActions: {
@@ -101,7 +114,9 @@ export interface SessionAgentConfig {
 export interface PersistedAgentConfig {
   /** 全局默认值 */
   defaults: {
-    /** 默认发送权限 */
+    /** 默认预设级别 — 由 deriveLevelPreset() 推导 */
+    levelPreset: AgentLevelPreset
+    /** 默认发送权限 — 底层独立字段，三级模型 */
     sendPermission: SendPermissionLevel
     /** 默认允许的操作 */
     allowedActions: AgentAction[]

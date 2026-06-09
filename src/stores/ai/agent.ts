@@ -6,6 +6,8 @@ import type {
   AgentSendingStatus,
   AgentSessionFilter,
   SendPermissionLevel,
+  AgentLevelPreset,
+  AutoReplyTracker,
   AgentAction,
   SessionAgentConfig,
   PersistedAgentConfig,
@@ -26,6 +28,7 @@ const DEFAULT_CONFIG: AgentConfig = {
 
 const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
   defaults: {
+    levelPreset: 'L2',
     sendPermission: 'draft_confirm',
     allowedActions: ['draft_reply', 'analyze'],
     observerEnabled: false,
@@ -49,6 +52,27 @@ function generateId(): string {
     return crypto.randomUUID()
   }
   return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+export function deriveLevelPreset(config: SessionAgentConfig): AgentLevelPreset {
+  const { sendPermission, observer, keywordMonitor } = config
+  if (sendPermission === 'forbidden' && !observer.enabled && !keywordMonitor.enabled) return 'L0'
+  if (sendPermission === 'forbidden' && observer.enabled && !keywordMonitor.enabled && !observer.autoReply) return 'L1'
+  if (sendPermission === 'draft_confirm' && observer.enabled && !keywordMonitor.enabled && !observer.autoReply) return 'L2'
+  if (sendPermission === 'auto' && observer.enabled && keywordMonitor.enabled && !observer.autoReply) return 'L3'
+  if (sendPermission === 'auto' && observer.enabled && !keywordMonitor.enabled && observer.autoReply) return 'L4'
+  return 'Custom'
+}
+
+export function applyLevelPreset(preset: AgentLevelPreset): Partial<SessionAgentConfig> {
+  switch (preset) {
+    case 'L0': return { sendPermission: 'forbidden', observer: { enabled: false, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
+    case 'L1': return { sendPermission: 'forbidden', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
+    case 'L2': return { sendPermission: 'draft_confirm', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
+    case 'L3': return { sendPermission: 'auto', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 }, keywordMonitor: { enabled: true, matchPatterns: [] } }
+    case 'L4': return { sendPermission: 'auto', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: true, autoReplyCount: 1 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
+    case 'Custom': return {}
+  }
 }
 
 export const useAIAgentStore = defineStore('aiAgent', () => {
@@ -76,8 +100,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
   // --- 不变 state ---
   const drafts = ref<AgentDraft[]>([])
   const sendingStatuses = ref<AgentSendingStatus[]>([])
-  const autoReplyCount = ref(0)
-  const lastAutoReplyAt = ref<number | null>(null)
+  const autoReplyTrackers = ref<Map<string, AutoReplyTracker>>(new Map())
 
   // ==================== Getters ====================
 
@@ -100,6 +123,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
     const config: SessionAgentConfig = {
       sessionId,
+      levelPreset: 'L0', // placeholder, derived below
       sendPermission: sessionOverride?.sendPermission ?? defaults.sendPermission,
       userActions: {
         enabled: true,
@@ -126,6 +150,8 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
       config.model = sessionOverride.model
     }
 
+    config.levelPreset = deriveLevelPreset(config)
+
     return config
   }
 
@@ -133,10 +159,6 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
   const canAutoReply = computed(() => {
     if (!enabled.value) return false
     if (config.value.mode !== 'auto') return false
-    if (config.value.maxAutoReplies > 0 && autoReplyCount.value >= config.value.maxAutoReplies) return false
-    if (config.value.cooldownMs > 0 && lastAutoReplyAt.value) {
-      if (Date.now() - lastAutoReplyAt.value < config.value.cooldownMs) return false
-    }
     return true
   })
 
@@ -144,12 +166,23 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
   function canAutoReplySession(sessionId: string): boolean {
     if (!enabled.value) return false
     const effective = getEffectiveConfig(sessionId)
-    if (effective.sendPermission !== 'full_auto') return false
-    if (effective.maxAutoReplies > 0 && autoReplyCount.value >= effective.maxAutoReplies) return false
-    if (effective.cooldownMs > 0 && lastAutoReplyAt.value) {
-      if (Date.now() - lastAutoReplyAt.value < effective.cooldownMs) return false
+    if (!effective.observer.autoReply || effective.sendPermission !== 'auto') return false
+    if (effective.maxAutoReplies > 0) {
+      const tracker = autoReplyTrackers.value.get(sessionId)
+      if (tracker && tracker.count >= effective.maxAutoReplies) return false
+    }
+    if (effective.cooldownMs > 0) {
+      const tracker = autoReplyTrackers.value.get(sessionId)
+      if (tracker?.lastAt && Date.now() - tracker.lastAt < effective.cooldownMs) return false
     }
     return true
+  }
+
+  /** 检查指定会话是否允许关键词自动发送 */
+  function canKeywordAutoSend(sessionId: string): boolean {
+    if (!enabled.value) return false
+    const effective = getEffectiveConfig(sessionId)
+    return effective.keywordMonitor.enabled && effective.sendPermission === 'auto'
   }
 
   // ==================== Config Actions (B1, deprecated) ====================
@@ -189,13 +222,18 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
   // ==================== Config Actions (B2) ====================
 
-  /** 更新全局默认发送权限 */
-  function updateDefaultPermission(permission: SendPermissionLevel): void {
+  /** 更新全局默认预设级别 */
+  function updateDefaultLevelPreset(preset: AgentLevelPreset): void {
+    const patch = applyLevelPreset(preset)
     persistedConfig.value = {
       ...persistedConfig.value,
       defaults: {
         ...persistedConfig.value.defaults,
-        sendPermission: permission,
+        levelPreset: preset,
+        sendPermission: patch.sendPermission ?? persistedConfig.value.defaults.sendPermission,
+        observerEnabled: patch.observer?.enabled ?? persistedConfig.value.defaults.observerEnabled,
+        observerAutoReply: patch.observer?.autoReply ?? persistedConfig.value.defaults.observerAutoReply,
+        keywordEnabled: patch.keywordMonitor?.enabled ?? persistedConfig.value.defaults.keywordEnabled,
       },
     }
   }
@@ -362,14 +400,27 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
   // ==================== Auto Reply Tracking ====================
 
-  function incrementAutoReplyCount(): void {
-    autoReplyCount.value++
-    lastAutoReplyAt.value = Date.now()
+  function getAutoReplyTracker(sessionId: string): AutoReplyTracker {
+    let tracker = autoReplyTrackers.value.get(sessionId)
+    if (!tracker) {
+      tracker = { count: 0, lastAt: null }
+      autoReplyTrackers.value = new Map(autoReplyTrackers.value).set(sessionId, tracker)
+    }
+    return tracker
   }
 
-  function resetAutoReplyCount(): void {
-    autoReplyCount.value = 0
-    lastAutoReplyAt.value = null
+  function incrementAutoReplyTracker(sessionId: string): void {
+    const tracker = getAutoReplyTracker(sessionId)
+    autoReplyTrackers.value = new Map(autoReplyTrackers.value).set(sessionId, {
+      count: tracker.count + 1,
+      lastAt: Date.now(),
+    })
+  }
+
+  function resetAutoReplyTracker(sessionId: string): void {
+    const newMap = new Map(autoReplyTrackers.value)
+    newMap.delete(sessionId)
+    autoReplyTrackers.value = newMap
   }
 
   // ==================== Migration ====================
@@ -392,8 +443,53 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     }
   }
 
+  /** 迁移旧格式配置到新格式（send_cancellable/full_auto → auto，推导 levelPreset） */
+  function migratePersistedConfig(): void {
+    const defaults = persistedConfig.value.defaults
+    let changed = false
+
+    // send_cancellable / full_auto → auto
+    if (defaults.sendPermission === 'send_cancellable' || defaults.sendPermission === 'full_auto') {
+      (defaults as any).sendPermission = 'auto'
+      changed = true
+    }
+
+    // 推导 levelPreset
+    const tempConfig: SessionAgentConfig = {
+      sessionId: '__migration__',
+      levelPreset: 'L0',
+      sendPermission: defaults.sendPermission as SendPermissionLevel,
+      userActions: { enabled: true, allowedActions: defaults.allowedActions },
+      allowScheduledMessages: false,
+      observer: {
+        enabled: defaults.observerEnabled,
+        intervalSeconds: defaults.observerIntervalSeconds,
+        minNewMessages: defaults.observerMinNewMessages,
+        autoReply: defaults.observerAutoReply,
+        autoReplyCount: defaults.observerAutoReplyCount,
+      },
+      keywordMonitor: {
+        enabled: defaults.keywordEnabled,
+        matchPatterns: defaults.keywordMatchPatterns,
+      },
+      maxAutoReplies: defaults.maxAutoReplies,
+      cooldownMs: defaults.cooldownMs,
+    }
+
+    const derivedPreset = deriveLevelPreset(tempConfig)
+    if (!('levelPreset' in defaults) || (defaults as any).levelPreset !== derivedPreset) {
+      (defaults as any).levelPreset = derivedPreset
+      changed = true
+    }
+
+    if (changed) {
+      persistedConfig.value = { ...persistedConfig.value }
+    }
+  }
+
   /** store 初始化时自动执行数据迁移 */
   migrateFromB1()
+  migratePersistedConfig()
 
   // ==================== Reset ====================
 
@@ -407,8 +503,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     keywordResults.value = new Map()
     drafts.value = []
     sendingStatuses.value = []
-    autoReplyCount.value = 0
-    lastAutoReplyAt.value = null
+    autoReplyTrackers.value = new Map()
   }
 
   return {
@@ -422,8 +517,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     keywordResults,
     drafts,
     sendingStatuses,
-    autoReplyCount,
-    lastAutoReplyAt,
+    autoReplyTrackers,
 
     // Getters
     pendingDrafts,
@@ -441,7 +535,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     isSessionTargeted,
 
     // Config Actions (B2)
-    updateDefaultPermission,
+    updateDefaultLevelPreset,
     setDefaultActions,
     setSessionConfig,
     clearSessionConfig,
@@ -449,6 +543,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
     // Per-session permission
     canAutoReplySession,
+    canKeywordAutoSend,
 
     // Observer Actions
     getObserverState,
@@ -474,11 +569,13 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     clearSendingStatuses,
 
     // Auto Reply Tracking
-    incrementAutoReplyCount,
-    resetAutoReplyCount,
+    getAutoReplyTracker,
+    incrementAutoReplyTracker,
+    resetAutoReplyTracker,
 
     // Migration
     migrateFromB1,
+    migratePersistedConfig,
 
     // Reset
     $reset,

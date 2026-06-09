@@ -1,15 +1,56 @@
 import { ref, watch, type Ref } from 'vue'
 import { useAIAgentStore } from '@/stores/ai/agent'
+import { useSessionStore } from '@/stores/session'
 import { useChatMessagesStore } from '@/stores/chatMessages'
 import { chatStream } from '@/api/llm'
 import { getContextMessages } from '@/utils/getContextMessages'
-import type { KeywordResult } from '@/types/ai/agent'
+import type { ChatMessage } from '@/types/ai'
+import type { KeywordResult, SessionAgentConfig } from '@/types/ai/agent'
 
 function generateId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()
   }
   return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+async function generateKeywordReply(
+  sessionId: string,
+  messages: ReturnType<typeof getContextMessages> extends Promise<infer T> ? T : never,
+  keywordResult: KeywordResult,
+  config: SessionAgentConfig,
+): Promise<string | null> {
+  const contextText = messages
+    .map((m) => `[${m.isSelf ? '我' : m.talkerName || m.talker}] ${m.content}`)
+    .join('\n')
+
+  const prompt = `检测到关键词「${keywordResult.matchedPattern}」，请基于以下对话上下文生成一条自然的回复消息（只说回复内容本身，不要加任何前缀或说明）：
+
+对话上下文：
+${contextText}
+
+分析摘要：${keywordResult.summary}
+
+请生成一条简短、自然的回复消息：`
+
+  const llmMessages: ChatMessage[] = [
+    {
+      role: 'system',
+      content: '你是一个聊天助手，根据对话上下文和关键词匹配生成一条自然的回复消息。输出使用中文。只回复内容本身，不要加任何前缀说明。',
+    },
+    { role: 'user', content: prompt },
+  ]
+
+  let replyContent = ''
+  try {
+    for await (const chunk of chatStream({ messages: llmMessages, model: config.model })) {
+      replyContent += chunk.choices?.[0]?.delta?.content || ''
+    }
+  } catch {
+    return null
+  }
+
+  return replyContent.trim() || null
 }
 
 /**
@@ -41,6 +82,7 @@ export function useKeywordMonitor(sessionId: string | Ref<string>) {
     matchedPattern: string,
   ): Promise<void> {
     const currentSid = sid.value
+    const config = agentStore.getEffectiveConfig(currentSid)
     try {
       const contextMessages = await getContextMessages(currentSid, 20)
 
@@ -91,6 +133,44 @@ ${contextText}
 
       agentStore.addKeywordResult(currentSid, result)
       results.value = results.value.concat(result)
+
+      if (config.sendPermission !== 'forbidden') {
+        const replyContent = await generateKeywordReply(currentSid, contextMessages, result, config)
+        if (!replyContent) return
+
+        const sessionStore = useSessionStore()
+        const session = sessionStore.sessions.find((s) => s.id === currentSid)
+        const sessionName = session?.name ?? session?.talkerName ?? currentSid
+        const lastRealMessage = [...contextMessages].reverse().find((m) => !m.isSelf)
+        const contactName =
+          lastRealMessage?.talkerName || lastRealMessage?.senderName || session?.talkerName || ''
+
+        if (config.sendPermission === 'draft_confirm') {
+          agentStore.addDraft({
+            sourceMessageId: result.id,
+            sessionId: currentSid,
+            sessionName,
+            contactName,
+            content: replyContent,
+            generatedAt: Date.now(),
+          })
+        } else if (config.sendPermission === 'auto') {
+          const tracker = agentStore.getAutoReplyTracker(currentSid)
+          if (config.cooldownMs > 0 && tracker.lastAt && Date.now() - tracker.lastAt < config.cooldownMs) {
+            return
+          }
+          // TODO: 调用 sendmsgAPI.send() 发送回复；目前先存草稿，待 sendmsg API 集成后替换
+          agentStore.addDraft({
+            sourceMessageId: result.id,
+            sessionId: currentSid,
+            sessionName,
+            contactName,
+            content: replyContent,
+            generatedAt: Date.now(),
+          })
+          agentStore.incrementAutoReplyTracker(currentSid)
+        }
+      }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : '关键词分析失败'
       const result: KeywordResult = {

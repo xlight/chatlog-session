@@ -142,31 +142,45 @@ async function generateAndSendReply(
       replyContent += chunk.choices?.[0]?.delta?.content || ''
     }
   } catch {
-    // 回复生成静默失败，分析本身已成功
     return
   }
 
   if (!replyContent.trim()) return
 
-  // 获取会话信息用于草稿
   const sessionStore = useSessionStore()
   const session = sessionStore.sessions.find((s) => s.id === currentSid)
   const sessionName = session?.name ?? session?.talkerName ?? currentSid
-
-  // 取最新非自己消息的发送者作为联系人
   const lastRealMessage = [...messages].reverse().find((m) => !m.isSelf)
   const contactName =
     lastRealMessage?.talkerName || lastRealMessage?.senderName || session?.talkerName || ''
 
-  // 存入草稿（draft_confirm 等待用户确认；send_cancellable/full_auto 由已有管道处理发送）
-  agentStore.addDraft({
-    sourceMessageId: result.id,
-    sessionId: currentSid,
-    sessionName,
-    contactName,
-    content: replyContent.trim(),
-    generatedAt: Date.now(),
-  })
+  const trimmedContent = replyContent.trim()
+
+  if (config.sendPermission === 'draft_confirm') {
+    agentStore.addDraft({
+      sourceMessageId: result.id,
+      sessionId: currentSid,
+      sessionName,
+      contactName,
+      content: trimmedContent,
+      generatedAt: Date.now(),
+    })
+  } else if (config.sendPermission === 'auto') {
+    const tracker = agentStore.getAutoReplyTracker(currentSid)
+    if (config.cooldownMs > 0 && tracker.lastAt && Date.now() - tracker.lastAt < config.cooldownMs) {
+      return
+    }
+    // TODO: 调用 sendmsgAPI.send() 发送回复；目前先存草稿，待 sendmsg API 集成后替换
+    agentStore.addDraft({
+      sourceMessageId: result.id,
+      sessionId: currentSid,
+      sessionName,
+      contactName,
+      content: trimmedContent,
+      generatedAt: Date.now(),
+    })
+    agentStore.incrementAutoReplyTracker(currentSid)
+  }
 }
 
 export function useAgentObserver(sessionId: string | Ref<string>) {

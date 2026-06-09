@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue'
 import type { Session, SessionDetail } from '@/types'
 import { useDisplayName } from './composables'
 import { useChatroomStore } from '@/stores/chatroom'
-import { useAIAgentStore } from '@/stores/ai/agent'
+import { useAIAgentStore, deriveLevelPreset, applyLevelPreset } from '@/stores/ai/agent'
+import type { AgentLevelPreset } from '@/types/ai/agent'
 import SessionAgentConfigDialog from './SessionAgentConfigDialog.vue'
 
 interface Props {
@@ -35,34 +36,45 @@ const memberCount = ref<number | null>(null)
 // 会话级 Agent 配置弹窗
 const showAgentDialog = ref(false)
 
-// Agent 权限颜色
+// Agent 预设颜色
+const agentLevelColors: Record<AgentLevelPreset, string> = {
+  L0: '#c0c4cc',
+  L1: '#e6a23c',
+  L2: '#409eff',
+  L3: '#67c23a',
+  L4: '#9b59b6',
+  Custom: '#f56c6c',
+}
+
+const agentLevelLabels: Record<AgentLevelPreset, string> = {
+  L0: '禁用', L1: '仅旁观', L2: '草稿确认',
+  L3: '关键词自动', L4: '智能代理', Custom: '自定义',
+}
+
 const agentPermissionColor = computed(() => {
   if (!props.session?.id) return '#c0c4cc'
   const config = agentStore.getEffectiveConfig(props.session.id)
-  switch (config.sendPermission) {
-    case 'forbidden': return '#c0c4cc'
-    case 'draft_confirm': return '#e6a23c'
-    case 'send_cancellable': return '#409eff'
-    case 'full_auto': return '#67c23a'
-    default: return '#c0c4cc'
-  }
+  return agentLevelColors[deriveLevelPreset(config)]
 })
 
 // Agent 状态摘要文本
 const agentStatusLabel = computed(() => {
   if (!props.session?.id) return ''
   const config = agentStore.getEffectiveConfig(props.session.id)
-  const parts: string[] = []
-  switch (config.sendPermission) {
-    case 'forbidden': parts.push('禁用'); break
-    case 'draft_confirm': parts.push('草稿'); break
-    case 'send_cancellable': parts.push('自动†'); break
-    case 'full_auto': parts.push('全自动'); break
-  }
+  const preset = deriveLevelPreset(config)
+  const parts: string[] = [agentLevelLabels[preset]]
   if (config.observer.enabled) parts.push('旁观')
   if (config.keywordMonitor.enabled) parts.push('关键词')
   return parts.join(' | ')
 })
+
+const presetOptions: AgentLevelPreset[] = ['L0', 'L1', 'L2', 'L3', 'L4', 'Custom']
+
+function handlePresetChange(preset: AgentLevelPreset) {
+  if (!props.session?.id || preset === 'Custom') return
+  const patch = applyLevelPreset(preset)
+  agentStore.setSessionConfig(props.session.id, patch)
+}
 
 // 使用 displayName composable
 const { displayName } = useDisplayName({
@@ -200,17 +212,22 @@ function handleDropdownCommand(cmd: string) {
             />
           </div>
           <div class="toggle-row">
-            <span>发送权限</span>
+            <span>预设等级</span>
             <el-select
               size="small"
-              :model-value="agentStore.getEffectiveConfig(session?.id ?? '').sendPermission"
-              @update:model-value="agentStore.setSessionConfig(session!.id, { sendPermission: $event })"
+              :model-value="deriveLevelPreset(agentStore.getEffectiveConfig(session?.id ?? ''))"
+              @update:model-value="handlePresetChange"
               style="width: 120px"
             >
-              <el-option label="禁止" value="forbidden" />
-              <el-option label="草稿确认" value="draft_confirm" />
-              <el-option label="可取消发送" value="send_cancellable" />
-              <el-option label="全自动" value="full_auto" />
+              <el-option
+                v-for="p in presetOptions"
+                :key="p"
+                :label="`${p} ${agentLevelLabels[p]}`"
+                :value="p"
+              >
+                <span :style="{ color: agentLevelColors[p] }">{{ p }}</span>
+                <span style="margin-left: 4px">{{ agentLevelLabels[p] }}</span>
+              </el-option>
             </el-select>
           </div>
           <el-divider style="margin: 8px 0" />

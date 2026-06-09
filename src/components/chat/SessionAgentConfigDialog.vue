@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useAIAgentStore } from '@/stores/ai/agent'
-import type { SendPermissionLevel } from '@/types/ai/agent'
+import { useAIAgentStore, deriveLevelPreset, applyLevelPreset } from '@/stores/ai/agent'
+import type { AgentLevelPreset } from '@/types/ai/agent'
 
 const props = defineProps<{
   modelValue: boolean
@@ -20,11 +20,12 @@ const agentStore = useAIAgentStore()
 const effectiveConfig = computed(() => agentStore.getEffectiveConfig(props.sessionId))
 
 const sendPermission = computed(() => effectiveConfig.value.sendPermission)
+const currentPreset = computed(() => deriveLevelPreset(effectiveConfig.value))
+const isCustomMode = computed(() => currentPreset.value === 'Custom')
 const observerEnabled = computed(() => effectiveConfig.value.observer.enabled)
 const observerInterval = computed(() => effectiveConfig.value.observer.intervalSeconds)
 const observerMinNewMessages = computed(() => effectiveConfig.value.observer.minNewMessages)
 const observerAutoReply = computed(() => effectiveConfig.value.observer.autoReply)
-const observerAutoReplyCount = computed(() => effectiveConfig.value.observer.autoReplyCount)
 const keywordEnabled = computed(() => effectiveConfig.value.keywordMonitor.enabled)
 const maxAutoReplies = computed(() => effectiveConfig.value.maxAutoReplies)
 const cooldownMs = computed(() => effectiveConfig.value.cooldownMs)
@@ -96,13 +97,39 @@ function handleOpened() {
   loadKeywordPatterns()
 }
 
-// 权限选项常量
-const permissionOptions = [
-  { value: 'forbidden' as const, label: '禁止' },
-  { value: 'draft_confirm' as const, label: '草稿确认' },
-  { value: 'send_cancellable' as const, label: '可取消发送' },
-  { value: 'full_auto' as const, label: '全自动' },
-]
+// 预设选项
+const presetLabels: Record<AgentLevelPreset, string> = {
+  L0: 'L0 - 完全禁用',
+  L1: 'L1 - 仅旁观',
+  L2: 'L2 - 草稿确认',
+  L3: 'L3 - 关键词自动',
+  L4: 'L4 - 智能代理',
+  Custom: '自定义',
+}
+
+const presetDescriptions: Record<AgentLevelPreset, string> = {
+  L0: '禁止所有 Agent 行为',
+  L1: '仅旁观分析会话，不自动回复',
+  L2: '旁观分析 + 生成草稿需确认后发送',
+  L3: '旁观分析 + 关键词监测 + 自动回复',
+  L4: '旁观分析 + 主动观察并自动回复',
+  Custom: '手动配置所有选项',
+}
+
+const presetColors: Record<AgentLevelPreset, string> = {
+  L0: '#c0c4cc',
+  L1: '#e6a23c',
+  L2: '#409eff',
+  L3: '#67c23a',
+  L4: '#9b59b6',
+  Custom: '#f56c6c',
+}
+
+function handlePresetChange(preset: AgentLevelPreset) {
+  if (preset === 'Custom') return
+  const patch = applyLevelPreset(preset)
+  agentStore.setSessionConfig(props.sessionId, patch)
+}
 </script>
 
 <template>
@@ -114,112 +141,116 @@ const permissionOptions = [
     @opened="handleOpened"
   >
     <el-form label-width="120px" label-position="left" size="small">
-      <el-divider content-position="left">发送权限</el-divider>
+      <el-divider content-position="left">预设等级</el-divider>
 
-      <el-form-item label="发送权限">
+      <el-form-item label="等级">
         <el-select
-          :model-value="sendPermission"
-          @update:model-value="updateField('sendPermission', $event)"
+          :model-value="currentPreset"
+          @update:model-value="handlePresetChange"
           style="width: 100%"
         >
           <el-option
-            v-for="opt in permissionOptions"
-            :key="opt.value"
-            :label="opt.label"
-            :value="opt.value"
-          />
+            v-for="(label, key) in presetLabels"
+            :key="key"
+            :label="label"
+            :value="key"
+          >
+            <span>
+              <span :style="{ color: presetColors[key as AgentLevelPreset], fontWeight: 600 }">{{ key }}</span>
+              <span style="margin-left: 4px">{{ label.slice(key.length + 2) }}</span>
+            </span>
+          </el-option>
         </el-select>
       </el-form-item>
 
-      <el-divider content-position="left">旁观模式 (Observer)</el-divider>
-
-      <el-form-item label="启用">
-        <el-switch
-          :model-value="observerEnabled"
-          @update:model-value="updateObserver('enabled', $event)"
-        />
-      </el-form-item>
-      <el-form-item label="分析间隔（秒）">
-        <el-input-number
-          :model-value="observerInterval"
-          @update:model-value="updateObserver('intervalSeconds', $event)"
-          :min="60"
-          :max="3600"
-          :step="30"
-          style="width: 100%"
-        />
-      </el-form-item>
-      <el-form-item label="最少新消息">
-        <el-input-number
-          :model-value="observerMinNewMessages"
-          @update:model-value="updateObserver('minNewMessages', $event)"
-          :min="1"
-          :max="100"
-          style="width: 100%"
-        />
-      </el-form-item>
-      <el-form-item label="分析后回复">
-        <el-switch
-          :model-value="observerAutoReply"
-          @update:model-value="updateObserver('autoReply', $event)"
-        />
-      </el-form-item>
-      <el-form-item label="最多回复数">
-        <el-input-number
-          :model-value="observerAutoReplyCount"
-          @update:model-value="updateObserver('autoReplyCount', $event)"
-          :min="1"
-          :max="10"
-          style="width: 100%"
-        />
+      <el-form-item v-if="!isCustomMode" label="说明">
+        <span style="font-size: 12px; color: var(--el-text-color-secondary)">
+          {{ presetDescriptions[currentPreset] }}
+        </span>
       </el-form-item>
 
-      <el-divider content-position="left">关键词监测</el-divider>
+      <template v-if="isCustomMode">
+        <el-divider content-position="left">旁观模式 (Observer)</el-divider>
 
-      <el-form-item label="启用">
-        <el-switch
-          :model-value="keywordEnabled"
-          @update:model-value="updateKeyword('enabled', $event)"
-        />
-      </el-form-item>
-      <el-form-item label="关键词列表">
-        <el-input
-          :model-value="keywordPatterns"
-          @update:model-value="handlePatternsInput"
-          placeholder="逗号分隔多个关键词"
-        />
-      </el-form-item>
+        <el-form-item label="启用">
+          <el-switch
+            :model-value="observerEnabled"
+            @update:model-value="updateObserver('enabled', $event)"
+          />
+        </el-form-item>
+        <el-form-item label="分析间隔（秒）">
+          <el-input-number
+            :model-value="observerInterval"
+            @update:model-value="updateObserver('intervalSeconds', $event)"
+            :min="60"
+            :max="3600"
+            :step="30"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="最少新消息">
+          <el-input-number
+            :model-value="observerMinNewMessages"
+            @update:model-value="updateObserver('minNewMessages', $event)"
+            :min="1"
+            :max="100"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="分析后回复">
+          <el-switch
+            :model-value="observerAutoReply"
+            @update:model-value="updateObserver('autoReply', $event)"
+          />
+        </el-form-item>
 
-      <el-divider content-position="left">回复设置</el-divider>
+        <el-divider content-position="left">关键词监测</el-divider>
 
-      <el-form-item label="最大回复次数">
-        <el-input-number
-          :model-value="maxAutoReplies"
-          @update:model-value="updateField('maxAutoReplies', $event)"
-          :min="0"
-          :max="100"
-          style="width: 100%"
-        />
-      </el-form-item>
-      <el-form-item label="冷却时间（ms）">
-        <el-input-number
-          :model-value="cooldownMs"
-          @update:model-value="updateField('cooldownMs', $event)"
-          :min="0"
-          :step="1000"
-          style="width: 100%"
-        />
-      </el-form-item>
+        <el-form-item label="启用">
+          <el-switch
+            :model-value="keywordEnabled"
+            @update:model-value="updateKeyword('enabled', $event)"
+          />
+        </el-form-item>
+        <el-form-item label="关键词列表">
+          <el-input
+            :model-value="keywordPatterns"
+            @update:model-value="handlePatternsInput"
+            placeholder="逗号分隔多个关键词"
+          />
+        </el-form-item>
 
-      <el-divider content-position="left">高级</el-divider>
+        <el-divider content-position="left">回复设置</el-divider>
 
-      <el-form-item label="Prompt 覆盖">
-        <el-input
-          :model-value="promptTemplateId"
-          @update:model-value="updateField('promptTemplateId', $event || undefined)"
-          placeholder="留空使用全局默认"
-        />
-      </el-form-item>
+        <el-form-item label="最大回复次数">
+          <el-input-number
+            :model-value="maxAutoReplies"
+            @update:model-value="updateField('maxAutoReplies', $event)"
+            :min="0"
+            :max="100"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="冷却时间（ms）">
+          <el-input-number
+            :model-value="cooldownMs"
+            @update:model-value="updateField('cooldownMs', $event)"
+            :min="0"
+            :step="1000"
+            style="width: 100%"
+          />
+        </el-form-item>
+
+        <el-divider content-position="left">高级</el-divider>
+
+        <el-form-item label="Prompt 覆盖">
+          <el-input
+            :model-value="promptTemplateId"
+            @update:model-value="updateField('promptTemplateId', $event || undefined)"
+            placeholder="留空使用全局默认"
+          />
+        </el-form-item>
+      </template>
     </el-form>
 
     <template #footer>

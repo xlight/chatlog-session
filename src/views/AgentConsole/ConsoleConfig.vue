@@ -9,7 +9,8 @@ import { ElMessage } from 'element-plus'
 import { Connection, Refresh, Edit, Delete } from '@element-plus/icons-vue'
 import { listModels, testConnection } from '@/api/llm'
 import type { ModelInfo } from '@/types/ai'
-import type { SessionAgentConfig } from '@/types/ai/agent'
+import type { AgentLevelPreset, SessionAgentConfig } from '@/types/ai/agent'
+import { deriveLevelPreset } from '@/stores/ai/agent'
 import SessionAgentConfigDialog from '@/components/chat/SessionAgentConfigDialog.vue'
 
 const settingsStore = useSettingsStore()
@@ -24,11 +25,38 @@ const loadingModels = ref(false)
 const editingSession = ref<{ id: string; name: string } | null>(null)
 const showEditDialog = ref(false)
 
-const permissionLabels: Record<string, string> = {
-  forbidden: '禁止',
-  draft_confirm: '草稿确认',
-  send_cancellable: '可取消发送',
-  full_auto: '全自动',
+const defaultPreset = computed(() => agentStore.persistedConfig.defaults.levelPreset)
+const isDefaultCustom = computed(() => defaultPreset.value === 'Custom')
+
+const presetLabels: Record<AgentLevelPreset, string> = {
+  L0: 'L0 - 完全禁用',
+  L1: 'L1 - 仅旁观',
+  L2: 'L2 - 草稿确认',
+  L3: 'L3 - 关键词自动',
+  L4: 'L4 - 智能代理',
+  Custom: '自定义',
+}
+
+const presetColors: Record<AgentLevelPreset, string> = {
+  L0: '#c0c4cc',
+  L1: '#e6a23c',
+  L2: '#409eff',
+  L3: '#67c23a',
+  L4: '#9b59b6',
+  Custom: '#f56c6c',
+}
+
+const presetDescriptions: Record<AgentLevelPreset, string> = {
+  L0: '禁止所有 Agent 行为',
+  L1: '仅旁观分析会话，不自动回复',
+  L2: '旁观分析 + 生成草稿需确认后发送',
+  L3: '旁观分析 + 关键词监测 + 自动回复',
+  L4: '旁观分析 + 主动观察并自动回复',
+  Custom: '手动配置所有选项',
+}
+
+function handleDefaultPresetChange(preset: AgentLevelPreset) {
+  agentStore.updateDefaultLevelPreset(preset)
 }
 
 onMounted(async () => {
@@ -68,14 +96,14 @@ async function handleTestConnection() {
 
 /** 已覆盖默认配置的会话列表 */
 const configuredSessions = computed(() => {
-  const defaultPerm = agentStore.persistedConfig.defaults.sendPermission
-  const overrides: Array<{ id: string; name: string; config: SessionAgentConfig }> = []
+  const overrides: Array<{ id: string; name: string; preset: AgentLevelPreset; config: SessionAgentConfig }> = []
   for (const [sid, config] of Object.entries(agentStore.sessionConfigs)) {
     const session = sessionStore.sessions.find((s) => s.id === sid)
     overrides.push({
       id: sid,
       name: session?.name ?? session?.talkerName ?? sid,
-      config: agentStore.getEffectiveConfig(sid),
+      preset: deriveLevelPreset(config),
+      config,
     })
   }
   return overrides
@@ -181,17 +209,20 @@ function handleDeleteConfig(sessionId: string) {
         <span>Agent 默认配置</span>
       </template>
       <el-form label-position="top" class="config-form">
-        <el-form-item label="默认发送权限">
+        <el-form-item label="默认预设等级">
           <el-select
-            :model-value="agentStore.persistedConfig.defaults.sendPermission"
-            @update:model-value="agentStore.updateDefaultPermission($event)"
+            :model-value="defaultPreset"
+            @update:model-value="handleDefaultPresetChange"
             style="width: 240px"
           >
-            <el-option label="禁止" value="forbidden" />
-            <el-option label="草稿确认" value="draft_confirm" />
-            <el-option label="可取消发送" value="send_cancellable" />
-            <el-option label="全自动" value="full_auto" />
+            <el-option
+              v-for="(label, key) in presetLabels"
+              :key="key"
+              :label="label"
+              :value="key"
+            />
           </el-select>
+          <span v-if="!isDefaultCustom" class="form-hint">{{ presetDescriptions[defaultPreset] }}</span>
         </el-form-item>
 
         <el-form-item label="默认允许的操作">
@@ -208,6 +239,7 @@ function handleDeleteConfig(sessionId: string) {
           </el-checkbox-group>
         </el-form-item>
 
+        <template v-if="isDefaultCustom">
         <el-divider content-position="left">旁观模式 (Observer)</el-divider>
 
         <el-form-item label="默认启用">
@@ -303,6 +335,8 @@ function handleDeleteConfig(sessionId: string) {
           />
         </el-form-item>
 
+        </template>
+
         <el-divider content-position="left">回复限制</el-divider>
 
         <el-form-item label="最大自动回复次数">
@@ -365,8 +399,8 @@ function handleDeleteConfig(sessionId: string) {
         >
           <div class="session-info">
             <span class="session-name">{{ item.name }}</span>
-            <el-tag size="small" :type="item.config.sendPermission === 'forbidden' ? 'danger' : 'success'">
-              {{ permissionLabels[item.config.sendPermission] }}
+            <el-tag size="small" :style="{ color: '#fff', backgroundColor: presetColors[item.preset], border: 'none' }">
+              {{ item.preset }}
             </el-tag>
             <span v-if="item.config.observer.enabled" class="feature-tag">旁观</span>
             <span v-if="item.config.keywordMonitor.enabled" class="feature-tag">关键词</span>
