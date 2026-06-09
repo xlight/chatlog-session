@@ -6,10 +6,11 @@
  */
 import { watch, ref, computed, toRef, type Ref } from 'vue'
 import { useAIAgentStore } from '@/stores/ai/agent'
+import { useSessionStore } from '@/stores/session'
 import { useChatMessagesStore } from '@/stores/chatMessages'
 import { chatStream } from '@/api/llm'
 import { getContextMessages } from '@/utils/getContextMessages'
-import type { ObserverResult } from '@/types/ai/agent'
+import type { ObserverResult, SessionAgentConfig } from '@/types/ai/agent'
 import type { ChatMessage } from '@/types/ai'
 import type { Message } from '@/types/message'
 
@@ -98,6 +99,76 @@ function buildAnalysisPrompt(messages: Message[]): string {
   )
 }
 
+/**
+ * 构建回复生成 prompt
+ * 使用已获取的上下文消息 + 分析结果，指示 AI 生成自然回复
+ */
+function buildReplyPrompt(messages: Message[], result: ObserverResult): string {
+  const chatLog = messages.map(formatMessageForPrompt).join('\n')
+  return (
+    '基于以下聊天记录和分析结果，生成一条自然的回复消息（只说回复内容本身，不要加任何前缀或说明）：\n\n' +
+    `聊天记录：\n${chatLog}\n\n` +
+    `分析摘要：${result.summary}\n` +
+    `关键点：${result.keyPoints.join('、')}\n\n` +
+    '请生成一条简短、自然的回复消息：'
+  )
+}
+
+/**
+ * AI 生成回复并存入草稿
+ */
+async function generateAndSendReply(
+  currentSid: string,
+  messages: Message[],
+  result: ObserverResult,
+  config: SessionAgentConfig,
+  agentStore: ReturnType<typeof useAIAgentStore>,
+): Promise<void> {
+  if (config.sendPermission === 'forbidden') return
+
+  const replyPrompt = buildReplyPrompt(messages, result)
+  const llmMessages: ChatMessage[] = [
+    {
+      role: 'system',
+      content:
+        '你是一个聊天助手，根据对话上下文生成一条自然的回复消息。输出使用中文。只回复内容本身，不要加任何前缀说明。',
+    },
+    { role: 'user', content: replyPrompt },
+  ]
+
+  let replyContent = ''
+  try {
+    for await (const chunk of chatStream({ messages: llmMessages, model: config.model })) {
+      replyContent += chunk.choices?.[0]?.delta?.content || ''
+    }
+  } catch {
+    // 回复生成静默失败，分析本身已成功
+    return
+  }
+
+  if (!replyContent.trim()) return
+
+  // 获取会话信息用于草稿
+  const sessionStore = useSessionStore()
+  const session = sessionStore.sessions.find((s) => s.id === currentSid)
+  const sessionName = session?.name ?? session?.talkerName ?? currentSid
+
+  // 取最新非自己消息的发送者作为联系人
+  const lastRealMessage = [...messages].reverse().find((m) => !m.isSelf)
+  const contactName =
+    lastRealMessage?.talkerName || lastRealMessage?.senderName || session?.talkerName || ''
+
+  // 存入草稿（draft_confirm 等待用户确认；send_cancellable/full_auto 由已有管道处理发送）
+  agentStore.addDraft({
+    sourceMessageId: result.id,
+    sessionId: currentSid,
+    sessionName,
+    contactName,
+    content: replyContent.trim(),
+    generatedAt: Date.now(),
+  })
+}
+
 export function useAgentObserver(sessionId: string | Ref<string>) {
   const agentStore = useAIAgentStore()
   const chatMessagesStore = useChatMessagesStore()
@@ -175,6 +246,11 @@ export function useAgentObserver(sessionId: string | Ref<string>) {
         error: undefined,
         lastResult: result,
       })
+
+      // 分析成功 → 检查 autoReply
+      if (config.observer.autoReply && result.suggestions.length > 0) {
+        await generateAndSendReply(currentSid, messages, result, config, agentStore)
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err)
       localError.value = errMsg

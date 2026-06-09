@@ -72,6 +72,10 @@ export interface SessionAgentConfig {
     intervalSeconds: number
     /** 触发分析的最少新增消息数，默认 5 */
     minNewMessages: number
+    /** 分析后是否自动回复 */
+    autoReply: boolean
+    /** 每次分析最多回复条数，默认 1 */
+    autoReplyCount: number
   }
   /** 关键词监测模式配置 */
   keywordMonitor: {
@@ -107,6 +111,10 @@ export interface PersistedAgentConfig {
     observerIntervalSeconds: number
     /** 默认触发分析的最少新消息数 */
     observerMinNewMessages: number
+    /** 默认分析后自动回复 */
+    observerAutoReply: boolean
+    /** 默认每次分析最多回复条数 */
+    observerAutoReplyCount: number
     /** 默认启动关键词监测 */
     keywordEnabled: boolean
     /** 默认关键词列表 */

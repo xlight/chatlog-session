@@ -23,6 +23,8 @@ const sendPermission = computed(() => effectiveConfig.value.sendPermission)
 const observerEnabled = computed(() => effectiveConfig.value.observer.enabled)
 const observerInterval = computed(() => effectiveConfig.value.observer.intervalSeconds)
 const observerMinNewMessages = computed(() => effectiveConfig.value.observer.minNewMessages)
+const observerAutoReply = computed(() => effectiveConfig.value.observer.autoReply)
+const observerAutoReplyCount = computed(() => effectiveConfig.value.observer.autoReplyCount)
 const keywordEnabled = computed(() => effectiveConfig.value.keywordMonitor.enabled)
 const maxAutoReplies = computed(() => effectiveConfig.value.maxAutoReplies)
 const cooldownMs = computed(() => effectiveConfig.value.cooldownMs)
@@ -153,6 +155,21 @@ const permissionOptions = [
           @update:model-value="updateObserver('minNewMessages', $event)"
           :min="1"
           :max="100"
+          style="width: 100%"
+        />
+      </el-form-item>
+      <el-form-item label="分析后回复">
+        <el-switch
+          :model-value="observerAutoReply"
+          @update:model-value="updateObserver('autoReply', $event)"
+        />
+      </el-form-item>
+      <el-form-item label="最多回复数">
+        <el-input-number
+          :model-value="observerAutoReplyCount"
+          @update:model-value="updateObserver('autoReplyCount', $event)"
+          :min="1"
+          :max="10"
           style="width: 100%"
         />
       </el-form-item>

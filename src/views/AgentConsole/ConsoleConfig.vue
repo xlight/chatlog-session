@@ -249,6 +249,31 @@ function handleDeleteConfig(sessionId: string) {
           />
         </el-form-item>
 
+        <el-form-item label="默认分析后回复">
+          <el-switch
+            :model-value="agentStore.persistedConfig.defaults.observerAutoReply"
+            @update:model-value="
+              agentStore.persistedConfig = {
+                ...agentStore.persistedConfig,
+                defaults: { ...agentStore.persistedConfig.defaults, observerAutoReply: $event },
+              }
+            "
+          />
+        </el-form-item>
+        <el-form-item label="默认最多回复数">
+          <el-input-number
+            :model-value="agentStore.persistedConfig.defaults.observerAutoReplyCount"
+            @update:model-value="
+              agentStore.persistedConfig = {
+                ...agentStore.persistedConfig,
+                defaults: { ...agentStore.persistedConfig.defaults, observerAutoReplyCount: $event },
+              }
+            "
+            :min="1"
+            :max="10"
+          />
+        </el-form-item>
+
         <el-divider content-position="left">关键词监测 (Keyword Monitor)</el-divider>
 
         <el-form-item label="默认启用">

@@ -31,6 +31,8 @@ const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
     observerEnabled: false,
     observerIntervalSeconds: 300,
     observerMinNewMessages: 5,
+    observerAutoReply: false,
+    observerAutoReplyCount: 1,
     keywordEnabled: false,
     keywordMatchPatterns: [],
     promptTemplateId: 'builtin-reply',
@@ -108,6 +110,8 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
         enabled: sessionOverride?.observer?.enabled ?? defaults.observerEnabled,
         intervalSeconds: sessionOverride?.observer?.intervalSeconds ?? defaults.observerIntervalSeconds,
         minNewMessages: sessionOverride?.observer?.minNewMessages ?? defaults.observerMinNewMessages,
+        autoReply: sessionOverride?.observer?.autoReply ?? defaults.observerAutoReply,
+        autoReplyCount: sessionOverride?.observer?.autoReplyCount ?? defaults.observerAutoReplyCount,
       },
       keywordMonitor: {
         enabled: sessionOverride?.keywordMonitor?.enabled ?? defaults.keywordEnabled,
