@@ -6,7 +6,10 @@ import { useAutoRefreshStore } from '@/stores/autoRefresh'
  * 自动刷新管理器 composable
  * 负责自动刷新的定时器管理、设置加载/保存、事件监听
  */
-export function useAutoRefreshManager(sessionListRef?: { value?: { autoRefresh?: () => Promise<void> } }) {
+export function useAutoRefreshManager(
+  sessionListRef?: { value?: { autoRefresh?: () => Promise<void> } },
+  options?: { onTick?: () => void },
+) {
   const autoRefreshStore = useAutoRefreshStore()
 
   // 自动刷新状态
@@ -33,6 +36,7 @@ export function useAutoRefreshManager(sessionListRef?: { value?: { autoRefresh?:
           } catch (error) {
             console.error('自动刷新失败:', error)
           } finally {
+            options?.onTick?.()
             setTimeout(() => {
               isAutoRefreshing.value = false
             }, 1000)

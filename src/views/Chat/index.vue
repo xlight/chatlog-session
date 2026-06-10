@@ -22,6 +22,7 @@ import AgentObserverCard from '@/components/chat/AgentObserverCard.vue'
 import AgentKeywordCard from '@/components/chat/AgentKeywordCard.vue'
 import { useAgentObserver } from '@/composables/useAgentObserver'
 import { useKeywordMonitor } from '@/composables/useKeywordMonitor'
+import { useBackgroundObserver } from '@/composables/useBackgroundObserver'
 import MobileNavBar from '@/components/layout/MobileNavBar.vue'
 import SearchDialog from '@/components/chat/SearchDialog.vue'
 import ContactDetail from '@/views/Contact/ContactDetail.vue'
@@ -50,7 +51,7 @@ const {
   toggleAutoRefresh,
   init: initAutoRefresh,
   cleanup: cleanupAutoRefresh,
-} = useAutoRefreshManager(sessionListRef)
+} = useAutoRefreshManager(sessionListRef, { onTick: () => backgroundObserver.tick() })
 
 // 搜索文本
 const searchText = ref('')
@@ -210,6 +211,7 @@ provide(INJECT_DRAFT_KEY, (text: string) => {
 // Agent Observer 和 Keyword Monitor
 const agentObserver = useAgentObserver(computed(() => currentSession.value?.id ?? ''))
 const keywordMonitor = useKeywordMonitor(computed(() => currentSession.value?.id ?? ''))
+const backgroundObserver = useBackgroundObserver()
 
 onMounted(async () => {
   // 初始化 chatStore（缓存、自动刷新、事件监听）
@@ -242,6 +244,7 @@ onMounted(async () => {
   // 启动 Agent Observer 和 Keyword Monitor
   agentObserver.start()
   keywordMonitor.start()
+  backgroundObserver.start()
 })
 
 onUnmounted(() => {
@@ -264,6 +267,7 @@ onUnmounted(() => {
   // 停止 Agent Observer 和 Keyword Monitor
   agentObserver.stop()
   keywordMonitor.stop()
+  backgroundObserver.stop()
 })
 </script>
 
