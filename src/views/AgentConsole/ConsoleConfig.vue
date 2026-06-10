@@ -353,20 +353,20 @@ function handleDeleteConfig(sessionId: string) {
           />
           <span class="form-hint">0 表示无限制</span>
         </el-form-item>
-        <el-form-item label="冷却时间（毫秒）">
+        <el-form-item label="冷却时间（分钟）">
           <el-input-number
-            :model-value="agentStore.persistedConfig.defaults.cooldownMs"
+            :model-value="Math.round(agentStore.persistedConfig.defaults.cooldownMs / 60000)"
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
-                defaults: { ...agentStore.persistedConfig.defaults, cooldownMs: $event },
+                defaults: { ...agentStore.persistedConfig.defaults, cooldownMs: ($event as number) * 60000 },
               }
             "
             :min="0"
-            :step="1000"
+            :step="1"
             controls-position="right"
           />
-          <span class="form-hint">两次自动回复之间的最小间隔</span>
+          <span class="form-hint">两次自动回复之间的最小间隔（分钟）</span>
         </el-form-item>
         <el-form-item label="默认 Prompt 模板">
           <el-input

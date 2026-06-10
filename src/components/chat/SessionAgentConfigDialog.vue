@@ -267,12 +267,12 @@ function handlePresetChange(preset: AgentLevelPreset) {
       <template v-if="showCooldown">
         <el-divider content-position="left">回复控制</el-divider>
 
-        <el-form-item label="冷却时间（ms）">
+        <el-form-item label="冷却时间（分钟）">
           <el-input-number
-            :model-value="cooldownMs"
-            @update:model-value="updateField('cooldownMs', $event)"
+            :model-value="Math.round(cooldownMs / 60000)"
+            @update:model-value="updateField('cooldownMs', ($event as number) * 60000)"
             :min="0"
-            :step="1000"
+            :step="1"
             style="width: 100%"
           />
         </el-form-item>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import { useAIAgentStore } from '@/stores/ai/agent'
 
 const props = defineProps<{
@@ -11,8 +11,21 @@ const agentStore = useAIAgentStore()
 const state = computed(() => agentStore.observerStates.get(props.sessionId))
 const results = computed(() => agentStore.observerResults.get(props.sessionId) ?? [])
 
-function isCollapsed(analyzedAt: number): boolean {
-  return Date.now() - analyzedAt > 5 * 60 * 1000
+/** 用户主动展开的结果 ID 集合 */
+const expandedIds = reactive(new Set<string>())
+
+function isCollapsed(result: { id: string; analyzedAt: number }): boolean {
+  const timeCollapsed = Date.now() - result.analyzedAt > 5 * 60 * 1000
+  if (!timeCollapsed) return false
+  return !expandedIds.has(result.id)
+}
+
+function toggleExpand(id: string) {
+  if (expandedIds.has(id)) {
+    expandedIds.delete(id)
+  } else {
+    expandedIds.add(id)
+  }
 }
 
 function removeResult(id: string) {
@@ -53,9 +66,12 @@ function formatTime(ts: number): string {
         v-for="result in results"
         :key="result.id"
         class="observer-result-item"
-        :class="{ collapsed: isCollapsed(result.analyzedAt) }"
+        :class="{ collapsed: isCollapsed(result) }"
       >
-        <div class="result-header">
+        <div class="result-header" @click="toggleExpand(result.id)">
+          <el-icon :size="14" class="expand-icon" :class="{ rotated: !isCollapsed(result) }">
+            <ArrowRight />
+          </el-icon>
           <el-icon v-if="result.status === 'success'" color="#67c23a" :size="16">
             <SuccessFilled />
           </el-icon>
@@ -65,12 +81,12 @@ function formatTime(ts: number): string {
           <span class="result-summary">{{ result.summary }}</span>
           <el-badge :value="result.messageCount" type="info" class="msg-count-badge" />
           <span class="result-time">{{ formatTime(result.analyzedAt) }}</span>
-          <el-button text size="small" @click="removeResult(result.id)">
+          <el-button text size="small" @click.stop="removeResult(result.id)">
             <el-icon><Close /></el-icon>
           </el-button>
         </div>
 
-        <template v-if="!isCollapsed(result.analyzedAt)">
+        <template v-if="!isCollapsed(result)">
           <ul v-if="result.keyPoints.length > 0" class="key-points">
             <li v-for="(point, i) in result.keyPoints" :key="i">{{ point }}</li>
           </ul>
@@ -133,6 +149,7 @@ function formatTime(ts: number): string {
 
   &.collapsed {
     opacity: 0.7;
+    transition: opacity 0.2s ease;
   }
 }
 
@@ -140,6 +157,17 @@ function formatTime(ts: number): string {
   display: flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.expand-icon {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+
+  &.rotated {
+    transform: rotate(90deg);
+  }
 }
 
 .result-summary {

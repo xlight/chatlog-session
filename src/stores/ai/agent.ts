@@ -23,7 +23,7 @@ const DEFAULT_CONFIG: AgentConfig = {
   promptTemplateId: 'builtin-reply',
   requireConfirm: true,
   maxAutoReplies: 0,
-  cooldownMs: 5000,
+  cooldownMs: 600000,
 }
 
 const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
@@ -40,7 +40,7 @@ const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
     keywordMatchPatterns: [],
     promptTemplateId: 'builtin-reply',
     maxAutoReplies: 0,
-    cooldownMs: 5000,
+    cooldownMs: 600000,
   },
 }
 
