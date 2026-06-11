@@ -1,4 +1,5 @@
 import { MessageType, RichMessageSubType } from '@/types/message'
+import type { Message } from '@/types/message'
 
 /**
  * 消息类型配置接口
@@ -542,4 +543,111 @@ export function createIconMap(): Record<string, string> {
     map[key] = config.icon
   })
   return map
+}
+
+// ==================== AI 上下文消息摘要 ====================
+
+/** 生成消息的文本摘要，用于 AI 上下文投喂。文本消息返回 content，非文本消息调用 getMessagePlaceholder 并追加额外信息 */
+export function getMessageSummary(msg: Message): string {
+  if (msg.type === MessageType.Text) return msg.content || ''
+
+  // 引用消息特殊处理：发言人+引文嵌入括号内
+  if (msg.type === MessageType.File && msg.subType === RichMessageSubType.Refer) {
+    return buildReferSummary(msg)
+  }
+
+  // 链接消息特殊处理：markdown 链接格式
+  if (
+    msg.type === MessageType.File &&
+    (msg.subType === RichMessageSubType.Text ||
+      msg.subType === RichMessageSubType.Link ||
+      msg.subType === RichMessageSubType.VideoLink)
+  ) {
+    return buildLinkSummary(msg)
+  }
+
+  const base = getMessagePlaceholder(msg.type, msg.subType, msg.fileName)
+  const detail = extractMessageDetail(msg)
+  return detail ? `${base} ${detail}` : base
+}
+
+function buildReferSummary(msg: Message): string {
+  const referSender = msg.contents?.refer?.senderName || msg.contents?.refer?.sender || ''
+  const referContent = msg.contents?.refer?.content || msg.contents?.title || ''
+  const replyContent = msg.content || ''
+
+  const senderPart = referSender ? ` @${referSender}` : ''
+  const quotePart = referContent ? `: "${referContent}"` : ''
+  const bracket = `[引用消息${senderPart}${quotePart}]`
+
+  return replyContent ? `${bracket} ${replyContent}` : bracket
+}
+
+function buildLinkSummary(msg: Message): string {
+  const title = msg.contents?.title
+  const url = msg.contents?.url
+
+  // subType=1 (RichMessageSubType.Text): contents.title 就是 URL，contents.url 为空
+  if (msg.subType === RichMessageSubType.Text) {
+    return title ? `[链接](${title})` : '[链接]'
+  }
+
+  // subType=4 (VideoLink) 或 subType=5 (Link)
+  const label = msg.subType === RichMessageSubType.VideoLink ? '视频链接' : '链接'
+  if (title && url) return `[${label}：${title}](${url})`
+  if (url) return `[${label}](${url})`
+  if (title) return `[${label}：${title}]`
+  return ''
+}
+
+function extractMessageDetail(msg: Message): string {
+  switch (msg.type) {
+    case MessageType.Voice:
+      return msg.duration ? `${msg.duration}秒` : ''
+
+    case MessageType.Location:
+      return msg.contents?.label || msg.contents?.title || ''
+
+    case MessageType.File:
+      return extractFileDetail(msg)
+
+    case MessageType.VoiceCall:
+    case MessageType.System:
+      return msg.content || ''
+
+    default:
+      return ''
+  }
+}
+
+function extractFileDetail(msg: Message): string {
+  switch (msg.subType) {
+    case RichMessageSubType.Forwarded: {
+      const count = msg.contents?.recordInfo?.DataList?.Count
+      const countStr = count ? `(${parseInt(count)}条)` : ''
+      return `${msg.contents?.title || ''}${countStr}`.trim()
+    }
+
+    case RichMessageSubType.MiniProgram:
+    case RichMessageSubType.ShoppingMiniProgram:
+    case RichMessageSubType.ShortVideo:
+    case RichMessageSubType.Live:
+      return msg.contents?.title || ''
+
+    case RichMessageSubType.Pat:
+    case RichMessageSubType.Transfer:
+      return msg.content || ''
+
+    case RichMessageSubType.QQMusic:
+    case RichMessageSubType.CardPackage:
+    case RichMessageSubType.Favorite:
+    case RichMessageSubType.Jielong:
+    case RichMessageSubType.RedPacket:
+    case RichMessageSubType.EmojiNotDownloaded:
+    case RichMessageSubType.FileDownloading:
+      return ''
+
+    default:
+      return ''
+  }
 }

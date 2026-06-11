@@ -3,6 +3,7 @@ import { useSessionStore } from '@/stores/session'
 import { chatStream } from '@/api/llm'
 import { sendmsgAPI } from '@/api/sendmsg'
 import { getContextMessages } from '@/utils/getContextMessages'
+import { getMessageSummary } from '@/components/chat/message-types/config'
 import type { ObserverResult, SessionAgentConfig } from '@/types/ai/agent'
 import type { ChatMessage } from '@/types/ai'
 import type { Message } from '@/types/message'
@@ -56,27 +57,13 @@ function isRealMessage(msg: Message): boolean {
   return msg.type !== 99999 && msg.type !== 99998
 }
 
-const MESSAGE_TYPE_LABELS: Record<number, string> = {
-  1: '文本',
-  3: '图片',
-  34: '语音',
-  42: '名片',
-  43: '视频',
-  47: '表情',
-  48: '位置',
-  49: '文件',
-  50: '语音通话',
-  10000: '系统消息',
-}
-
 function formatMessageForPrompt(msg: Message): string {
   const timeStr =
     typeof msg.time === 'string'
       ? msg.time
       : new Date(msg.createTime * 1000).toLocaleTimeString('zh-CN')
   const sender = msg.senderName || msg.sender || '未知'
-  const label = MESSAGE_TYPE_LABELS[msg.type]
-  const content = msg.type === 1 ? msg.content : label ? `[${label}]` : `[消息类型${msg.type}]`
+  const content = getMessageSummary(msg)
   return `[${timeStr}] ${sender}: ${content}`
 }
 

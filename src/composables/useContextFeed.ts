@@ -1,7 +1,9 @@
 import { ref, computed } from 'vue'
 import type { ContextTag } from '@/types/ai'
 import type { Session } from '@/types'
+import type { Message } from '@/types/message'
 import { useChatMessagesStore } from '@/stores/chatMessages'
+import { getMessageSummary } from '@/components/chat/message-types/config'
 
 export type FeedTimeRange = { seconds: number; label: string } | { type: 'today'; label: string } | { type: 'all'; label: string }
 
@@ -38,10 +40,10 @@ function getTimestamp(msg: { time: string; createTime: number }): number {
   return msg.createTime < 10000000000 ? msg.createTime * 1000 : msg.createTime
 }
 
-function filterByTimeRange(
-  messages: Array<{ time: string; createTime: number }>,
+function filterByTimeRange<T extends { time: string; createTime: number }>(
+  messages: T[],
   range: FeedTimeRange
-): Array<{ time: string; createTime: number }> {
+): T[] {
   const now = Date.now()
 
   let cutoff: number
@@ -60,16 +62,10 @@ function filterByTimeRange(
   return messages.filter((msg) => getTimestamp(msg) >= cutoff)
 }
 
-function formatMessage(msg: {
-  time: string
-  createTime: number
-  senderName?: string
-  sender?: string
-  content?: string
-}): string {
+function formatMessage(msg: Message): string {
   const sender = msg.senderName || msg.sender || '未知'
   const t = formatTime(msg.time, msg.createTime)
-  return `[${t}] ${sender}: ${msg.content || ''}`
+  return `[${t}] ${sender}: ${getMessageSummary(msg)}`
 }
 
 export function useContextFeed() {
