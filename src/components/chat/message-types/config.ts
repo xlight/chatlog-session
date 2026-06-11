@@ -566,21 +566,80 @@ export function getMessageSummary(msg: Message): string {
     return buildLinkSummary(msg)
   }
 
+  // 文件消息特殊处理：文件名嵌入括号内
+  if (
+    msg.type === MessageType.File &&
+    msg.fileName &&
+    (msg.subType === RichMessageSubType.File || msg.subType === RichMessageSubType.FileDownloading)
+  ) {
+    return `[文件：${msg.fileName}]`
+  }
+
+  // 卡片类消息特殊处理：标题嵌入括号内
+  if (
+    msg.type === MessageType.File &&
+    (msg.subType === RichMessageSubType.MiniProgram ||
+      msg.subType === RichMessageSubType.ShoppingMiniProgram ||
+      msg.subType === RichMessageSubType.ShortVideo ||
+      msg.subType === RichMessageSubType.Live)
+  ) {
+    return buildCardSummary(msg)
+  }
+
   const base = getMessagePlaceholder(msg.type, msg.subType, msg.fileName)
   const detail = extractMessageDetail(msg)
   return detail ? `${base} ${detail}` : base
 }
 
 function buildReferSummary(msg: Message): string {
-  const referSender = msg.contents?.refer?.senderName || msg.contents?.refer?.sender || ''
-  const referContent = msg.contents?.refer?.content || msg.contents?.title || ''
+  const refer = msg.contents?.refer
+  const referSender = refer?.senderName || refer?.sender || ''
+  const referContent = describeReferContent(refer) || msg.contents?.title || ''
   const replyContent = msg.content || ''
 
   const senderPart = referSender ? ` @${referSender}` : ''
-  const quotePart = referContent ? `: "${referContent}"` : ''
+  const quotePart = referContent ? `: ${referContent}` : ''
   const bracket = `[引用消息${senderPart}${quotePart}]`
 
   return replyContent ? `${bracket} ${replyContent}` : bracket
+}
+
+/** 生成引用原文的描述文本。文本消息返回带引号的内容，非文本消息返回有意义描述 */
+function describeReferContent(refer: Record<string, unknown> | undefined): string {
+  if (!refer) return ''
+
+  const type = refer.type as number | undefined
+
+  // 文本消息：直接返回内容（带引号）
+  if (type === MessageType.Text && refer.content) return `"${refer.content}"`
+
+  // 文件消息
+  if (type === MessageType.File && refer.fileName) return `文件: ${refer.fileName}`
+  if (type === MessageType.Image) return '图片'
+  if (type === MessageType.Voice) return refer.duration ? `语音(${refer.duration}秒)` : '语音'
+  if (type === MessageType.Video) return '视频'
+  if (type === MessageType.Location) return '位置'
+
+  // type=49 链接/小程序等
+  if (type === MessageType.File) {
+    const subType = refer.subType as number | undefined
+    const contents = refer.contents as Record<string, unknown> | undefined
+    if (
+      subType === RichMessageSubType.Link ||
+      subType === RichMessageSubType.VideoLink ||
+      subType === RichMessageSubType.Text
+    ) {
+      const title = contents?.title as string | undefined
+      return title ? `链接: ${title}` : '链接'
+    }
+    if (subType === RichMessageSubType.MiniProgram) {
+      const title = contents?.title as string | undefined
+      return title ? `小程序: ${title}` : '小程序'
+    }
+  }
+
+  // 保底：使用占位符
+  return getMessagePlaceholder(type ?? MessageType.Text, refer.subType as number | undefined)
 }
 
 function buildLinkSummary(msg: Message): string {
@@ -598,6 +657,13 @@ function buildLinkSummary(msg: Message): string {
   if (url) return `[${label}](${url})`
   if (title) return `[${label}：${title}]`
   return ''
+}
+
+function buildCardSummary(msg: Message): string {
+  const placeholder = getMessagePlaceholder(msg.type, msg.subType, msg.fileName)
+  const label = placeholder.match(/^\[(.+)\]$/)?.[1] || placeholder
+  const title = msg.contents?.title
+  return title ? `[${label} ${title}]` : placeholder
 }
 
 function extractMessageDetail(msg: Message): string {
@@ -627,12 +693,6 @@ function extractFileDetail(msg: Message): string {
       const countStr = count ? `(${parseInt(count)}条)` : ''
       return `${msg.contents?.title || ''}${countStr}`.trim()
     }
-
-    case RichMessageSubType.MiniProgram:
-    case RichMessageSubType.ShoppingMiniProgram:
-    case RichMessageSubType.ShortVideo:
-    case RichMessageSubType.Live:
-      return msg.contents?.title || ''
 
     case RichMessageSubType.Pat:
     case RichMessageSubType.Transfer:

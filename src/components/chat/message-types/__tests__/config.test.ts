@@ -184,6 +184,60 @@ describe('getMessageSummary', () => {
     expect(getMessageSummary(msg)).toBe('[引用消息]')
   })
 
+  it('引用消息引用文件时显示文件描述', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.Refer,
+      content: '@杨欢 供应商信息填好了',
+      contents: {
+        title: '引用的消息内容',
+        refer: { senderName: '刘振江xLight', type: MessageType.File, subType: RichMessageSubType.File, fileName: '附件2 供应商收款信息表 (3).xlsx' },
+      },
+    })
+    expect(getMessageSummary(msg)).toBe('[引用消息 @刘振江xLight: 文件: 附件2 供应商收款信息表 (3).xlsx] @杨欢 供应商信息填好了')
+  })
+
+  it('引用消息引用图片时显示图片', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.Refer,
+      content: '收到',
+      contents: {
+        refer: { senderName: '李四', type: MessageType.Image },
+      },
+    })
+    expect(getMessageSummary(msg)).toBe('[引用消息 @李四: 图片] 收到')
+  })
+
+  it('引用消息引用语音时显示语音', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.Refer,
+      content: '好的',
+      contents: {
+        refer: { senderName: '王五', type: MessageType.Voice, duration: 15 },
+      },
+    })
+    expect(getMessageSummary(msg)).toBe('[引用消息 @王五: 语音(15秒)] 好的')
+  })
+
+  it('引用消息引用链接时显示链接描述', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.Refer,
+      content: '看看这个',
+      contents: {
+        refer: {
+          senderName: '赵六',
+          type: MessageType.File,
+          subType: RichMessageSubType.Link,
+          contents: { title: '新闻标题' },
+        },
+      },
+    })
+    expect(getMessageSummary(msg)).toBe('[引用消息 @赵六: 链接: 新闻标题] 看看这个')
+  })
+
   it('转发消息追加标题和条数', () => {
     const msg = createMsg({
       type: MessageType.File,
@@ -202,13 +256,48 @@ describe('getMessageSummary', () => {
     expect(getMessageSummary(msg)).toBe('[聊天记录] 群聊消息')
   })
 
-  it('小程序消息追加标题', () => {
+  it('小程序消息标题嵌入括号', () => {
     const msg = createMsg({
       type: MessageType.File,
       subType: RichMessageSubType.MiniProgram,
-      contents: { title: '小程序卡片' },
+      contents: { title: '企业文件' },
     })
-    expect(getMessageSummary(msg)).toBe('[小程序] 小程序卡片')
+    expect(getMessageSummary(msg)).toBe('[小程序 企业文件]')
+  })
+
+  it('小程序消息无标题时只返回占位符', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.MiniProgram,
+    })
+    expect(getMessageSummary(msg)).toBe('[小程序]')
+  })
+
+  it('购物小程序消息标题嵌入括号', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.ShoppingMiniProgram,
+      contents: { title: '商品详情' },
+    })
+    expect(getMessageSummary(msg)).toBe('[购物小程序 商品详情]')
+  })
+
+  it('小视频消息标题嵌入括号', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.ShortVideo,
+      contents: { title: '搞笑视频' },
+    })
+    expect(getMessageSummary(msg)).toBe('[小视频 搞笑视频]')
+  })
+
+  it('直播消息标题嵌入括号', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.Live,
+      contents: { title: '正在直播' },
+    })
+    expect(getMessageSummary(msg)).toBe('[直播 正在直播]')
   })
 
   it('拍一拍消息追加 content', () => {
@@ -266,5 +355,31 @@ describe('getMessageSummary', () => {
   it('视频消息不追加信息', () => {
     const msg = createMsg({ type: MessageType.Video, subType: 0 })
     expect(getMessageSummary(msg)).toBe('[视频]')
+  })
+
+  it('文件消息显示文件名', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.File,
+      fileName: '附件2 供应商收款信息表 (3).xlsx',
+    })
+    expect(getMessageSummary(msg)).toBe('[文件：附件2 供应商收款信息表 (3).xlsx]')
+  })
+
+  it('文件下载中显示文件名', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.FileDownloading,
+      fileName: 'document.pdf',
+    })
+    expect(getMessageSummary(msg)).toBe('[文件：document.pdf]')
+  })
+
+  it('文件消息无 fileName 时使用默认占位符', () => {
+    const msg = createMsg({
+      type: MessageType.File,
+      subType: RichMessageSubType.File,
+    })
+    expect(getMessageSummary(msg)).toBe('[文件]')
   })
 })
