@@ -35,7 +35,7 @@ function extractList(text: string, sectionName: string): string[] {
 function parseAnalysisResult(
   raw: string,
   sessionId: string,
-  messageCount: number,
+  messages: Message[],
 ): ObserverResult {
   const summary = extractSection(raw, '摘要') || raw.slice(0, 200)
   const keyPoints = extractList(raw, '关键点')
@@ -49,7 +49,9 @@ function parseAnalysisResult(
     keyPoints,
     suggestions,
     analyzedAt: Date.now(),
-    messageCount,
+    messageCount: messages.length,
+    startTime: messages[0]?.createTime,
+    endTime: messages[messages.length - 1]?.createTime,
   }
 }
 
@@ -254,7 +256,7 @@ export async function triggerSessionAnalysis(
       content += chunk.choices?.[0]?.delta?.content || ''
     }
 
-    const result = parseAnalysisResult(content, sessionId, messages.length)
+    const result = parseAnalysisResult(content, sessionId, messages)
     agentStore.addObserverResult(sessionId, result)
 
     const lastAnalysisTime = Math.floor(Date.now() / 1000)

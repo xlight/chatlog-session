@@ -48,6 +48,35 @@ function formatTime(ts: number): string {
   const hours = Math.floor(mins / 60)
   return `${hours} 小时前`
 }
+
+function formatTimeRange(start?: number, end?: number): string {
+  if (start === undefined || end === undefined) return ''
+
+  // Unix 秒级时间戳 → Date
+  const startDate = new Date(start * 1000)
+  const endDate = new Date(end * 1000)
+
+  // 格式化 HH:mm
+  const fmtTime = (d: Date) =>
+    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+
+  // 同一条消息或同一分钟
+  if (start === end) return fmtTime(startDate)
+
+  // 同一天
+  if (
+    startDate.getFullYear() === endDate.getFullYear() &&
+    startDate.getMonth() === endDate.getMonth() &&
+    startDate.getDate() === endDate.getDate()
+  ) {
+    return `${fmtTime(startDate)}-${fmtTime(endDate)}`
+  }
+
+  // 跨天
+  const fmtDate = (d: Date) =>
+    `${d.getMonth() + 1}/${d.getDate()} ${fmtTime(d)}`
+  return `${fmtDate(startDate)} - ${fmtDate(endDate)}`
+}
 </script>
 
 <template>
@@ -80,6 +109,9 @@ function formatTime(ts: number): string {
           </el-icon>
           <span class="result-summary">{{ result.summary }}</span>
           <el-badge :value="result.messageCount" type="info" class="msg-count-badge" />
+          <span v-if="formatTimeRange(result.startTime, result.endTime)" class="result-timerange">
+            {{ formatTimeRange(result.startTime, result.endTime) }}
+          </span>
           <span class="result-time">{{ formatTime(result.analyzedAt) }}</span>
           <el-button text size="small" @click.stop="removeResult(result.id)">
             <el-icon><Close /></el-icon>
@@ -191,6 +223,13 @@ function formatTime(ts: number): string {
   font-size: 11px;
   color: #909399;
   flex-shrink: 0;
+}
+
+.result-timerange {
+  font-size: 11px;
+  color: #909399;
+  flex-shrink: 0;
+  margin-left: 6px;
 }
 
 .key-points {

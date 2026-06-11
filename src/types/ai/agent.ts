@@ -183,6 +183,10 @@ export interface ObserverResult {
   analyzedAt: number
   /** 本次分析覆盖的消息数 */
   messageCount: number
+  /** 本次分析覆盖的消息时间范围起点（Unix 秒级时间戳，messages[0].createTime） */
+  startTime?: number
+  /** 本次分析覆盖的消息时间范围终点（Unix 秒级时间戳，messages[-1].createTime） */
+  endTime?: number
 }
 
 /** 关键词匹配结果 */
