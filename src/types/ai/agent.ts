@@ -149,8 +149,10 @@ export interface PersistedAgentConfig {
 export interface ObserverState {
   /** 会话 ID */
   sessionId: string
-  /** 上次分析时间戳 */
+  /** 上次分析时间戳（秒级，与 Message.createTime 同精度） */
   lastAnalysisTime: number
+  /** 上次分析覆盖的消息 ID 集合，用于精确追踪增量（补偿 createTime 秒级精度不足） */
+  lastAnalyzedMessageIds?: Set<number>
   /** 自上次分析以来的新增消息数 */
   accumulatedMessageCount: number
   /** 是否正在 AI 分析中 */

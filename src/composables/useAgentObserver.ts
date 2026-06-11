@@ -22,15 +22,20 @@ export function useAgentObserver(sessionId: string | Ref<string>) {
   let stopTalkerWatch: (() => void) | null = null
 
   function handleMessagesChange(): void {
-    if (chatMessagesStore.currentTalker !== sid.value) return
+    if (chatMessagesStore.currentTalker !== sid.value) {
+      console.log('[Observer:watch] skip: currentTalker mismatch', { currentTalker: chatMessagesStore.currentTalker, sid: sid.value })
+      return
+    }
 
     const currentCount = chatMessagesStore.messages.length
     const delta = currentCount - previousMessageCount
 
     if (delta > 0) {
       const state = agentStore.getObserverState(sid.value)
+      const newAccumulated = state.accumulatedMessageCount + delta
+      console.log('[Observer:watch] new messages', { sid: sid.value, delta, accumulated: newAccumulated })
       agentStore.updateObserverState(sid.value, {
-        accumulatedMessageCount: state.accumulatedMessageCount + delta,
+        accumulatedMessageCount: newAccumulated,
       })
       previousMessageCount = currentCount
       triggerSessionAnalysis(sid.value, { skipAccumulatedCheck: false })
@@ -42,6 +47,7 @@ export function useAgentObserver(sessionId: string | Ref<string>) {
   function start(): void {
     if (isObserving.value) return
     isObserving.value = true
+    console.log('[Observer:start]', { sid: sid.value, currentTalker: chatMessagesStore.currentTalker })
 
     if (chatMessagesStore.currentTalker === sid.value) {
       previousMessageCount = chatMessagesStore.messages.length

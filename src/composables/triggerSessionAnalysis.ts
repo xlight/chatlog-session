@@ -110,6 +110,7 @@ async function generateAndSendReply(
   config: SessionAgentConfig,
   agentStore: ReturnType<typeof useAIAgentStore>,
 ): Promise<void> {
+  console.log('[Observer:reply] enter generateAndSendReply', { currentSid, sendPermission: config.sendPermission, suggestionsCount: result.suggestions.length })
   if (config.sendPermission === 'forbidden') return
 
   const replyPrompt = buildReplyPrompt(messages, result)
@@ -143,6 +144,7 @@ async function generateAndSendReply(
   const trimmedContent = replyContent.trim()
 
   if (config.sendPermission === 'draft_confirm') {
+    console.log('[Observer:reply] addDraft (draft_confirm)', { currentSid, contactName, contentPreview: trimmedContent.slice(0, 50) })
     agentStore.addDraft({
       sourceMessageId: result.id,
       sessionId: currentSid,
@@ -154,8 +156,10 @@ async function generateAndSendReply(
   } else if (config.sendPermission === 'auto') {
     const tracker = agentStore.getAutoReplyTracker(currentSid)
     if (config.cooldownMs > 0 && tracker.lastAt && Date.now() - tracker.lastAt < config.cooldownMs) {
+      console.log('[Observer:reply] skip: cooldown', { currentSid, cooldownMs: config.cooldownMs, lastAt: tracker.lastAt, elapsed: Date.now() - tracker.lastAt })
       return
     }
+    console.log('[Observer:reply] sending (auto)', { currentSid, contactName, contentPreview: trimmedContent.slice(0, 50) })
     try {
       const sendResult = await sendmsgAPI.send(contactName, trimmedContent)
       if (sendResult.ok) {
@@ -195,6 +199,7 @@ async function generateAndSendReply(
 export interface TriggerSessionAnalysisOptions {
   contextMessages?: Message[]
   skipAccumulatedCheck?: boolean
+  isTimerTick?: boolean
 }
 
 export async function triggerSessionAnalysis(
@@ -204,18 +209,33 @@ export async function triggerSessionAnalysis(
   const agentStore = useAIAgentStore()
   const config = agentStore.getEffectiveConfig(sessionId)
 
-  if (!config.observer.enabled) return
+  if (!config.observer.enabled) {
+    console.log('[Observer:trigger] skip: observer not enabled', { sessionId })
+    return
+  }
 
   const state = agentStore.getObserverState(sessionId)
 
   if (!options?.skipAccumulatedCheck) {
-    if (state.accumulatedMessageCount < config.observer.minNewMessages) return
+    if (state.accumulatedMessageCount < config.observer.minNewMessages) {
+      console.log('[Observer:trigger] skip: accumulated < min', { sessionId, accumulated: state.accumulatedMessageCount, min: config.observer.minNewMessages })
+      return
+    }
   }
 
-  const elapsed = Date.now() - state.lastAnalysisTime
-  if (state.lastAnalysisTime > 0 && elapsed < config.observer.intervalSeconds * 1000) return
+  const lastAnalysisMs = state.lastAnalysisTime > 1e12 ? state.lastAnalysisTime : state.lastAnalysisTime * 1000
+  const elapsed = Date.now() - lastAnalysisMs
+  if (state.lastAnalysisTime > 0 && elapsed < config.observer.intervalSeconds * 1000) {
+    console.log('[Observer:trigger] skip: cooldown', { sessionId, elapsedSec: Math.floor(elapsed / 1000), intervalSec: config.observer.intervalSeconds, lastAnalysisTime: state.lastAnalysisTime })
+    return
+  }
 
-  if (state.isAnalyzing) return
+  if (state.isAnalyzing) {
+    console.log('[Observer:trigger] skip: isAnalyzing', { sessionId })
+    return
+  }
+
+  console.log('[Observer:trigger] start analysis', { sessionId, isTimerTick: options?.isTimerTick, skipAccumulatedCheck: options?.skipAccumulatedCheck })
 
   agentStore.updateObserverState(sessionId, { isAnalyzing: true, error: undefined })
 
@@ -249,16 +269,49 @@ export async function triggerSessionAnalysis(
 
     const result = parseAnalysisResult(content, sessionId, messages.length)
     agentStore.addObserverResult(sessionId, result)
+
+    const lastAnalysisTime = Math.floor(Date.now() / 1000)
+    const lastAnalyzedMessageIds = new Set(messages.map(m => m.id))
     agentStore.updateObserverState(sessionId, {
-      lastAnalysisTime: Date.now(),
+      lastAnalysisTime,
+      lastAnalyzedMessageIds,
       accumulatedMessageCount: 0,
       isAnalyzing: false,
       error: undefined,
       lastResult: result,
     })
 
-    if (config.observer.autoReply && result.suggestions.length > 0) {
+    const isColdStart = state.lastAnalysisTime === 0 && !state.lastAnalyzedMessageIds
+    const prevLastAnalysisTimeSec = state.lastAnalysisTime > 1e12 ? Math.floor(state.lastAnalysisTime / 1000) : state.lastAnalysisTime
+    const incrementalMessages = isColdStart
+      ? messages
+      : messages.filter(m =>
+          m.createTime > prevLastAnalysisTimeSec ||
+          (m.createTime === prevLastAnalysisTimeSec && !state.lastAnalyzedMessageIds?.has(m.id))
+        )
+    const hasNewNonSelfMessage = incrementalMessages.some(m => !m.isSelf)
+
+    console.log('[Observer:trigger] analysis done, autoReply check', {
+      sessionId,
+      isTimerTick: options?.isTimerTick,
+      autoReply: config.observer.autoReply,
+      suggestionsCount: result.suggestions.length,
+      isColdStart,
+      incrementalCount: incrementalMessages.length,
+      incrementalIsSelf: incrementalMessages.map(m => m.isSelf),
+      hasNewNonSelfMessage,
+      prevLastAnalysisTime: state.lastAnalysisTime,
+      prevLastAnalyzedMessageIds: state.lastAnalyzedMessageIds ? [...state.lastAnalyzedMessageIds] : null,
+      messageCreateTimes: messages.map(m => ({ id: m.id, createTime: m.createTime, isSelf: m.isSelf })),
+    })
+
+    if (!options?.isTimerTick && config.observer.autoReply && result.suggestions.length > 0 && hasNewNonSelfMessage) {
       await generateAndSendReply(sessionId, messages, result, config, agentStore)
+    } else {
+      console.log('[Observer:trigger] autoReply skipped', {
+        sessionId,
+        reason: options?.isTimerTick ? 'isTimerTick' : !config.observer.autoReply ? 'autoReply off' : result.suggestions.length === 0 ? 'no suggestions' : !hasNewNonSelfMessage ? 'no new non-self message' : 'unknown',
+      })
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err)

@@ -36,6 +36,7 @@ export function useAutoRefreshManager(
           } catch (error) {
             console.error('自动刷新失败:', error)
           } finally {
+            console.log('[AutoRefresh] tick → backgroundObserver.tick()')
             options?.onTick?.()
             setTimeout(() => {
               isAutoRefreshing.value = false

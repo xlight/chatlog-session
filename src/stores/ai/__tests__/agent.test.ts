@@ -18,7 +18,7 @@ describe('config', () => {
     expect(store.config.mode).toBe('draft')
     expect(store.config.requireConfirm).toBe(true)
     expect(store.config.maxAutoReplies).toBe(0)
-    expect(store.config.cooldownMs).toBe(60000)
+    expect(store.config.cooldownMs).toBe(600000)
   })
 
   it('updateConfig 部分更新', () => {
@@ -321,7 +321,7 @@ describe('getEffectiveConfig', () => {
     expect(config.keywordMonitor.enabled).toBe(false)
     expect(config.keywordMonitor.matchPatterns).toEqual([])
     expect(config.maxAutoReplies).toBe(0)
-    expect(config.cooldownMs).toBe(60000)
+    expect(config.cooldownMs).toBe(600000)
   })
 
   it('会话覆盖 observer 字段', () => {

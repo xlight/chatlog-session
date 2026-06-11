@@ -34,18 +34,33 @@ class AnalysisQueue {
     const agentStore = useAIAgentStore()
     try {
       const config = agentStore.getEffectiveConfig(sid)
-      if (!config.observer.enabled) return
+      if (!config.observer.enabled) {
+        console.log('[Observer:bg] skip: observer not enabled', { sid })
+        return
+      }
       const state = agentStore.getObserverState(sid)
-      if (state.isAnalyzing) return
-      const elapsed = Date.now() - state.lastAnalysisTime
-      if (elapsed < config.observer.intervalSeconds * 1000) return
+      if (state.isAnalyzing) {
+        console.log('[Observer:bg] skip: isAnalyzing', { sid })
+        return
+      }
+      const lastAnalysisMs = state.lastAnalysisTime > 1e12 ? state.lastAnalysisTime : state.lastAnalysisTime * 1000
+      const elapsed = Date.now() - lastAnalysisMs
+      if (elapsed < config.observer.intervalSeconds * 1000) {
+        console.log('[Observer:bg] skip: cooldown', { sid, elapsedSec: Math.floor(elapsed / 1000), intervalSec: config.observer.intervalSeconds })
+        return
+      }
 
       const messages = await getContextMessagesForSession(sid)
-      if (!messages.length) return
+      if (!messages.length) {
+        console.log('[Observer:bg] skip: no messages', { sid })
+        return
+      }
 
+      console.log('[Observer:bg] trigger analysis', { sid, msgCount: messages.length, isTimerTick: true })
       await triggerSessionAnalysis(sid, {
         contextMessages: messages,
         skipAccumulatedCheck: true,
+        isTimerTick: true,
       })
     } finally {
       this.running.delete(sid)
@@ -106,6 +121,7 @@ export function useBackgroundObserver() {
   function tick(): void {
     if (!isStarted || !queue) return
     const watched = getWatchedSessions()
+    console.log('[Observer:bg] tick', { watchedCount: watched.length, watched })
     for (const sid of watched) {
       queue.enqueue(sid)
     }
