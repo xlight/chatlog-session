@@ -186,6 +186,7 @@ export const useMessageCacheStore = defineStore('messageCache', {
      */
     set(talker: string, messages: Message[]): boolean {
       try {
+        console.time(`[Perf] cacheStore.set(${talker})`)
         const now = Date.now()
         const item: CacheItem = {
           talker,
@@ -200,6 +201,7 @@ export const useMessageCacheStore = defineStore('messageCache', {
 
         // 检查单项大小
         if (size > this.config.maxSize * 0.5) {
+          console.timeEnd(`[Perf] cacheStore.set(${talker})`)
           console.warn(`Cache item too large for ${talker}: ${size} bytes`)
           return false
         }
@@ -214,8 +216,10 @@ export const useMessageCacheStore = defineStore('messageCache', {
         // 更新元数据
         this.updateMetadata(talker, item, size)
 
+        console.timeEnd(`[Perf] cacheStore.set(${talker})`)
         return true
       } catch (error) {
+        console.timeEnd(`[Perf] cacheStore.set(${talker})`)
         console.error(`Failed to set cache for ${talker}:`, error)
         
         // 如果是 QuotaExceededError，尝试清理后重试

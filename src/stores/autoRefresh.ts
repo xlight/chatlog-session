@@ -19,6 +19,16 @@ import { useContactStore } from './contact'
 import type { Message } from '@/types/message'
 import { toCST, formatCSTRange } from '@/utils/timezone'
 
+// 懒加载 chatMessages store（避免循环依赖）
+let _useChatMessagesStore: (() => ReturnType<typeof import('pinia').defineStore>) | null = null
+async function getChatMessagesStore() {
+  if (!_useChatMessagesStore) {
+    const mod = await import('./chatMessages')
+    _useChatMessagesStore = mod.useChatMessagesStore
+  }
+  return (_useChatMessagesStore as any)()
+}
+
 /**
  * 刷新任务状态
  */
@@ -448,7 +458,9 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
 
         // 执行请求（传入当前缓存和起始时间）
         const cacheStore = useMessageCacheStore()
+        console.time(`[Perf] executeTask:cacheStore.get(${task.talker})`)
         const cached = cacheStore.get(task.talker)
+        console.timeEnd(`[Perf] executeTask:cacheStore.get(${task.talker})`)
         const messagesPromise = this.fetchMessages(task.talker, cached, task.startFromTime)
         const messages = await Promise.race([messagesPromise, timeoutPromise])
 
@@ -460,7 +472,9 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
         this.checkAndNotify(messages, cached, task.talker)
 
         // 保存到缓存
+        console.time(`[Perf] executeTask:cacheStore.set(${task.talker})`)
         const success = cacheStore.set(task.talker, messages)
+        console.timeEnd(`[Perf] executeTask:cacheStore.set(${task.talker})`)
 
         if (success) {
           task.status = RefreshStatus.SUCCESS
@@ -469,11 +483,12 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
             console.log(`💾 Cache saved successfully for ${task.talker}`)
           }
 
-          // 直接调用 chatMessages store 的缓存更新处理方法，替代 CustomEvent
+          // 直接调用 chatMessages store 的缓存更新处理方法
           try {
-            const { useChatMessagesStore } = await import('./chatMessages')
-            const chatMessagesStore = useChatMessagesStore()
+            console.time(`[Perf] executeTask:handleCacheUpdateData(${task.talker})`)
+            const chatMessagesStore = await getChatMessagesStore()
             chatMessagesStore.handleCacheUpdateData(task.talker, messages)
+            console.timeEnd(`[Perf] executeTask:handleCacheUpdateData(${task.talker})`)
           } catch (e) {
             // chatMessages store 可能尚未初始化，静默处理
           }

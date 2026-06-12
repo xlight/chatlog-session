@@ -761,6 +761,9 @@ export const useNotificationStore = defineStore('notification', () => {
   async function checkMessages(messages: Message[], talker: string, talkerName: string, myWxid?: string) {
     if (!isEnabled.value) return
 
+    // 如果所有通知类型都关闭，跳过每条消息的 shouldNotify 检测
+    if (!config.value.enableMention && !config.value.enableQuote && !config.value.enableMessage) return
+
     for (const message of messages) {
       const type = shouldNotify(message, talker, myWxid)
       if (type) {
