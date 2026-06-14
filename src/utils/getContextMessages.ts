@@ -24,9 +24,9 @@ export async function getContextMessages(
     }
   }
 
-  // Fallback 到缓存或 API
+  // Fallback 到缓存或 API（bottom=1 确保取到最新消息）
   const cacheStore = useMessageCacheStore()
   return cacheStore.getOrFetch(sessionId, () =>
-    chatlogAPI.getSessionMessages(sessionId, undefined, limit, 0)
+    chatlogAPI.getSessionMessages(sessionId, undefined, limit, 0, 1)
   )
 }

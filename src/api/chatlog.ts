@@ -136,10 +136,13 @@ function formatDate(date: Date): string {
 }
 
 /**
- * 获取今天的日期字符串
+ * 获取最近 N 天的时间范围字符串（格式：YYYY-MM-DD~YYYY-MM-DD），包含今天
  */
-function getToday(): string {
-  return formatDate(new Date())
+function getRecentDateRange(num: number = 7): string {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(start.getDate() - (num - 1))
+  return getDateRange(start, end)
 }
 
 /**
@@ -248,7 +251,7 @@ class ChatlogAPI extends BaseAPI<MessageResponse, Message> {
   ): Promise<Message[]> {
     return this.getChatlog({
       talker,
-      time: time || getToday(),
+      time: time || getRecentDateRange(),
       limit,
       offset,
       bottom,
@@ -288,7 +291,7 @@ class ChatlogAPI extends BaseAPI<MessageResponse, Message> {
   ): Promise<Message[]> {
     return this.getChatlog({
       sender,
-      time: time || getToday(),
+      time: time || getRecentDateRange(),
       talker,
       limit,
     })
@@ -303,7 +306,7 @@ class ChatlogAPI extends BaseAPI<MessageResponse, Message> {
    */
   getTodayMessages(talker?: string, limit = 50): Promise<Message[]> {
     return this.getChatlog({
-      time: getToday(),
+      time: getRecentDateRange(),
       talker,
       limit,
     })

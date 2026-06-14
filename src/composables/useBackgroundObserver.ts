@@ -86,7 +86,7 @@ class AnalysisQueue {
 async function getContextMessagesForSession(sid: string): Promise<Message[]> {
   const cacheStore = useMessageCacheStore()
   return cacheStore.getOrFetch(sid, () =>
-    chatlogAPI.getSessionMessages(sid, undefined, MAX_CONTEXT_MESSAGES, 0)
+    chatlogAPI.getSessionMessages(sid, undefined, MAX_CONTEXT_MESSAGES, 0, 1)
   )
 }
 
