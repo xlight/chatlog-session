@@ -220,8 +220,8 @@ function handleDropdownCommand(cmd: string) {
             <el-select
               size="small"
               :model-value="deriveLevelPreset(agentStore.getEffectiveConfig(session?.id ?? ''))"
-              @update:model-value="handlePresetChange"
               style="width: 120px"
+              @update:model-value="handlePresetChange"
             >
               <el-option
                 v-for="p in presetOptions"

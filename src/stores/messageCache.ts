@@ -375,6 +375,26 @@ export const useMessageCacheStore = defineStore('messageCache', {
     },
 
     /**
+     * 获取缓存，未命中时调用 fetcher 获取并写入缓存
+     */
+    async getOrFetch(sid: string, fetcher: () => Promise<Message[]>): Promise<Message[]> {
+      const cached = this.get(sid)
+      if (cached && cached.length > 0) {
+        return cached
+      }
+
+      try {
+        const messages = await fetcher()
+        if (messages && messages.length > 0) {
+          this.set(sid, messages)
+        }
+        return messages ?? []
+      } catch {
+        return []
+      }
+    },
+
+    /**
      * 预热缓存（批量加载）
      */
     async warmup(talkers: string[], loader: (talker: string) => Promise<Message[]>) {

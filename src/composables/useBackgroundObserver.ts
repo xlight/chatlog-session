@@ -1,4 +1,5 @@
 import { useAIAgentStore } from '@/stores/ai/agent'
+import { useMessageCacheStore } from '@/stores/messageCache'
 import { useSessionStore } from '@/stores/session'
 import { chatlogAPI } from '@/api/chatlog'
 import { triggerSessionAnalysis } from '@/composables/triggerSessionAnalysis'
@@ -83,11 +84,10 @@ class AnalysisQueue {
 }
 
 async function getContextMessagesForSession(sid: string): Promise<Message[]> {
-  try {
-    return await chatlogAPI.getSessionMessages(sid, undefined, MAX_CONTEXT_MESSAGES, 0)
-  } catch {
-    return []
-  }
+  const cacheStore = useMessageCacheStore()
+  return cacheStore.getOrFetch(sid, () =>
+    chatlogAPI.getSessionMessages(sid, undefined, MAX_CONTEXT_MESSAGES, 0)
+  )
 }
 
 export function useBackgroundObserver() {

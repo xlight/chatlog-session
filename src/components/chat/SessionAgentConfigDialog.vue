@@ -164,8 +164,8 @@ function handlePresetChange(preset: AgentLevelPreset) {
       <el-form-item label="等级">
         <el-select
           :model-value="currentPreset"
-          @update:model-value="handlePresetChange"
           style="width: 100%"
+          @update:model-value="handlePresetChange"
         >
           <el-option
             v-for="(label, key) in presetLabels"
@@ -194,8 +194,8 @@ function handlePresetChange(preset: AgentLevelPreset) {
         <el-form-item label="发送权限">
           <el-select
             :model-value="sendPermission"
-            @update:model-value="updateField('sendPermission', $event)"
             style="width: 100%"
+            @update:model-value="updateField('sendPermission', $event)"
           >
             <el-option label="禁止" value="forbidden" />
             <el-option label="草稿确认" value="draft_confirm" />
@@ -229,36 +229,36 @@ function handlePresetChange(preset: AgentLevelPreset) {
         <el-form-item label="分析间隔（秒）">
           <el-input-number
             :model-value="observerInterval"
-            @update:model-value="updateObserver('intervalSeconds', $event)"
             :min="60"
             :max="3600"
             :step="30"
             style="width: 100%"
+            @update:model-value="updateObserver('intervalSeconds', $event)"
           />
         </el-form-item>
         <el-form-item label="最少新消息">
           <el-input-number
             :model-value="observerMinNewMessages"
-            @update:model-value="updateObserver('minNewMessages', $event)"
             :min="1"
             :max="100"
             style="width: 100%"
+            @update:model-value="updateObserver('minNewMessages', $event)"
           />
         </el-form-item>
         <el-form-item label="最大回复次数">
           <el-input-number
             :model-value="maxAutoReplies"
-            @update:model-value="updateField('maxAutoReplies', $event)"
             :min="0"
             :max="100"
             style="width: 100%"
+            @update:model-value="updateField('maxAutoReplies', $event)"
           />
         </el-form-item>
         <el-form-item label="Prompt 覆盖">
           <el-input
             :model-value="promptTemplateId"
-            @update:model-value="updateField('promptTemplateId', $event || undefined)"
             placeholder="留空使用全局默认"
+            @update:model-value="updateField('promptTemplateId', $event || undefined)"
           />
         </el-form-item>
       </template>
@@ -270,10 +270,10 @@ function handlePresetChange(preset: AgentLevelPreset) {
         <el-form-item label="冷却时间（分钟）">
           <el-input-number
             :model-value="Math.round(cooldownMs / 60000)"
-            @update:model-value="updateField('cooldownMs', ($event as number) * 60000)"
             :min="0"
             :step="1"
             style="width: 100%"
+            @update:model-value="updateField('cooldownMs', ($event as number) * 60000)"
           />
         </el-form-item>
       </template>
@@ -285,8 +285,8 @@ function handlePresetChange(preset: AgentLevelPreset) {
         <el-form-item label="关键词列表">
           <el-input
             :model-value="keywordPatterns"
-            @update:model-value="handlePatternsInput"
             placeholder="逗号分隔多个关键词"
+            @update:model-value="handlePatternsInput"
           />
         </el-form-item>
       </template>
@@ -298,10 +298,10 @@ function handlePresetChange(preset: AgentLevelPreset) {
         <el-form-item label="每次分析回复数">
           <el-input-number
             :model-value="effectiveConfig.observer.autoReplyCount"
-            @update:model-value="updateObserver('autoReplyCount', $event)"
             :min="1"
             :max="10"
             style="width: 100%"
+            @update:model-value="updateObserver('autoReplyCount', $event)"
           />
         </el-form-item>
       </template>
@@ -313,8 +313,8 @@ function handlePresetChange(preset: AgentLevelPreset) {
         <el-form-item label="关键词列表">
           <el-input
             :model-value="keywordPatterns"
-            @update:model-value="handlePatternsInput"
             placeholder="逗号分隔多个关键词"
+            @update:model-value="handlePatternsInput"
           />
         </el-form-item>
       </template>

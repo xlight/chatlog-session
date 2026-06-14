@@ -1,4 +1,5 @@
 import { useChatMessagesStore } from '@/stores/chatMessages'
+import { useMessageCacheStore } from '@/stores/messageCache'
 import { chatlogAPI } from '@/api/chatlog'
 import type { Message } from '@/types/message'
 
@@ -23,11 +24,9 @@ export async function getContextMessages(
     }
   }
 
-  // Fallback 到 API
-  try {
-    const messages = await chatlogAPI.getSessionMessages(sessionId, undefined, limit, 0)
-    return messages ?? []
-  } catch {
-    return []
-  }
+  // Fallback 到缓存或 API
+  const cacheStore = useMessageCacheStore()
+  return cacheStore.getOrFetch(sessionId, () =>
+    chatlogAPI.getSessionMessages(sessionId, undefined, limit, 0)
+  )
 }
