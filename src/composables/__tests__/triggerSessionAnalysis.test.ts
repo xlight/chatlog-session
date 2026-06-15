@@ -64,7 +64,7 @@ describe('triggerSessionAnalysis incremental autoReply', () => {
   it('增量全部自消息时跳过 autoReply', async () => {
     const store = freshStore()
     store.setSessionConfig('s1', {
-      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1, maxContextMessages: 20 },
       sendPermission: 'auto',
     })
     store.updateObserverState('s1', { lastAnalysisTime: 1000, lastAnalyzedMessageIds: new Set([1, 2]) })
@@ -85,7 +85,7 @@ describe('triggerSessionAnalysis incremental autoReply', () => {
   it('增量包含他人消息时触发 autoReply', async () => {
     const store = freshStore()
     store.setSessionConfig('s1', {
-      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1, maxContextMessages: 20 },
       sendPermission: 'draft_confirm',
     })
     store.updateObserverState('s1', { lastAnalysisTime: 1000, lastAnalyzedMessageIds: new Set([1, 2]) })
@@ -106,7 +106,7 @@ describe('triggerSessionAnalysis incremental autoReply', () => {
   it('定时 tick 触发不 autoReply', async () => {
     const store = freshStore()
     store.setSessionConfig('s1', {
-      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1, maxContextMessages: 20 },
       sendPermission: 'draft_confirm',
     })
     store.updateObserverState('s1', { lastAnalysisTime: 1000, lastAnalyzedMessageIds: new Set([1]) })
@@ -125,7 +125,7 @@ describe('triggerSessionAnalysis incremental autoReply', () => {
   it('冷启动时允许 autoReply', async () => {
     const store = freshStore()
     store.setSessionConfig('s1', {
-      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1, maxContextMessages: 20 },
       sendPermission: 'draft_confirm',
     })
 
@@ -143,7 +143,7 @@ describe('triggerSessionAnalysis incremental autoReply', () => {
   it('分析完成后更新 lastAnalysisTime 为秒级', async () => {
     const store = freshStore()
     store.setSessionConfig('s1', {
-      observer: { enabled: true, autoReply: false, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: false, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1, maxContextMessages: 20 },
     })
 
     const messages = [
@@ -163,7 +163,7 @@ describe('triggerSessionAnalysis incremental autoReply', () => {
   it('分析完成后更新 lastAnalyzedMessageIds', async () => {
     const store = freshStore()
     store.setSessionConfig('s1', {
-      observer: { enabled: true, autoReply: false, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: false, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1, maxContextMessages: 20 },
     })
 
     const messages = [
@@ -183,7 +183,7 @@ describe('triggerSessionAnalysis incremental autoReply', () => {
   it('同秒内消息通过 lastAnalyzedMessageIds 精确区分', async () => {
     const store = freshStore()
     store.setSessionConfig('s1', {
-      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1, maxContextMessages: 20 },
       sendPermission: 'draft_confirm',
     })
     store.updateObserverState('s1', { lastAnalysisTime: 1000, lastAnalyzedMessageIds: new Set([1, 2]) })

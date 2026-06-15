@@ -13,6 +13,7 @@ import type {
   PersistedAgentConfig,
   ObserverState,
   ObserverResult,
+  StreamingObserverResult,
   KeywordResult,
 } from '@/types/ai/agent'
 
@@ -36,6 +37,7 @@ const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
     observerMinNewMessages: 5,
     observerAutoReply: false,
     observerAutoReplyCount: 1,
+    observerMaxContextMessages: 20,
     keywordEnabled: false,
     keywordMatchPatterns: [],
     promptTemplateId: 'builtin-reply',
@@ -66,11 +68,11 @@ export function deriveLevelPreset(config: SessionAgentConfig): AgentLevelPreset 
 
 export function applyLevelPreset(preset: AgentLevelPreset): Partial<SessionAgentConfig> {
   switch (preset) {
-    case 'L0': return { sendPermission: 'forbidden', observer: { enabled: false, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
-    case 'L1': return { sendPermission: 'forbidden', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
-    case 'L2': return { sendPermission: 'draft_confirm', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
-    case 'L3': return { sendPermission: 'auto', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 }, keywordMonitor: { enabled: true, matchPatterns: [] } }
-    case 'L4': return { sendPermission: 'auto', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: true, autoReplyCount: 1 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
+    case 'L0': return { sendPermission: 'forbidden', observer: { enabled: false, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 20 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
+    case 'L1': return { sendPermission: 'forbidden', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 15 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
+    case 'L2': return { sendPermission: 'draft_confirm', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 15 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
+    case 'L3': return { sendPermission: 'auto', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 25 }, keywordMonitor: { enabled: true, matchPatterns: [] } }
+    case 'L4': return { sendPermission: 'auto', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: true, autoReplyCount: 1, maxContextMessages: 25 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
     case 'Custom': return {}
   }
 }
@@ -95,6 +97,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
   // --- Phase C 运行时 state（不持久化） ---
   const observerStates = ref<Map<string, ObserverState>>(new Map())
   const observerResults = ref<Map<string, ObserverResult[]>>(new Map())
+  const observerStreaming = ref<Map<string, StreamingObserverResult | null>>(new Map())
   const keywordResults = ref<Map<string, KeywordResult[]>>(new Map())
 
   // --- 不变 state ---
@@ -136,6 +139,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
         minNewMessages: sessionOverride?.observer?.minNewMessages ?? defaults.observerMinNewMessages,
         autoReply: sessionOverride?.observer?.autoReply ?? defaults.observerAutoReply,
         autoReplyCount: sessionOverride?.observer?.autoReplyCount ?? defaults.observerAutoReplyCount,
+        maxContextMessages: sessionOverride?.observer?.maxContextMessages ?? defaults.observerMaxContextMessages,
       },
       keywordMonitor: {
         enabled: sessionOverride?.keywordMonitor?.enabled ?? defaults.keywordEnabled,
@@ -383,6 +387,25 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     observerResults.value = newMap
   }
 
+  /** 更新流式分析中间状态 */
+  function updateStreamingState(sessionId: string, partial: Partial<StreamingObserverResult>): void {
+    const current = observerStreaming.value.get(sessionId)
+    observerStreaming.value = new Map(observerStreaming.value).set(sessionId, {
+      streamingStatus: 'streaming',
+      streamingSummary: current?.streamingSummary ?? '',
+      streamingKeyPoints: current?.streamingKeyPoints ?? [],
+      streamingSuggestions: current?.streamingSuggestions ?? [],
+      ...partial,
+    })
+  }
+
+  /** 清空流式分析状态 */
+  function clearStreamingState(sessionId: string): void {
+    const newMap = new Map(observerStreaming.value)
+    newMap.delete(sessionId)
+    observerStreaming.value = newMap
+  }
+
   // ==================== Keyword Actions ====================
 
   /** 添加关键词匹配结果 */
@@ -500,6 +523,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     sessionConfigs.value = {}
     observerStates.value = new Map()
     observerResults.value = new Map()
+    observerStreaming.value = new Map()
     keywordResults.value = new Map()
     drafts.value = []
     sendingStatuses.value = []
@@ -514,6 +538,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     sessionConfigs,
     observerStates,
     observerResults,
+    observerStreaming,
     keywordResults,
     drafts,
     sendingStatuses,
@@ -550,6 +575,8 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     updateObserverState,
     addObserverResult,
     clearObserverResults,
+    updateStreamingState,
+    clearStreamingState,
 
     // Keyword Actions
     addKeywordResult,

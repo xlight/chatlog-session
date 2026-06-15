@@ -266,7 +266,7 @@ describe('canAutoReply', () => {
     store.enabled = true
     store.setSessionConfig('s1', {
       sendPermission: 'auto',
-      observer: { enabled: true, autoReply: true, intervalSeconds: 300, minNewMessages: 5, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: true, intervalSeconds: 300, minNewMessages: 5, autoReplyCount: 1, maxContextMessages: 20 },
       maxAutoReplies: 2,
     })
     store.incrementAutoReplyTracker('s1')
@@ -279,7 +279,7 @@ describe('canAutoReply', () => {
     store.enabled = true
     store.setSessionConfig('s1', {
       sendPermission: 'auto',
-      observer: { enabled: true, autoReply: true, intervalSeconds: 300, minNewMessages: 5, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: true, intervalSeconds: 300, minNewMessages: 5, autoReplyCount: 1, maxContextMessages: 20 },
       maxAutoReplies: 2,
     })
     store.incrementAutoReplyTracker('s1')
@@ -326,7 +326,7 @@ describe('getEffectiveConfig', () => {
 
   it('会话覆盖 observer 字段', () => {
     const store = freshStore()
-    store.setSessionConfig('s1', { observer: { enabled: true, intervalSeconds: 600, minNewMessages: 10, autoReply: false, autoReplyCount: 1 } })
+    store.setSessionConfig('s1', { observer: { enabled: true, intervalSeconds: 600, minNewMessages: 10, autoReply: false, autoReplyCount: 1, maxContextMessages: 20 } })
     const config = store.getEffectiveConfig('s1')
     expect(config.observer.enabled).toBe(true)
     expect(config.observer.intervalSeconds).toBe(600)
@@ -366,7 +366,7 @@ describe('canAutoReplySession', () => {
     store.enabled = true
     store.setSessionConfig('s1', {
       sendPermission: 'auto',
-      observer: { enabled: true, autoReply: true, intervalSeconds: 300, minNewMessages: 5, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: true, intervalSeconds: 300, minNewMessages: 5, autoReplyCount: 1, maxContextMessages: 20 },
     })
     expect(store.canAutoReplySession('s1')).toBe(true)
   })
@@ -376,7 +376,7 @@ describe('canAutoReplySession', () => {
     store.enabled = true
     store.setSessionConfig('s1', {
       sendPermission: 'auto',
-      observer: { enabled: true, autoReply: true, intervalSeconds: 300, minNewMessages: 5, autoReplyCount: 1 },
+      observer: { enabled: true, autoReply: true, intervalSeconds: 300, minNewMessages: 5, autoReplyCount: 1, maxContextMessages: 20 },
       maxAutoReplies: 1,
     })
     store.incrementAutoReplyTracker('s1')
@@ -482,7 +482,7 @@ describe('deriveLevelPreset', () => {
       sendPermission: 'draft_confirm',
       userActions: { enabled: true, allowedActions: ['draft_reply', 'analyze'] },
       allowScheduledMessages: false,
-      observer: { enabled: false, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 },
+      observer: { enabled: false, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 20 },
       keywordMonitor: { enabled: false, matchPatterns: [] },
       promptTemplateId: 'builtin-reply',
       maxAutoReplies: 0,
@@ -500,21 +500,21 @@ describe('deriveLevelPreset', () => {
   it('L1: forbidden + obs on', () => {
     expect(deriveLevelPreset(baseConfig({
       sendPermission: 'forbidden',
-      observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 },
+      observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 20 },
     }))).toBe('L1')
   })
 
   it('L2: draft_confirm + obs on', () => {
     expect(deriveLevelPreset(baseConfig({
       sendPermission: 'draft_confirm',
-      observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 },
+      observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 20 },
     }))).toBe('L2')
   })
 
   it('L3: auto + obs on + kw on + autoReply off', () => {
     expect(deriveLevelPreset(baseConfig({
       sendPermission: 'auto',
-      observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1 },
+      observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 20 },
       keywordMonitor: { enabled: true, matchPatterns: [] },
     }))).toBe('L3')
   })
@@ -522,14 +522,14 @@ describe('deriveLevelPreset', () => {
   it('L4: auto + obs on + autoReply on + kw off', () => {
     expect(deriveLevelPreset(baseConfig({
       sendPermission: 'auto',
-      observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: true, autoReplyCount: 1 },
+      observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: true, autoReplyCount: 1, maxContextMessages: 20 },
     }))).toBe('L4')
   })
 
   it('Custom: auto + obs on + kw on + autoReply on', () => {
     expect(deriveLevelPreset(baseConfig({
       sendPermission: 'auto',
-      observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: true, autoReplyCount: 1 },
+      observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: true, autoReplyCount: 1, maxContextMessages: 20 },
       keywordMonitor: { enabled: true, matchPatterns: [] },
     }))).toBe('Custom')
   })

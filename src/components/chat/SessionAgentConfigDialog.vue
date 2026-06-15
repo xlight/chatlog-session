@@ -39,6 +39,7 @@ const showAutoReplyCount = computed(() => derivedPreset.value === 'L4')
 const observerEnabled = computed(() => effectiveConfig.value.observer.enabled)
 const observerInterval = computed(() => effectiveConfig.value.observer.intervalSeconds)
 const observerMinNewMessages = computed(() => effectiveConfig.value.observer.minNewMessages)
+const observerMaxContextMessages = computed(() => effectiveConfig.value.observer.maxContextMessages)
 const observerAutoReply = computed(() => effectiveConfig.value.observer.autoReply)
 const keywordEnabled = computed(() => effectiveConfig.value.keywordMonitor.enabled)
 const maxAutoReplies = computed(() => effectiveConfig.value.maxAutoReplies)
@@ -243,6 +244,15 @@ function handlePresetChange(preset: AgentLevelPreset) {
             :max="100"
             style="width: 100%"
             @update:model-value="updateObserver('minNewMessages', $event)"
+          />
+        </el-form-item>
+        <el-form-item label="上下文消息数">
+          <el-input-number
+            :model-value="observerMaxContextMessages"
+            :min="5"
+            :max="100"
+            style="width: 100%"
+            @update:model-value="updateObserver('maxContextMessages', $event)"
           />
         </el-form-item>
         <el-form-item label="最大回复次数">

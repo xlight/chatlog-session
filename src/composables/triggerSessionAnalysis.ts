@@ -4,11 +4,9 @@ import { chatStream } from '@/api/llm'
 import { sendmsgAPI } from '@/api/sendmsg'
 import { getContextMessages } from '@/utils/getContextMessages'
 import { getMessageSummary } from '@/components/chat/message-types/config'
-import type { ObserverResult, SessionAgentConfig } from '@/types/ai/agent'
+import type { ObserverResult, SessionAgentConfig, StreamingObserverResult } from '@/types/ai/agent'
 import type { ChatMessage } from '@/types/ai'
 import type { Message } from '@/types/message'
-
-const MAX_CONTEXT_MESSAGES = 50
 
 function generateId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -69,13 +67,29 @@ function formatMessageForPrompt(msg: Message): string {
   return `[${timeStr}] ${sender}: ${content}`
 }
 
-function buildAnalysisPrompt(messages: Message[]): string {
+function buildIncrementalAnalysisPrompt(messages: Message[], lastResult?: ObserverResult): string {
   const chatLog = messages.map(formatMessageForPrompt).join('\n')
+
+  if (!lastResult) {
+    return (
+      '请分析以下聊天记录摘要，列出关键讨论点和建议回复：\n\n' +
+      `${chatLog}\n\n` +
+      '请按以下格式输出：\n' +
+      '【摘要】\n[整体讨论概述]\n\n' +
+      '【关键点】\n- [关键点1]\n- [关键点2]\n...\n\n' +
+      '【建议回复】\n- [建议回复1]\n- [建议回复2]\n...'
+    )
+  }
+
   return (
-    '请分析以下聊天记录摘要，列出关键讨论点和建议回复：\n\n' +
-    `${chatLog}\n\n` +
+    '以下是该会话的上次分析结果和最新消息，请基于此进行增量分析，关注最新变化和趋势。\n\n' +
+    `上次分析结果：\n` +
+    `摘要：${lastResult.summary}\n` +
+    `关键点：${lastResult.keyPoints.join('、')}\n` +
+    `建议回复：${lastResult.suggestions.join('、')}\n\n` +
+    `本次分析的最新消息：\n${chatLog}\n\n` +
     '请按以下格式输出：\n' +
-    '【摘要】\n[整体讨论概述]\n\n' +
+    '【摘要】\n[整体讨论概述，重点关注与上次分析相比的新变化]\n\n' +
     '【关键点】\n- [关键点1]\n- [关键点2]\n...\n\n' +
     '【建议回复】\n- [建议回复1]\n- [建议回复2]\n...'
   )
@@ -189,6 +203,8 @@ export interface TriggerSessionAnalysisOptions {
   contextMessages?: Message[]
   skipAccumulatedCheck?: boolean
   isTimerTick?: boolean
+  /** 流式回调，每次收到有效 chunk 时推送中间结果 */
+  onStream?: (partial: Partial<StreamingObserverResult>) => void
 }
 
 export async function triggerSessionAnalysis(
@@ -227,10 +243,11 @@ export async function triggerSessionAnalysis(
   console.log('[Observer:trigger] start analysis', { sessionId, isTimerTick: options?.isTimerTick, skipAccumulatedCheck: options?.skipAccumulatedCheck })
 
   agentStore.updateObserverState(sessionId, { isAnalyzing: true, error: undefined })
+  agentStore.clearStreamingState(sessionId)
 
   try {
     const allMessages = options?.contextMessages
-      ?? await getContextMessages(sessionId, MAX_CONTEXT_MESSAGES)
+      ?? await getContextMessages(sessionId, config.observer.maxContextMessages)
     const messages = allMessages.filter(isRealMessage)
 
     if (messages.length === 0) {
@@ -241,7 +258,8 @@ export async function triggerSessionAnalysis(
       return
     }
 
-    const prompt = buildAnalysisPrompt(messages)
+    const prevResult = state.incrementalContext
+    const prompt = buildIncrementalAnalysisPrompt(messages, prevResult)
     const llmMessages: ChatMessage[] = [
       {
         role: 'system',
@@ -252,8 +270,26 @@ export async function triggerSessionAnalysis(
     ]
 
     let content = ''
+    const onStream = options?.onStream
+    onStream?.({ streamingStatus: 'streaming', streamingSummary: '', streamingKeyPoints: [], streamingSuggestions: [] })
+
     for await (const chunk of chatStream({ messages: llmMessages, model: config.model })) {
-      content += chunk.choices?.[0]?.delta?.content || ''
+      const delta = chunk.choices?.[0]?.delta?.content || ''
+      if (!delta) continue
+      content += delta
+
+      if (onStream) {
+        const partial: Partial<StreamingObserverResult> = {
+          streamingStatus: 'streaming',
+        }
+        const currSummary = extractSection(content, '摘要')
+        const currKeyPoints = extractList(content, '关键点')
+        const currSuggestions = extractList(content, '建议回复')
+        if (currSummary) partial.streamingSummary = currSummary
+        if (currKeyPoints.length > 0) partial.streamingKeyPoints = currKeyPoints
+        if (currSuggestions.length > 0) partial.streamingSuggestions = currSuggestions
+        onStream(partial)
+      }
     }
 
     const result = parseAnalysisResult(content, sessionId, messages)
@@ -268,7 +304,11 @@ export async function triggerSessionAnalysis(
       isAnalyzing: false,
       error: undefined,
       lastResult: result,
+      incrementalContext: result,
     })
+
+    onStream?.({ streamingStatus: 'complete', streamingSummary: result.summary, streamingKeyPoints: result.keyPoints, streamingSuggestions: result.suggestions })
+    agentStore.clearStreamingState(sessionId)
 
     const isColdStart = state.lastAnalysisTime === 0 && !state.lastAnalyzedMessageIds
     const prevLastAnalysisTimeSec = state.lastAnalysisTime > 1e12 ? Math.floor(state.lastAnalysisTime / 1000) : state.lastAnalysisTime
@@ -308,5 +348,7 @@ export async function triggerSessionAnalysis(
       isAnalyzing: false,
       error: errMsg,
     })
+    options?.onStream?.({ streamingStatus: 'error' })
+    agentStore.clearStreamingState(sessionId)
   }
 }

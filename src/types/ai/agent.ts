@@ -89,6 +89,8 @@ export interface SessionAgentConfig {
     autoReply: boolean
     /** 每次分析最多回复条数，默认 1 */
     autoReplyCount: number
+    /** 每次分析传递给 LLM 的最多原始消息数量，默认 20 */
+    maxContextMessages: number
   }
   /** 关键词监测模式配置 */
   keywordMonitor: {
@@ -130,6 +132,8 @@ export interface PersistedAgentConfig {
     observerAutoReply: boolean
     /** 默认每次分析最多回复条数 */
     observerAutoReplyCount: number
+    /** 默认每次分析传递给 LLM 的最多原始消息数量 */
+    observerMaxContextMessages: number
     /** 默认启动关键词监测 */
     keywordEnabled: boolean
     /** 默认关键词列表 */
@@ -161,6 +165,8 @@ export interface ObserverState {
   error?: string
   /** 最近一次成功的结果（缓存供快速展示） */
   lastResult?: ObserverResult
+  /** 上一次分析的结果摘要（用于增量上下文构建），与 lastResult 在常规情况下相同 */
+  incrementalContext?: ObserverResult
 }
 
 /** 旁观分析结果 */
@@ -187,6 +193,18 @@ export interface ObserverResult {
   startTime?: number
   /** 本次分析覆盖的消息时间范围终点（Unix 秒级时间戳，messages[-1].createTime） */
   endTime?: number
+}
+
+/** 流式分析结果（分析过程中实时构建） */
+export interface StreamingObserverResult {
+  /** 流式状态 */
+  streamingStatus: 'streaming' | 'complete' | 'error'
+  /** 实时追加的摘要文本 */
+  streamingSummary: string
+  /** 逐条添加的关键点 */
+  streamingKeyPoints: string[]
+  /** 逐条添加的建议 */
+  streamingSuggestions: string[]
 }
 
 /** 关键词匹配结果 */

@@ -38,7 +38,10 @@ export function useAgentObserver(sessionId: string | Ref<string>) {
         accumulatedMessageCount: newAccumulated,
       })
       previousMessageCount = currentCount
-      triggerSessionAnalysis(sid.value, { skipAccumulatedCheck: false })
+      triggerSessionAnalysis(sid.value, {
+        skipAccumulatedCheck: false,
+        onStream: (partial) => agentStore.updateStreamingState(sid.value, partial),
+      })
     } else if (delta < 0) {
       previousMessageCount = currentCount
     }

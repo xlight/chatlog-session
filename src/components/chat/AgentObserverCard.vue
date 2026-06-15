@@ -10,6 +10,7 @@ const agentStore = useAIAgentStore()
 
 const state = computed(() => agentStore.observerStates.get(props.sessionId))
 const results = computed(() => agentStore.observerResults.get(props.sessionId) ?? [])
+const streaming = computed(() => agentStore.observerStreaming.get(props.sessionId))
 
 /** 用户主动展开的结果 ID 集合 */
 const expandedIds = reactive(new Set<string>())
@@ -81,9 +82,36 @@ function formatTimeRange(start?: number, end?: number): string {
 
 <template>
   <div class="agent-observer-card">
-    <div v-if="state?.isAnalyzing" class="observer-loading">
-      <el-skeleton :rows="2" animated />
-      <span class="loading-text">分析中...</span>
+    <div v-if="state?.isAnalyzing" class="observer-streaming">
+      <div class="streaming-header">
+        <el-icon class="is-loading" color="#409eff" :size="16"><Loading /></el-icon>
+        <span class="loading-text">分析中...</span>
+      </div>
+      <div v-if="streaming" class="streaming-content">
+        <p v-if="streaming.streamingSummary" class="streaming-summary">
+          {{ streaming.streamingSummary }}
+        </p>
+        <ul v-if="streaming.streamingKeyPoints.length > 0" class="key-points">
+          <li v-for="(point, i) in streaming.streamingKeyPoints" :key="i">
+            <el-icon :size="12" color="#e6a23c"><WarningFilled /></el-icon>
+            {{ point }}
+          </li>
+        </ul>
+        <div v-if="streaming.streamingSuggestions.length > 0" class="suggestions">
+          <el-tag
+            v-for="(sug, i) in streaming.streamingSuggestions"
+            :key="i"
+            size="small"
+            type="primary"
+            class="suggestion-tag"
+          >
+            {{ sug }}
+          </el-tag>
+        </div>
+      </div>
+      <div v-else class="observer-loading">
+        <el-skeleton :rows="2" animated />
+      </div>
     </div>
 
     <div v-else-if="results.length === 0" class="observer-empty">
@@ -255,5 +283,39 @@ function formatTimeRange(start?: number, end?: number): string {
   margin-top: 4px;
   font-size: 12px;
   color: #f56c6c;
+}
+
+.observer-streaming {
+  padding: 12px;
+
+  .streaming-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+
+    .is-loading {
+      animation: rotating 2s linear infinite;
+    }
+
+    .loading-text {
+      font-size: 12px;
+      color: #409eff;
+    }
+  }
+
+  .streaming-content {
+    .streaming-summary {
+      font-size: 12px;
+      color: #606266;
+      line-height: 1.5;
+      margin: 0 0 4px;
+    }
+  }
+}
+
+@keyframes rotating {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
