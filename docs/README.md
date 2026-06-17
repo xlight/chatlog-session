@@ -634,10 +634,11 @@ docs/
 - [其他同类工具/留痕-2.md](external-docs/其他同类工具/留痕-2.md) — 永久免费，被吹爆了的神器
 - [其他同类工具/留痕.md](external-docs/其他同类工具/留痕.md) — 留痕 MemoTrace v3.0
 
-### performance/ (1 篇)
+### performance/ (2 篇)
 
 - [performance/pinyin-optimization.md](external-docs/performance/pinyin-optimization.md) — 性能瓶颈分析
+- [performance-analysis-2026-06-17.md](performance-analysis-2026-06-17.md) — 性能测试分析报告 (2026-06-17)
 
 ---
 
-**文档总数**: 321 篇 | **归档**: 61 篇 | **最后更新**: 2026-05-12 | **版本**: v0.26.0
+**文档总数**: 322 篇 | **归档**: 61 篇 | **最后更新**: 2026-06-17 | **版本**: v0.70.0

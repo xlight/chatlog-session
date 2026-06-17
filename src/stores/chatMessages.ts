@@ -59,6 +59,8 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
   const loadingHistory = ref(false)
   const historyLoadMessage = ref('')
   const scrollTargetId = ref<number | null>(null)
+  const isBatchRendering = ref(false)  // 分批渲染状态
+  const batchRenderAbort = ref<AbortController | null>(null)  // 分批渲染中止控制器
 
   // ==================== Getters ====================
 
@@ -377,6 +379,59 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
       loadingTalker.value = null
       appStore.setLoading('messages', false)
     }
+  }
+
+  async function loadMessagesWithBatchRender(talker: string) {
+    console.time(`[Perf] loadMessagesWithBatchRender(${talker})`)
+
+    try {
+      loading.value = true
+      loadingTalker.value = talker
+      error.value = null
+      appStore.setLoading('messages', true)
+
+      let result: Message[] = []
+      const limit = pageSize.value
+
+      console.time(`[Perf] loadMessagesWithBatchRender:cacheStore.get(${talker})`)
+      const cached = cacheStore.get(talker)
+      console.timeEnd(`[Perf] loadMessagesWithBatchRender:cacheStore.get(${talker})`)
+
+      if (cached) {
+        result = cached
+        if (appStore.isDebug) {
+          console.log('📦 Loaded from cache (batch render)', { talker, count: result.length })
+        }
+      }
+
+      if (result.length === 0) {
+        result = await chatlogAPI.getSessionMessages(talker, undefined, limit, 0, 0)
+        console.time(`[Perf] loadMessagesWithBatchRender:normalize(${talker})`)
+        result = normalizeAndAssertBatch(result, 'loadMessagesWithBatchRender:api')
+        console.timeEnd(`[Perf] loadMessagesWithBatchRender:normalize(${talker})`)
+        cacheStore.set(talker, result)
+      }
+
+      console.time(`[Perf] loadMessagesWithBatchRender:batchRender(${talker})`)
+      await batchRenderMessages(result, 10)
+      console.timeEnd(`[Perf] loadMessagesWithBatchRender:batchRender(${talker})`)
+
+      currentTalker.value = talker
+      assertChronologicalOrder(messages.value, appStore.isDebug, 'loadMessagesWithBatchRender:done')
+    } catch (err) {
+      if (appStore.isDebug) {
+        console.error('❌ loadMessagesWithBatchRender error:', err)
+      }
+      error.value = err instanceof Error ? err : new Error(String(err))
+      appStore.setError(err as Error)
+      throw err
+    } finally {
+      loading.value = false
+      loadingTalker.value = null
+      appStore.setLoading('messages', false)
+    }
+
+    console.timeEnd(`[Perf] loadMessagesWithBatchRender(${talker})`)
   }
 
   async function loadMoreMessages() {
@@ -722,19 +777,67 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     await loadMessages(currentTalker.value, 1, false)
   }
 
+  function abortBatchRender() {
+    if (batchRenderAbort.value) {
+      batchRenderAbort.value.abort()
+      batchRenderAbort.value = null
+    }
+    isBatchRendering.value = false
+  }
+
+  async function batchRenderMessages(newMessages: Message[], batchSize: number = 20): Promise<void> {
+    abortBatchRender()
+
+    if (newMessages.length <= batchSize) {
+      messages.value = newMessages
+      return
+    }
+
+    const controller = new AbortController()
+    batchRenderAbort.value = controller
+    isBatchRendering.value = true
+
+    try {
+      let index = 0
+
+      while (index < newMessages.length && !controller.signal.aborted) {
+        const end = Math.min(index + batchSize, newMessages.length)
+        const batch = newMessages.slice(0, end)
+
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            if (controller.signal.aborted) {
+              resolve()
+              return
+            }
+            messages.value = batch
+            resolve()
+          })
+        })
+
+        index = end
+      }
+    } finally {
+      if (batchRenderAbort.value === controller) {
+        batchRenderAbort.value = null
+        isBatchRendering.value = false
+      }
+    }
+  }
+
   async function switchSession(talker: string) {
     if (talker === currentTalker.value) return
 
-    messages.value = []
+    abortBatchRender()
+
     currentPage.value = 1
     hasMore.value = true
 
-    // 跨 store 調用：清除選擇
     const { useChatSelectionStore } = await import('./chatSelection')
     const selectionStore = useChatSelectionStore()
     selectionStore.clearSelection()
 
-    await loadMessages(talker, 1, false)
+    await loadMessagesWithBatchRender(talker)
   }
 
   function getMessageById(id: number): Message | undefined {
@@ -857,6 +960,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
   function cleanup() {}
 
   function $reset() {
+    abortBatchRender()
     messages.value = []
     currentTalker.value = ''
     totalMessages.value = 0
@@ -884,6 +988,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     loadingHistory,
     historyLoadMessage,
     scrollTargetId,
+    isBatchRendering,
 
     // Getters
     currentMessages,
@@ -912,6 +1017,8 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     hasGapMessage,
     refreshMessages,
     switchSession,
+    batchRenderMessages,
+    abortBatchRender,
     getMessageById,
     getMessageIndex,
     jumpToMessage,

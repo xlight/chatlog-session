@@ -212,8 +212,8 @@ function handleDeleteConfig(sessionId: string) {
         <el-form-item label="默认预设等级">
           <el-select
             :model-value="defaultPreset"
-            @update:model-value="handleDefaultPresetChange"
             style="width: 240px"
+            @update:model-value="handleDefaultPresetChange"
           >
             <el-option
               v-for="(label, key) in presetLabels"
@@ -256,28 +256,28 @@ function handleDeleteConfig(sessionId: string) {
         <el-form-item label="分析间隔（秒）">
           <el-input-number
             :model-value="agentStore.persistedConfig.defaults.observerIntervalSeconds"
+            :min="60"
+            :max="3600"
+            :step="30"
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
                 defaults: { ...agentStore.persistedConfig.defaults, observerIntervalSeconds: $event },
               }
             "
-            :min="60"
-            :max="3600"
-            :step="30"
           />
         </el-form-item>
         <el-form-item label="最少新消息">
           <el-input-number
             :model-value="agentStore.persistedConfig.defaults.observerMinNewMessages"
+            :min="1"
+            :max="100"
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
                 defaults: { ...agentStore.persistedConfig.defaults, observerMinNewMessages: $event },
               }
             "
-            :min="1"
-            :max="100"
           />
         </el-form-item>
 
@@ -295,14 +295,14 @@ function handleDeleteConfig(sessionId: string) {
         <el-form-item label="默认最多回复数">
           <el-input-number
             :model-value="agentStore.persistedConfig.defaults.observerAutoReplyCount"
+            :min="1"
+            :max="10"
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
                 defaults: { ...agentStore.persistedConfig.defaults, observerAutoReplyCount: $event },
               }
             "
-            :min="1"
-            :max="10"
           />
         </el-form-item>
 
@@ -322,6 +322,7 @@ function handleDeleteConfig(sessionId: string) {
         <el-form-item label="默认关键词">
           <el-input
             :model-value="agentStore.persistedConfig.defaults.keywordMatchPatterns.join(', ')"
+            placeholder="逗号分隔多个关键词"
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
@@ -331,7 +332,6 @@ function handleDeleteConfig(sessionId: string) {
                 },
               }
             "
-            placeholder="逗号分隔多个关键词"
           />
         </el-form-item>
 
@@ -342,42 +342,42 @@ function handleDeleteConfig(sessionId: string) {
         <el-form-item label="最大自动回复次数">
           <el-input-number
             :model-value="agentStore.persistedConfig.defaults.maxAutoReplies"
+            :min="0"
+            :step="1"
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
                 defaults: { ...agentStore.persistedConfig.defaults, maxAutoReplies: $event },
               }
             "
-            :min="0"
-            :step="1"
           />
           <span class="form-hint">0 表示无限制</span>
         </el-form-item>
         <el-form-item label="冷却时间（分钟）">
           <el-input-number
             :model-value="Math.round(agentStore.persistedConfig.defaults.cooldownMs / 60000)"
+            :min="0"
+            :step="1"
+            controls-position="right"
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
                 defaults: { ...agentStore.persistedConfig.defaults, cooldownMs: ($event as number) * 60000 },
               }
             "
-            :min="0"
-            :step="1"
-            controls-position="right"
           />
           <span class="form-hint">两次自动回复之间的最小间隔（分钟）</span>
         </el-form-item>
         <el-form-item label="默认 Prompt 模板">
           <el-input
             :model-value="agentStore.persistedConfig.defaults.promptTemplateId"
+            placeholder="builtin-reply"
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
                 defaults: { ...agentStore.persistedConfig.defaults, promptTemplateId: $event },
               }
             "
-            placeholder="builtin-reply"
           />
         </el-form-item>
       </el-form>

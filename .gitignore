@@ -66,3 +66,4 @@ coverage
 pnpm-workspace.yaml
 .sisyphus/
 docs/external-docs
+.playwright-mcp/
