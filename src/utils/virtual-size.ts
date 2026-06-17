@@ -34,10 +34,10 @@ function estimateAvatarColH(showAvatar: boolean, showTime: boolean): number {
 
 /**
  * 估算 content 高度
- * = name(16?) + bodyPadding(20) + bodyHeight
+ * = name(16?) + bodyHeight (bodyHeight 已包含 padding)
  */
 function estimateContentH(showName: boolean, bodyHeight: number): number {
-  return (showName ? NAME_H + GAP : 0) + BODY_PADDING + bodyHeight
+  return (showName ? NAME_H + GAP : 0) + bodyHeight
 }
 
 /**

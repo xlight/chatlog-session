@@ -238,7 +238,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[链接]',
     component: 'LinkMessage',
     priority: 90,
-    estimateHeight: 80,
+    estimateHeight: 120,
     propsMapper: (_msg, ctx) => ({
       linkTitle: ctx.linkTitle,
       linkUrl: ctx.linkUrl,

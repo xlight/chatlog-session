@@ -53,19 +53,22 @@ const historyLoadMessageComputed = computed(() => historyLoadMessage.value)
 const { flatItems } = useFlatMessageList(messagesByDate, hasMoreHistoryComputed, historyLoadMessageComputed)
 
 // 虚拟滚动
-// anchorTo/followOnAppend 仅在用户位于底部时启用，避免滚动时被拉回
 const virtualizer = useVirtualizer(computed(() => ({
   count: flatItems.value.length,
   getScrollElement: () => parentRef.value,
   estimateSize: (i: number) => estimateItemSize(flatItems.value[i]!),
   getItemKey: (i: number) => flatItems.value[i]?.key ?? String(i),
-  anchorTo: isUserAtBottom.value ? ('end' as const) : undefined,
-  followOnAppend: isUserAtBottom.value,
-  scrollEndThreshold: 80,
   overscan: 6,
-  // 禁用向上滚动时的滚动位置调整，避免虚拟器抵抗用户滚动
-  shouldAdjustScrollPositionOnItemSizeChange: () => false,
 })))
+
+// 禁用滚动位置调整（TanStack Virtual bug：从实例属性读取，不是 options）
+// 设置多次确保生效
+function disableScrollAdjustment() {
+  virtualizer.value.shouldAdjustScrollPositionOnItemSizeChange = () => false
+}
+disableScrollAdjustment()
+nextTick(disableScrollAdjustment)
+watch(() => flatItems.value.length, disableScrollAdjustment)
 
 const virtualRows = computed(() => virtualizer.value.getVirtualItems())
 const totalSize = computed(() => virtualizer.value.getTotalSize())
