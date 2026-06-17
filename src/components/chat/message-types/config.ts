@@ -25,6 +25,10 @@ export interface MessageTypeConfig {
 
   // 优先级（数字越大优先级越高，用于解决匹配冲突）
   priority?: number
+
+  // body 高度估值（px），用于虚拟滚动 estimateSize
+  // 不填则回退默认值 72px（文本类）
+  estimateHeight?: number
 }
 
 /**
@@ -50,6 +54,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[图片]',
     component: 'ImageMessage',
     priority: 100,
+    estimateHeight: 222,
     propsMapper: (msg, ctx) => ({
       thumbUrl: ctx.imageThumbUrl,
       imageUrl: ctx.imageUrl,
@@ -67,6 +72,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[语音]',
     component: 'VoiceMessage',
     priority: 100,
+    estimateHeight: 36,
     propsMapper: (msg, ctx) => ({
       voiceUrl: ctx.voiceUrl,
       duration: msg.duration,
@@ -82,6 +88,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[视频]',
     component: 'VideoMessage',
     priority: 100,
+    estimateHeight: 202,
     propsMapper: (msg, ctx) => ({
       videoUrl: ctx.videoUrl,
       showMediaResources: ctx.showMediaResources,
@@ -102,6 +109,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[表情]',
     component: 'EmojiMessage',
     priority: 100,
+    estimateHeight: 142,
     propsMapper: (msg, ctx) => ({
       emojiUrl: ctx.emojiUrl,
       showMediaResources: ctx.showMediaResources,
@@ -116,6 +124,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[个人名片]',
     component: 'ContactCardMessage',
     priority: 100,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       showMediaResources: ctx.showMediaResources,
     }),
@@ -128,6 +137,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[位置]',
     component: 'LocationMessage',
     priority: 100,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       label: ctx.locationLabel,
       x: ctx.locationX,
@@ -144,6 +154,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[QQ邮箱]',
     component: 'QQMailMessage',
     priority: 100,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       showMediaResources: ctx.showMediaResources,
     }),
@@ -156,6 +167,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[语音通话]',
     component: 'VoiceCallMessage',
     priority: 100,
+    estimateHeight: 24,
     propsMapper: (msg, ctx) => ({
       content: msg.content,
       isSelf: msg.isSelf,
@@ -172,6 +184,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[QQ音乐]',
     component: 'QQMusicMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       showMediaResources: ctx.showMediaResources,
     }),
@@ -185,6 +198,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[链接]',
     component: 'LinkMessage',
     priority: 90,
+    estimateHeight: 80,
     // subType=1 时 contents.title 存放的是 URL，contents.url 为空
     propsMapper: (msg, ctx) => {
       const url = msg.contents?.title || msg.contents?.url || msg.fileUrl || ''
@@ -208,6 +222,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[视频链接]',
     component: 'LinkMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       linkTitle: ctx.linkTitle,
       linkUrl: ctx.linkUrl,
@@ -223,6 +238,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[链接]',
     component: 'LinkMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       linkTitle: ctx.linkTitle,
       linkUrl: ctx.linkUrl,
@@ -238,6 +254,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[文件]',
     component: 'FileMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (msg, ctx) => ({
       fileUrl: ctx.fileUrl,
       fileName: ctx.fileName,
@@ -255,6 +272,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[文件]',
     component: 'FileMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (msg, ctx) => ({
       fileUrl: ctx.fileUrl,
       fileName: ctx.fileName,
@@ -272,6 +290,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[表情包(未下载)]',
     component: 'EmojiNotDownloadedMessage',
     priority: 90,
+    estimateHeight: 120,
     propsMapper: (_msg, ctx) => ({
       showMediaResources: ctx.showMediaResources,
     }),
@@ -285,6 +304,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[微信卡包]',
     component: 'CardPackageMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       showMediaResources: ctx.showMediaResources,
     }),
@@ -298,6 +318,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[聊天记录]',
     component: 'ForwardedMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       forwardedTitle: ctx.forwardedTitle,
       forwardedDesc: ctx.forwardedDesc,
@@ -313,6 +334,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[收藏]',
     component: 'FavoriteMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       favoriteTitle: ctx.favoriteTitle,
       favoriteDesc: ctx.favoriteDesc,
@@ -330,6 +352,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[小程序]',
     component: 'MiniProgramMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       title: ctx.miniProgramTitle,
       url: ctx.miniProgramUrl,
@@ -345,6 +368,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[购物小程序]',
     component: 'ShoppingMiniProgramMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       title: ctx.shoppingMiniProgramTitle,
       url: ctx.shoppingMiniProgramUrl,
@@ -362,6 +386,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[小视频]',
     component: 'ShortVideoMessage',
     priority: 90,
+    estimateHeight: 296,
     propsMapper: (_msg, ctx) => ({
       title: ctx.shortVideoTitle,
       videoUrl: ctx.shortVideoUrl,
@@ -377,6 +402,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[接龙]',
     component: 'JielongMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (msg, ctx) => ({
       content: msg.content,
       contents: msg.contents,
@@ -392,6 +418,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[拍一拍]',
     component: 'PatMessage',
     priority: 95, // 拍一拍需要特殊渲染，优先级更高
+    estimateHeight: 24,
     propsMapper: (msg, ctx) => ({
       content: msg.content,
       showMediaResources: ctx.showMediaResources,
@@ -406,6 +433,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[直播]',
     component: 'LiveMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       title: ctx.liveTitle,
     }),
@@ -419,6 +447,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[转账]',
     component: 'TransferMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (msg, ctx) => ({
       content: msg.content,
       showMediaResources: ctx.showMediaResources,
@@ -433,6 +462,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[红包]',
     component: 'RedPacketMessage',
     priority: 90,
+    estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
       showMediaResources: ctx.showMediaResources,
     }),
@@ -446,6 +476,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     placeholder: '[引用消息]',
     component: 'ReferMessage',
     priority: 90,
+    estimateHeight: 110,
     propsMapper: (msg, ctx) => ({
       message: msg,
       referMessage: ctx.referMessage,

@@ -120,6 +120,7 @@ export interface Message {
  */
 export interface MessageGroup {
   date: string
+  formattedDate: string
   messages: Message[]
 }
 

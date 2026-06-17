@@ -82,6 +82,8 @@ const openLink = (url: string) => {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .message-link {

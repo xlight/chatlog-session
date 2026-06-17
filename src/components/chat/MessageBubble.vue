@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onBeforeUnmount } from 'vue'
 import type { Message } from '@/types'
 import { formatMessageTime } from '@/utils'
 import Avatar from '@/components/common/Avatar.vue'
@@ -32,12 +32,30 @@ const props = withDefaults(defineProps<Props>(), {
 // 定义 emits
 const emit = defineEmits<{
   'gap-click': [message: Message]
+  resize: []
   delete: [message: Message]
   favorite: [message: Message]
 }>()
 
 const handleQuickDelete = (msg: Message) => emit('delete', msg)
 const handleQuickFavorite = (msg: Message) => emit('favorite', msg)
+
+// ResizeObserver 监听根元素尺寸变化，通知虚拟滚动重新测量
+const bubbleRef = ref<HTMLElement | null>(null)
+let resizeObserver: ResizeObserver | null = null
+
+function setupResizeObserver() {
+  if (!bubbleRef.value) return
+  resizeObserver = new ResizeObserver(() => {
+    emit('resize')
+  })
+  resizeObserver.observe(bubbleRef.value)
+}
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
+})
 
 // 获取 stores
 const appStore = useAppStore()
@@ -358,7 +376,7 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
 </script>
 
 <template>
-  <div class="message-bubble" :class="bubbleClass">
+  <div ref="bubbleRef" class="message-bubble" :class="bubbleClass" @vue:mounted="setupResizeObserver">
     <!-- 系统消息 -->
     <div v-if="isSystemMessage" class="message-bubble__system">
       <span class="system-text">{{ message.content }}</span>
@@ -400,10 +418,17 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
 
     <!-- 普通消息 -->
     <template v-else>
-      <!-- 头像 (对方消息显示在左边) -->
-      <div v-if="!isSelf" class="message-bubble__avatar">
+      <!-- 头像列：头像 + 时间 + 快捷操作（对方消息在左侧） -->
+      <div v-if="!isSelf" class="message-bubble__avatar-col">
         <Avatar v-if="showAvatar" :src="avatarUrl" :name="message.senderName" :size="36" />
-        <div v-else class="avatar-placeholder"></div>
+        <div v-if="showTime" class="message-bubble__time">{{ messageTime }}</div>
+        <MessageQuickActions
+          v-if="!isSystemMessage && !isRevokeMessage && !isGapMessage && !isEmptyRangeMessage"
+          :message="message"
+          class="message-bubble__quick-actions"
+          @delete="handleQuickDelete"
+          @favorite="handleQuickFavorite"
+        />
       </div>
 
       <div class="message-bubble__content">
@@ -412,21 +437,8 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
           {{ message.senderName || message.sender }}
         </div>
 
-        <!-- 消息时间 -->
-        <div v-if="showTime" class="message-bubble__time">
-          {{ messageTime }}
-        </div>
-
         <!-- 消息主体 - 使用动态组件 -->
         <div class="message-bubble__body">
-          <MessageQuickActions
-            v-if="!isSystemMessage && !isRevokeMessage && !isGapMessage && !isEmptyRangeMessage"
-            :message="message"
-            class="message-bubble__quick-actions"
-            @delete="handleQuickDelete"
-            @favorite="handleQuickFavorite"
-          />
-
           <!-- 动态组件渲染 -->
           <template v-if="dynamicComponent">
             <component
@@ -450,10 +462,17 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
         </div>
       </div>
 
-      <!-- 头像 (自己的消息显示在右边) -->
-      <div v-if="isSelf" class="message-bubble__avatar">
+      <!-- 头像列（自己的消息在右侧） -->
+      <div v-if="isSelf" class="message-bubble__avatar-col">
         <Avatar v-if="showAvatar" :src="avatarUrl" :name="message.senderName" :size="36" />
-        <div v-else class="avatar-placeholder"></div>
+        <div v-if="showTime" class="message-bubble__time">{{ messageTime }}</div>
+        <MessageQuickActions
+          v-if="!isSystemMessage && !isRevokeMessage && !isGapMessage && !isEmptyRangeMessage"
+          :message="message"
+          class="message-bubble__quick-actions"
+          @delete="handleQuickDelete"
+          @favorite="handleQuickFavorite"
+        />
       </div>
     </template>
 
@@ -604,14 +623,37 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
     }
   }
 
-  &__avatar {
+  &__avatar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
     flex-shrink: 0;
     width: 36px;
-    height: 36px;
+  }
 
-    .avatar-placeholder {
-      width: 100%;
-      height: 100%;
+  &__time {
+    font-size: 11px;
+    color: var(--el-text-color-placeholder);
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  &__quick-actions {
+    opacity: 0;
+    transition: opacity 0.2s;
+
+    .message-bubble:hover & {
+      opacity: 1;
+    }
+
+    @media (max-width: 768px) {
+      opacity: 1;
+    }
+
+    .avatar-placeholder ~ & {
+      margin-top: -36px;
     }
   }
 
@@ -625,12 +667,6 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
   &__name {
     font-size: 12px;
     color: var(--el-text-color-secondary);
-    padding: 0 4px;
-  }
-
-  &__time {
-    font-size: 12px;
-    color: var(--el-text-color-placeholder);
     padding: 0 4px;
   }
 

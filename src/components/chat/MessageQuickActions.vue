@@ -339,22 +339,8 @@ const hasMedia = () => {
 
 <style scoped lang="scss">
 .message-quick-actions__trigger {
-  opacity: 0;
-  transition: opacity 0.2s;
-
   &:hover {
     background-color: var(--el-fill-color-light);
-  }
-
-  // 父容器 hover 时显示
-  .message-bubble:hover &,
-  .message-item:hover & {
-    opacity: 1;
-  }
-
-  // 移动端始终显示
-  @media (max-width: 768px) {
-    opacity: 1;
   }
 }
 

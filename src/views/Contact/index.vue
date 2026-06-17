@@ -4,8 +4,7 @@ import { useAppStore } from '@/stores/app'
 import { useContactStore } from '@/stores/contact'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { RecycleScroller } from 'vue-virtual-scroller'
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import Avatar from '@/components/common/Avatar.vue'
 import SearchBar from '@/components/common/SearchBar.vue'
 import Loading from '@/components/common/Loading.vue'
@@ -26,7 +25,7 @@ const selectedContact = ref<Contact | null>(null)
 
 // UI 状态
 const showBackTop = ref(false)
-const scrollerRef = ref()
+const parentRef = ref<HTMLElement | null>(null)
 const pullDistance = ref(0)
 const isPulling = ref(false)
 
@@ -48,6 +47,27 @@ const flattenedContacts = computed(() => {
   return flattenGroups(contactGroups.value)
 })
 
+// 虚拟滚动
+const virtualizer = useVirtualizer(computed(() => ({
+  count: flattenedContacts.value.length,
+  getScrollElement: () => parentRef.value,
+  estimateSize: (i: number) => {
+    const item = flattenedContacts.value[i]
+    return item?.type === 'header' ? 36 : 72
+  },
+  getItemKey: (i: number) => flattenedContacts.value[i]?.key ?? String(i),
+  overscan: 5,
+})))
+
+const virtualRows = computed(() => virtualizer.value.getVirtualItems())
+const totalSize = computed(() => virtualizer.value.getTotalSize())
+
+// 获取虚拟行对应的扁平化项
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getFlatItem(index: number): any {
+  return flattenedContacts.value[index]
+}
+
 // 处理筛选类型变更
 const handleFilterChange = (val: string | number | boolean | undefined) => {
   if (typeof val === 'string') {
@@ -56,23 +76,17 @@ const handleFilterChange = (val: string | number | boolean | undefined) => {
 }
 
 // 处理滚动
-const handleScroll = (event: Event) => {
-  const target = event.target as HTMLElement | null
-  showBackTop.value = (target?.scrollTop ?? 0) > 300
+const handleScroll = () => {
+  showBackTop.value = (parentRef.value?.scrollTop ?? 0) > 300
 }
 
 // 回到顶部
 const scrollToTop = () => {
-  if (scrollerRef.value?.$el) {
-    const scrollElement = scrollerRef.value.$el.querySelector('.vue-recycle-scroller__item-wrapper')
-    scrollElement?.scrollTo({ top: 0, behavior: 'smooth' })
-  }
+  virtualizer.value.scrollToIndex(0, { behavior: 'smooth' })
 }
 
 // 跳转到指定字母
 const jumpToLetter = (letter: string) => {
-  if (!scrollerRef.value) return
-
   const targetIndex = flattenedContacts.value.findIndex(item => {
     if (item.type === 'header') {
       if (letter === '⭐' && item.header === '星标朋友') return true
@@ -82,18 +96,15 @@ const jumpToLetter = (letter: string) => {
   })
 
   if (targetIndex >= 0) {
-    scrollerRef.value.scrollToItem(targetIndex)
+    virtualizer.value.scrollToIndex(targetIndex, { align: 'start' })
   }
 }
 
 // 下拉刷新相关
 const handleTouchStart = () => {
-  if (scrollerRef.value?.$el) {
-    const scrollElement = scrollerRef.value.$el.querySelector('.vue-recycle-scroller__item-wrapper')
-    if (scrollElement?.scrollTop === 0) {
-      isPulling.value = true
-      pullDistance.value = 0
-    }
+  if (parentRef.value && parentRef.value.scrollTop === 0) {
+    isPulling.value = true
+    pullDistance.value = 0
   }
 }
 
@@ -309,72 +320,105 @@ onMounted(() => {
             </div>
           </div>
 
-          <RecycleScroller
-            ref="scrollerRef"
-            :items="flattenedContacts"
-            :item-size="72"
-            :min-item-size="36"
-            key-field="key"
+          <div
+            ref="parentRef"
             class="contact-scroller"
-            :buffer="200"
-            :page-mode="false"
             @scroll="handleScroll"
           >
-            <template #default="{ item }">
-              <!-- 分组头 -->
+            <!-- 下拉刷新提示 -->
+            <div
+              v-if="pullDistance > 0"
+              class="pull-refresh-indicator"
+              :style="{ height: `${pullDistance}px` }"
+            >
+              <div class="refresh-content">
+                <el-icon v-if="pullDistance > 50"><Check /></el-icon>
+                <el-icon v-else><ArrowDown /></el-icon>
+                <span>{{ pullDistance > 50 ? '松开刷新' : '下拉刷新' }}</span>
+              </div>
+            </div>
+
+            <div
+              :style="{
+                height: `${totalSize}px`,
+                width: '100%',
+                position: 'relative',
+              }"
+            >
               <div
-                v-if="item.type === 'header'"
-                class="group-header"
-                :class="{ 'starred-header': item.header === '星标朋友' }"
-                :data-letter="item.header === '星标朋友' ? '⭐' : item.header"
+                :style="{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRows[0]?.start ?? 0}px)`,
+                }"
               >
-                <div class="header-text">
-                  <span v-if="item.header === '星标朋友'" class="star-icon">⭐</span>
-                  <span>{{ item.header }}</span>
-                </div>
-                <span v-if="item.header === '星标朋友'" class="count">
-                  ({{ contactGroups.find(g => g.key === '⭐')?.count || 0 }})
-                </span>
-              </div>
-
-              <!-- 联系人项 -->
-              <div v-else class="contact-item" @click="viewContact(item.data!)">
-                <Avatar
-                  :src="item.data!.avatar"
-                  :name="item.data!.nickname"
-                  :size="48"
-                  class="contact-avatar"
-                />
-
-                <div class="contact-info">
-                  <div class="contact-name">
-                    <span class="name-text">{{ item.data!.remark || item.data!.nickname }}</span>
-                    <el-icon v-if="item.data!.isStarred" color="#f59e0b" size="16">
-                      <StarFilled />
-                    </el-icon>
+                <div
+                  v-for="virtualRow in virtualRows"
+                  :key="String(virtualRow.key)"
+                  :data-index="virtualRow.index"
+                >
+                  <!-- 分组头 -->
+                  <div
+                    v-if="getFlatItem(virtualRow.index)?.type === 'header'"
+                    class="group-header"
+                    :class="{ 'starred-header': getFlatItem(virtualRow.index)?.header === '星标朋友' }"
+                    :data-letter="getFlatItem(virtualRow.index)?.header === '星标朋友' ? '⭐' : getFlatItem(virtualRow.index)?.header"
+                  >
+                    <div class="header-text">
+                      <span v-if="getFlatItem(virtualRow.index)?.header === '星标朋友'" class="star-icon">⭐</span>
+                      <span>{{ getFlatItem(virtualRow.index)?.header }}</span>
+                    </div>
+                    <span v-if="getFlatItem(virtualRow.index)?.header === '星标朋友'" class="count">
+                      ({{ contactGroups.find(g => g.key === '⭐')?.count || 0 }})
+                    </span>
                   </div>
-                  <div class="contact-desc">
-                    <el-tag
-                      v-if="item.data!.type"
-                      size="small"
-                      :type="item.data!.type === ContactType.Chatroom ? 'warning' : 'info'"
-                      effect="plain"
-                    >
-                      {{ item.data!.type === ContactType.Chatroom ? '群聊' : '好友' }}
-                    </el-tag>
-                    <span v-if="item.data!.alias" class="alias">{{ item.data!.alias }}</span>
+
+                  <!-- 联系人项 -->
+                  <div
+                    v-else
+                    class="contact-item"
+                    @click="viewContact(getFlatItem(virtualRow.index)?.data!)"
+                  >
+                    <Avatar
+                      :src="getFlatItem(virtualRow.index)?.data!.avatar"
+                      :name="getFlatItem(virtualRow.index)?.data!.nickname"
+                      :size="48"
+                      class="contact-avatar"
+                    />
+
+                    <div class="contact-info">
+                      <div class="contact-name">
+                        <span class="name-text">{{ getFlatItem(virtualRow.index)?.data!.remark || getFlatItem(virtualRow.index)?.data!.nickname }}</span>
+                        <el-icon v-if="getFlatItem(virtualRow.index)?.data!.isStarred" color="#f59e0b" size="16">
+                          <StarFilled />
+                        </el-icon>
+                      </div>
+                      <div class="contact-desc">
+                        <el-tag
+                          v-if="getFlatItem(virtualRow.index)?.data!.type"
+                          size="small"
+                          :type="getFlatItem(virtualRow.index)?.data!.type === ContactType.Chatroom ? 'warning' : 'info'"
+                          effect="plain"
+                        >
+                          {{ getFlatItem(virtualRow.index)?.data!.type === ContactType.Chatroom ? '群聊' : '好友' }}
+                        </el-tag>
+                        <span v-if="getFlatItem(virtualRow.index)?.data!.alias" class="alias">{{ getFlatItem(virtualRow.index)?.data!.alias }}</span>
+                      </div>
+                    </div>
+
+                    <div class="contact-actions">
+                      <el-button text type="primary" size="small" @click.stop="startChat(getFlatItem(virtualRow.index)?.data!)">
+                        <el-icon><ChatDotRound /></el-icon>
+                        发消息
+                      </el-button>
+                    </div>
                   </div>
                 </div>
-
-                <div class="contact-actions">
-                  <el-button text type="primary" size="small" @click.stop="startChat(item.data!)">
-                    <el-icon><ChatDotRound /></el-icon>
-                    发消息
-                  </el-button>
-                </div>
               </div>
-            </template>
-          </RecycleScroller>
+            </div>
+          </div>
 
           <!-- 字母索引 -->
           <div
@@ -533,6 +577,7 @@ onMounted(() => {
 
     .contact-scroller {
       height: 100%;
+      overflow-y: auto;
     }
 
     .group-header {

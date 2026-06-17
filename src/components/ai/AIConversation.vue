@@ -4,6 +4,7 @@ import { useAIChat } from '@/composables/useAIChat'
 import { useContextFeed } from '@/composables/useContextFeed'
 import { useSessionStore } from '@/stores/session'
 import { useAIPromptStore } from '@/stores/ai/prompt'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import AIMessageBubble from './AIMessageBubble.vue'
 import AIInputBox from './AIInputBox.vue'
 import ContextBar from './ContextBar.vue'
@@ -63,23 +64,31 @@ onMounted(() => {
   }
 })
 
-async function scrollToBottom() {
-  await nextTick()
-  const container = document.querySelector('.ai-conversation__messages')
-  if (container) {
-    container.scrollTop = container.scrollHeight
-  }
-}
+// 虚拟滚动
+const parentRef = ref<HTMLElement | null>(null)
 
-watch(
-  () => conversation.messages.length,
-  () => scrollToBottom()
-)
+const virtualizer = useVirtualizer(computed(() => ({
+  count: displayMessages.value.length,
+  getScrollElement: () => parentRef.value,
+  estimateSize: () => 120,
+  getItemKey: (i: number) => displayMessages.value[i]?.id ?? String(i),
+  anchorTo: 'end' as const,
+  followOnAppend: 'smooth' as const,
+  scrollEndThreshold: 80,
+  overscan: 6,
+})))
 
-watch(
-  () => conversation.displayedContent,
-  () => scrollToBottom()
-)
+const virtualRows = computed(() => virtualizer.value.getVirtualItems())
+const totalSize = computed(() => virtualizer.value.getTotalSize())
+
+// 初始滚动到底部
+onMounted(() => {
+  nextTick(() => {
+    virtualizer.value.scrollToEnd()
+  })
+})
+
+// 流式输出时重新测量 — TanStack Virtual 内置 ResizeObserver 自动处理
 
 function handleSend(text: string) {
   conversation.ensureMermaidPrompt()
@@ -166,7 +175,7 @@ function handleClearContext() {
       @clear="handleClearContext"
     />
 
-    <div class="ai-conversation__messages">
+    <div ref="parentRef" class="ai-conversation__messages">
       <div
         v-if="!conversation.hasMessages && !conversation.streaming"
         class="ai-conversation__empty"
@@ -190,16 +199,40 @@ function handleClearContext() {
         </el-empty>
       </div>
 
-      <template v-for="(msg, index) in displayMessages" :key="index">
-        <AIMessageBubble
-          :message="msg"
-          :thinking-content="
-            msg.role === 'assistant'
-              ? conversation.thinkingContent
-              : undefined
-          "
-          :thinking-visible="conversation.thinkingVisible"
-        />
+      <template v-else>
+        <div
+          :style="{
+            height: `${totalSize}px`,
+            width: '100%',
+            position: 'relative',
+          }"
+        >
+          <div
+            :style="{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${virtualRows[0]?.start ?? 0}px)`,
+            }"
+          >
+            <div
+              v-for="virtualRow in virtualRows"
+              :key="String(virtualRow.key)"
+              :data-index="virtualRow.index"
+            >
+              <AIMessageBubble
+                :message="displayMessages[virtualRow.index]"
+                :thinking-content="
+                  displayMessages[virtualRow.index]?.role === 'assistant'
+                    ? conversation.thinkingContent
+                    : undefined
+                "
+                :thinking-visible="conversation.thinkingVisible"
+              />
+            </div>
+          </div>
+        </div>
       </template>
 
       <div v-if="conversation.error" class="ai-conversation__error">

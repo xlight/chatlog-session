@@ -3,6 +3,9 @@ import { ref, computed, nextTick, watch } from 'vue'
 import { useChatMessagesStore } from '@/stores/chatMessages'
 import { formatMinimalDate } from '@/utils/date'
 import { getHistoryAnchorBeforeTime } from '@/stores/chat/utils'
+import { useVirtualizer } from '@tanstack/vue-virtual'
+import { useFlatMessageList } from '@/composables/useFlatMessageList'
+import { estimateItemSize } from '@/utils/virtual-size'
 import type { Message } from '@/types'
 import MessageBubble from './MessageBubble.vue'
 
@@ -21,13 +24,17 @@ const props = withDefaults(defineProps<Props>(), {
 const chatStore = useChatMessagesStore()
 
 // 引用
-const messageListRef = ref<HTMLElement | null>(null)
+const parentRef = ref<HTMLElement | null>(null)
 const loading = ref(false)
 const loadingMore = ref(false)
 const loadingHistory = ref(false)
 const hasMoreHistory = ref(true)
 const error = ref<string | null>(null)
 const historyLoadMessage = ref('')
+
+// 用户是否在底部（控制 anchorTo 行为）
+// 默认 true：初始加载时自动滚动到底部
+const isUserAtBottom = ref(true)
 
 // 当前消息列表
 const messages = computed(() => {
@@ -40,10 +47,37 @@ const messagesByDate = computed(() => {
   return chatStore.messagesByDate
 })
 
-// 是否显示"加载更多"
-const showLoadMore = computed(() => {
-  return hasMoreHistory.value && messages.value.length > 0 && !loading.value
-})
+// 扁平化虚拟列表
+const hasMoreHistoryComputed = computed(() => hasMoreHistory.value)
+const historyLoadMessageComputed = computed(() => historyLoadMessage.value)
+const { flatItems } = useFlatMessageList(messagesByDate, hasMoreHistoryComputed, historyLoadMessageComputed)
+
+// 虚拟滚动
+// anchorTo/followOnAppend 仅在用户位于底部时启用，避免滚动时被拉回
+const virtualizer = useVirtualizer(computed(() => ({
+  count: flatItems.value.length,
+  getScrollElement: () => parentRef.value,
+  estimateSize: (i: number) => estimateItemSize(flatItems.value[i]!),
+  getItemKey: (i: number) => flatItems.value[i]?.key ?? String(i),
+  anchorTo: isUserAtBottom.value ? ('end' as const) : undefined,
+  followOnAppend: isUserAtBottom.value,
+  scrollEndThreshold: 80,
+  overscan: 6,
+  // 禁用向上滚动时的滚动位置调整，避免虚拟器抵抗用户滚动
+  shouldAdjustScrollPositionOnItemSizeChange: () => false,
+})))
+
+const virtualRows = computed(() => virtualizer.value.getVirtualItems())
+const totalSize = computed(() => virtualizer.value.getTotalSize())
+
+// 是否在底部（用于"回到底部"按钮）
+const isAtBottom = computed(() => virtualizer.value.isAtEnd())
+
+// 获取虚拟行对应的扁平化项
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getFlatItem(index: number): any {
+  return flatItems.value[index]
+}
 
 // 加载消息
 const loadMessages = async (loadMore = false) => {
@@ -63,24 +97,16 @@ const loadMessages = async (loadMore = false) => {
 
     await chatStore.loadMessages(props.sessionId, page, loadMore, props.initialTime)
 
-    // 计算本次实际加载的消息数
     const loadedCount = messages.value.length - beforeCount
 
-    // 如果是首次加载，滚动到底部
     if (!loadMore) {
+      // 初始加载：设置 anchorTo:'end' 让虚拟器自动滚动到底部
+      isUserAtBottom.value = true
       await nextTick()
-      // 使用多次延迟确保 DOM 完全渲染后再滚动
       setTimeout(() => {
-        scrollToBottom()
-        // 再次确保滚动到底部（处理图片等异步加载）
-        setTimeout(() => {
-          scrollToBottom()
-          // 检查是否需要继续加载
-          checkAndLoadMore(loadedCount)
-        }, 200)
-      }, 50)
+        checkAndLoadMore(loadedCount)
+      }, 200)
     } else {
-      // 加载更多后也检查是否需要继续
       await nextTick()
       setTimeout(() => {
         checkAndLoadMore(loadedCount)
@@ -104,10 +130,6 @@ const handleLoadHistory = async () => {
   loadingHistory.value = true
 
   try {
-    // 保存当前滚动位置
-    const scrollTop = messageListRef.value?.scrollTop || 0
-    const scrollHeight = messageListRef.value?.scrollHeight || 0
-
     // 使用统一锚点策略（优先虚拟消息）
     const beforeTime = getHistoryAnchorBeforeTime(messages.value)
 
@@ -124,15 +146,9 @@ const handleLoadHistory = async () => {
     // 更新历史加载提示消息
     historyLoadMessage.value = chatStore.historyLoadMessage
 
-    // 如果加载到消息，恢复滚动位置
-    if (result.messages.length > 0) {
-      await nextTick()
-      if (messageListRef.value) {
-        const newScrollHeight = messageListRef.value.scrollHeight
-        const heightDiff = newScrollHeight - scrollHeight
-        messageListRef.value.scrollTop = scrollTop + heightDiff
-      }
-    }
+    // anchorTo:'end' 自动保持视口稳定，无需手动 scrollTop 补偿
+    // result.messages 可能为空，但空窗口不代表无更多历史
+    void result
 
     // 空窗口不代表无更多历史：保持继续加载入口可用
     hasMoreHistory.value = true
@@ -150,24 +166,12 @@ const handleGapClick = async (gapMessage: Message) => {
   loadingHistory.value = true
 
   try {
-    // 保存当前滚动位置
-    const scrollTop = messageListRef.value?.scrollTop || 0
-    const scrollHeight = messageListRef.value?.scrollHeight || 0
-
     console.log('🔄 Loading Gap messages:', gapMessage.gapData)
 
     // 加载 Gap 对应的数据
-    const result = await chatStore.loadGapMessages(gapMessage)
+    await chatStore.loadGapMessages(gapMessage)
 
-    // 恢复滚动位置
-    if (result.success) {
-      await nextTick()
-      if (messageListRef.value) {
-        const newScrollHeight = messageListRef.value.scrollHeight
-        const heightDiff = newScrollHeight - scrollHeight
-        messageListRef.value.scrollTop = scrollTop + heightDiff
-      }
-    }
+    // anchorTo:'end' 自动保持视口稳定，无需手动 scrollTop 补偿
   } catch (err) {
     console.error('Gap 消息加载失败:', err)
   } finally {
@@ -181,7 +185,6 @@ const checkAndLoadMore = async (loadedCount: number) => {
     return
   }
 
-  // 策略：如果本次加载的消息数等于pageSize，说明可能还有更多消息，继续加载
   const pageSize = chatStore.pageSize
   if (loadedCount === pageSize) {
     console.log('🔄 Auto loading more messages...', {
@@ -201,116 +204,77 @@ const checkAndLoadMore = async (loadedCount: number) => {
   }
 }
 
-// 滚动到底部
+// 滚动到底部（启用 anchorTo:'end'，虚拟器自动处理）
 const scrollToBottom = (smooth = false) => {
-  if (!messageListRef.value) return
-
-  // 使用一个很大的数值确保滚动到底部
-  const containerScrollHeight = messageListRef.value.scrollHeight
-  const maxScroll = containerScrollHeight + 10000
-
-  messageListRef.value.scrollTo({
-    top: maxScroll,
-    behavior: smooth ? 'smooth' : 'auto',
-  })
-
-  // 双保险：直接设置 scrollTop
-  if (!smooth) {
-    messageListRef.value.scrollTop = maxScroll
+  isUserAtBottom.value = true
+  // anchorTo:'end' 会自动滚动，scrollToEnd 仅用于 smooth 动画
+  if (smooth) {
+    virtualizer.value.scrollToEnd({ behavior: 'smooth' })
   }
 }
 
 // 滚动到指定消息
 const scrollToMessage = (messageId: string | number) => {
-  const element = document.getElementById(`message-${messageId}`)
-  if (element) {
-    element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  const idx = flatItems.value.findIndex(
+    (item) => item.type === 'message' && item.message.id === messageId
+  )
+  if (idx >= 0) {
+    virtualizer.value.scrollToIndex(idx, { align: 'center', behavior: 'smooth' })
     // 高亮消息
-    element.classList.add('message-highlight')
-    setTimeout(() => {
-      element.classList.remove('message-highlight')
-    }, 2000)
+    nextTick(() => {
+      const el = parentRef.value?.querySelector(`[data-index="${idx}"]`)
+      if (el) {
+        el.classList.add('message-highlight')
+        setTimeout(() => {
+          el.classList.remove('message-highlight')
+        }, 2000)
+      }
+    })
+  }
+}
+
+// 滚动到指定日期
+const scrollToDate = (date: string) => {
+  const idx = flatItems.value.findIndex(
+    (item) => item.type === 'date' && item.date === date
+  )
+  if (idx >= 0) {
+    virtualizer.value.scrollToIndex(idx, { align: 'start', behavior: 'smooth' })
   }
 }
 
 // 处理滚动事件（防抖）
 let scrollTimer: ReturnType<typeof setTimeout> | null = null
 const handleScroll = () => {
-  if (!messageListRef.value) return
+  if (!parentRef.value) return
 
   if (scrollTimer) {
     clearTimeout(scrollTimer)
   }
 
   scrollTimer = setTimeout(() => {
-    if (!messageListRef.value) return
+    if (!parentRef.value) return
 
-    const { scrollTop } = messageListRef.value
+    const { scrollTop, scrollHeight, clientHeight } = parentRef.value
+
+    // 更新 isUserAtBottom（控制 anchorTo 行为）
+    // 距离底部 80px 以内视为"在底部"
+    isUserAtBottom.value = scrollHeight - scrollTop - clientHeight < 80
 
     // 接近顶部时自动加载历史消息（触发距离 300px）
     if (scrollTop < 300 && hasMoreHistory.value && !loadingHistory.value && !loading.value) {
       handleLoadHistory()
     }
-  }, 100) // 100ms 防抖
+  }, 100)
 }
 
 // 刷新消息列表
 const handleRefresh = () => {
-  // 清除当前 session 的缓存
   if (props.sessionId) {
     chatStore.removeCache(props.sessionId)
   }
   hasMoreHistory.value = true
   loadMessages(false)
-}
-
-// 判断是否显示头像（连续消息优化）
-const shouldDiffFromPrev = (index: number, messages: Message[]) => {
-  // 选项1：每条消息都显示头像
-  // return true
-
-  // 选项2：连续消息优化（当前使用）
-  if (index === 0) return true
-
-  const current = messages[index]
-  const prev = messages[index - 1]
-
-  // 不同发送者显示头像
-  if (current.sender !== prev.sender) return true
-
-  // 时间间隔超过5分钟显示头像
-  const currentTime = current.createTime
-    ? current.createTime * 1000
-    : new Date(current.time).getTime()
-  const prevTime = prev.createTime ? prev.createTime * 1000 : new Date(prev.time).getTime()
-  const timeDiff = currentTime - prevTime
-  if (timeDiff > 5 * 60 * 1000) return true
-
-  return false
-}
-
-// 判断是否显示时间
-const shouldShowTime = (index: number, messages: Message[]) => {
-  if (index === 0) return true
-
-  const current = messages[index]
-  const prev = messages[index - 1]
-
-  // 时间间隔超过5分钟显示时间
-  // 使用 createTime（Unix 时间戳秒）或 time（ISO 字符串）
-  const currentTime = current.createTime
-    ? current.createTime * 1000
-    : new Date(current.time).getTime()
-  const prevTime = prev.createTime ? prev.createTime * 1000 : new Date(prev.time).getTime()
-  const timeDiff = currentTime - prevTime
-  return timeDiff > 5 * 60 * 1000
-}
-const shouldShowAvatar = (index: number, messages: Message[]) => {
-  return shouldDiffFromPrev(index, messages)
-}
-// 判断是否显示名称（群聊中）
-const shouldShowName = (index: number, messages: Message[]) => {
-  return shouldDiffFromPrev(index, messages)
 }
 
 // 监听会话ID变化
@@ -329,6 +293,8 @@ watch(
   },
   { immediate: true }
 )
+
+// 流式输出时重新测量 — TanStack Virtual 内置 ResizeObserver 自动处理，无需手动 measureAll
 
 // 暴露方法给父组件
 defineExpose({
@@ -370,84 +336,111 @@ defineExpose({
       </el-empty>
     </div>
 
-    <!-- 消息列表 -->
-    <div v-else ref="messageListRef" class="message-list__content" @scroll="handleScroll">
-      <!-- 顶部加载历史消息指示器 -->
-      <div v-if="loadingHistory" class="message-list__loading-history">
-        <el-icon class="is-loading"><Loading /></el-icon>
-        <span>加载历史消息中...</span>
-      </div>
-
-      <!-- 历史消息加载提示 -->
-      <div v-else-if="historyLoadMessage" class="message-list__history-message">
-        <el-alert :title="historyLoadMessage" type="info" :closable="false" center />
-      </div>
-
-      <!-- 手动加载更多按钮（备用） -->
-      <div v-else-if="showLoadMore && !loadingHistory" class="message-list__load-more">
-        <el-button text @click="handleLoadHistory"> 加载更多历史消息 </el-button>
-      </div>
-
-      <!-- 没有更多消息提示 -->
+    <!-- 消息列表 - 虚拟滚动 -->
+    <div v-else ref="parentRef" class="message-list__content" @scroll="handleScroll">
       <div
-        v-else-if="messages.length > 0 && !hasMoreHistory && !historyLoadMessage"
-        class="message-list__no-more"
+        :style="{
+          height: `${totalSize}px`,
+          width: '100%',
+          position: 'relative',
+        }"
       >
-        <el-divider>没有更多消息了</el-divider>
-      </div>
+        <div
+          :style="{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            transform: `translateY(${virtualRows[0]?.start ?? 0}px)`,
+          }"
+        >
+          <div
+            v-for="virtualRow in virtualRows"
+            :key="String(virtualRow.key)"
+            :data-index="virtualRow.index"
+          >
+            <template v-if="getFlatItem(virtualRow.index)?.type === 'load-more'">
+              <!-- 加载更多 -->
+              <div v-if="loadingHistory" class="message-list__loading-history">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <span>加载历史消息中...</span>
+              </div>
+              <div v-else class="message-list__load-more">
+                <el-button text @click="handleLoadHistory"> 加载更多历史消息 </el-button>
+              </div>
+            </template>
 
-      <!-- 按日期分组显示 -->
-      <template v-if="showDate">
-        <div v-for="group in messagesByDate" :key="group.date" class="message-group">
-          <!-- 日期分隔符 -->
-          <div class="message-date" @click="scrollToMessage(group.messages[0].id)">
-            <span>{{ group.formattedDate }} ({{ group.messages.length }} 条)</span>
+            <template v-else-if="getFlatItem(virtualRow.index)?.type === 'no-more'">
+              <!-- 没有更多消息提示 -->
+              <div class="message-list__no-more">
+                <el-divider>没有更多消息了</el-divider>
+              </div>
+            </template>
+
+            <template v-else-if="getFlatItem(virtualRow.index)?.type === 'date'">
+              <!-- 日期分隔符 -->
+              <div class="message-date" @click="scrollToDate(getFlatItem(virtualRow.index).date)">
+                <span>{{ getFlatItem(virtualRow.index).formattedDate }} ({{ getFlatItem(virtualRow.index).count }} 条)</span>
+              </div>
+            </template>
+
+            <template v-else-if="getFlatItem(virtualRow.index)?.type === 'gap'">
+              <!-- Gap 虚拟消息 -->
+              <div
+                class="message-bubble__virtual message-bubble__gap"
+                @click="handleGapClick(getFlatItem(virtualRow.index).message)"
+              >
+                <el-button text class="gap-action">
+                  <el-icon><MoreFilled /></el-icon>
+                  <span class="gap-title">待补齐消息窗口</span>
+                  <span class="gap-subtitle">{{ getFlatItem(virtualRow.index).message.content }}</span>
+                </el-button>
+              </div>
+            </template>
+
+            <template v-else-if="getFlatItem(virtualRow.index)?.type === 'empty-range'">
+              <!-- EmptyRange 虚拟消息 -->
+              <div class="message-bubble__virtual message-bubble__empty-range">
+                <span class="virtual-text">
+                  <span class="empty-title">📭 已探测空窗口</span>
+                  <span class="empty-subtitle">{{ getFlatItem(virtualRow.index).message.content }}</span>
+                </span>
+              </div>
+            </template>
+
+            <template v-else-if="getFlatItem(virtualRow.index)?.type === 'bottom-hint'">
+              <!-- 底部提示 -->
+              <div class="message-list__bottom-hint">
+                <el-divider>到了底部</el-divider>
+              </div>
+            </template>
+
+            <template v-else-if="getFlatItem(virtualRow.index)?.type === 'message'">
+              <!-- 普通消息 -->
+              <MessageBubble
+                :id="`message-${getFlatItem(virtualRow.index).message.id}`"
+                :message="getFlatItem(virtualRow.index).message"
+                :show-avatar="getFlatItem(virtualRow.index).showAvatar"
+                :show-time="getFlatItem(virtualRow.index).showTime"
+                :show-name="getFlatItem(virtualRow.index).showName"
+                @gap-click="handleGapClick"
+              />
+            </template>
           </div>
-
-          <!-- 消息列表 -->
-          <MessageBubble
-            v-for="(message, index) in group.messages"
-            :id="`message-${message.id}`"
-            :key="message.id"
-            :message="message"
-            :show-avatar="shouldShowAvatar(index, group.messages)"
-            :show-time="shouldShowTime(index, group.messages)"
-            :show-name="shouldShowName(index, group.messages)"
-            @gap-click="handleGapClick"
-          />
         </div>
-      </template>
-
-      <!-- 不分组显示 -->
-      <template v-else>
-        <MessageBubble
-          v-for="(message, index) in messages"
-          :id="`message-${message.id}`"
-          :key="message.id"
-          :message="message"
-          :show-avatar="shouldShowAvatar(index, messages)"
-          :show-time="shouldShowTime(index, messages)"
-          :show-name="shouldShowName(index, messages)"
-          @gap-click="handleGapClick"
-        />
-      </template>
-
-      <!-- 底部提示 -->
-      <div class="message-list__bottom-hint">
-        <el-divider>到了底部</el-divider>
       </div>
     </div>
 
     <!-- 滚动到底部按钮 -->
     <transition name="fade">
-      <div v-show="messages.length > 0" class="message-list__scroll-bottom">
+      <div v-show="messages.length > 0 && !isAtBottom" class="message-list__scroll-bottom">
         <!-- 日期快速跳转 -->
         <div v-if="showDate" class="date-nav">
           <div
             v-for="group in messagesByDate"
             :key="group.date"
             class="date-nav__item"
-            @click.stop="scrollToMessage(group.messages[0].id)"
+            @click.stop="scrollToDate(group.date)"
           >
             <el-tooltip
               :content="`${group.formattedDate} (${group.messages.length}条)`"
