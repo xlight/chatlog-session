@@ -58,6 +58,9 @@ const virtualizer = useVirtualizer(computed(() => ({
   getScrollElement: () => parentRef.value,
   estimateSize: (i: number) => estimateItemSize(flatItems.value[i]!),
   getItemKey: (i: number) => flatItems.value[i]?.key ?? String(i),
+  anchorTo: 'end' as const,
+  followOnAppend: true,
+  scrollEndThreshold: 80,
   overscan: 6,
 })))
 
@@ -98,14 +101,26 @@ const loadMessages = async (loadMore = false) => {
     const page = loadMore ? chatStore.currentPage + 1 : 1
     const beforeCount = messages.value.length
 
-    await chatStore.loadMessages(props.sessionId, page, loadMore, props.initialTime)
+    if (!loadMore) {
+      // 初始加载：使用分批渲染
+      await chatStore.loadMessagesWithBatchRender(props.sessionId)
+    } else {
+      await chatStore.loadMessages(props.sessionId, page, true, props.initialTime)
+    }
 
     const loadedCount = messages.value.length - beforeCount
 
     if (!loadMore) {
-      // 初始加载：设置 anchorTo:'end' 让虚拟器自动滚动到底部
+      // 初始加载：滚动到底部
       isUserAtBottom.value = true
       await nextTick()
+      // 滚动到最后一个元素
+      setTimeout(() => {
+        const lastIndex = flatItems.value.length - 1
+        if (lastIndex >= 0 && virtualizer.value) {
+          virtualizer.value.scrollToIndex(lastIndex, { align: 'end', behavior: 'auto' })
+        }
+      }, 100)
       setTimeout(() => {
         checkAndLoadMore(loadedCount)
       }, 200)
@@ -436,7 +451,7 @@ defineExpose({
 
     <!-- 滚动到底部按钮 -->
     <transition name="fade">
-      <div v-show="messages.length > 0 && !isAtBottom" class="message-list__scroll-bottom">
+      <div v-show="messages.length > 0" class="message-list__scroll-bottom">
         <!-- 日期快速跳转 -->
         <div v-if="showDate" class="date-nav">
           <div

@@ -62,7 +62,12 @@ export function estimateMessageSize(
 /**
  * 按 VirtualListItem.type 分发估值
  */
-export function estimateItemSize(item: VirtualListItem): number {
+export function estimateItemSize(item: VirtualListItem | undefined): number {
+  if (!item) {
+    console.log("item is undefined", item)
+    return 48
+  }
+
   switch (item.type) {
     case 'date':
       return 48
@@ -76,5 +81,8 @@ export function estimateItemSize(item: VirtualListItem): number {
       return 44
     case 'message':
       return estimateMessageSize(item.message, item.showAvatar, item.showTime, item.showName)
+    default:
+      console.log("unknown item type", item)
+      return 48
   }
 }

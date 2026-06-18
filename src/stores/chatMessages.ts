@@ -382,7 +382,8 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
   }
 
   async function loadMessagesWithBatchRender(talker: string) {
-    console.time(`[Perf] loadMessagesWithBatchRender(${talker})`)
+    const timerLabel = `[Perf] loadMessagesWithBatchRender(${talker})`
+    console.time(timerLabel)
 
     try {
       loading.value = true
@@ -393,9 +394,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
       let result: Message[] = []
       const limit = pageSize.value
 
-      console.time(`[Perf] loadMessagesWithBatchRender:cacheStore.get(${talker})`)
       const cached = cacheStore.get(talker)
-      console.timeEnd(`[Perf] loadMessagesWithBatchRender:cacheStore.get(${talker})`)
 
       if (cached) {
         result = cached
@@ -405,16 +404,12 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
       }
 
       if (result.length === 0) {
-        result = await chatlogAPI.getSessionMessages(talker, undefined, limit, 0, 0)
-        console.time(`[Perf] loadMessagesWithBatchRender:normalize(${talker})`)
+        result = await chatlogAPI.getSessionMessages(talker, undefined, limit, 0, 1)
         result = normalizeAndAssertBatch(result, 'loadMessagesWithBatchRender:api')
-        console.timeEnd(`[Perf] loadMessagesWithBatchRender:normalize(${talker})`)
         cacheStore.set(talker, result)
       }
 
-      console.time(`[Perf] loadMessagesWithBatchRender:batchRender(${talker})`)
       await batchRenderMessages(result, 10)
-      console.timeEnd(`[Perf] loadMessagesWithBatchRender:batchRender(${talker})`)
 
       currentTalker.value = talker
       assertChronologicalOrder(messages.value, appStore.isDebug, 'loadMessagesWithBatchRender:done')
@@ -429,9 +424,8 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
       loading.value = false
       loadingTalker.value = null
       appStore.setLoading('messages', false)
+      console.timeEnd(timerLabel)
     }
-
-    console.timeEnd(`[Perf] loadMessagesWithBatchRender(${talker})`)
   }
 
   async function loadMoreMessages() {
@@ -1009,6 +1003,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     // Actions
     init,
     loadMessages,
+    loadMessagesWithBatchRender,
     loadMoreMessages,
     loadHistoryMessages,
     loadGapMessages,

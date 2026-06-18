@@ -16,6 +16,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAppStore } from './app'
 import { useContactStore } from './contact'
+import { usePWAStore } from './pwa'
 import type { Message } from '@/types/message'
 
 /**
@@ -137,6 +138,16 @@ export const useNotificationStore = defineStore('notification', () => {
     loadHistory()
     loadNotifiedIds()
     await checkPermission()
+
+    // 监听 Service Worker 消息（通知点击事件）
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'notification-click') {
+          const { talker, messageId, message } = event.data
+          handleNotificationClick(messageId, talker, message)
+        }
+      })
+    }
 
     initialized.value = true
 
@@ -456,49 +467,70 @@ export const useNotificationStore = defineStore('notification', () => {
         silent: !config.value.enableSound,
       }
 
-      // 添加操作按钮（仅部分浏览器支持，如 Chrome）
-      if (type === NotificationType.MENTION || type === NotificationType.QUOTE) {
-        notificationOptions.actions = [
-          { action: 'view', title: '查看' },
-          { action: 'dismiss', title: '忽略' },
-        ]
-      }
+      const shouldAddActions = type === NotificationType.MENTION || type === NotificationType.QUOTE
 
-      const notification = new Notification(title, notificationOptions)
+      const pwaStore = usePWAStore()
+      const appStore = useAppStore()
 
-      console.log('🔔 Notification created:', { title, body, talker, permission: permission.value, isEnabled: isEnabled.value })
-
-      notification.onclick = () => {
-        handleNotificationClick(messageId, talker, message)
-      }
-
-      // 处理 action 按钮点击（Chrome 扩展属性）
-      const notificationAny = notification as any
-      if (notificationAny.onaction !== undefined) {
-        notificationAny.onaction = (event: { action: string }) => {
-          if (event.action === 'view') {
-            handleNotificationClick(messageId, talker, message)
-          }
-          notification.close()
+      // Service Worker 通知支持 actions，new Notification() 不支持
+      if (pwaStore.swManager?.isActive) {
+        const swNotificationOptions: Record<string, any> = {
+          ...notificationOptions,
+          data: {
+            talker,
+            messageId,
+            message: {
+              id: message.id,
+              seq: message.seq,
+              sender: message.sender,
+              senderName: message.senderName,
+            },
+          },
         }
-      }
 
-      notification.onerror = () => {
-        activeNotifications.value.delete(messageId)
-        console.error('通知显示失败:', { title, body, talker })
-      }
+        if (shouldAddActions) {
+          swNotificationOptions.actions = [
+            { action: 'view', title: '查看' },
+            { action: 'dismiss', title: '忽略' },
+          ]
+        }
 
-      notification.onclose = () => {
-        activeNotifications.value.delete(messageId)
-      }
+        await pwaStore.swManager.showNotification(title, swNotificationOptions)
 
-      if (config.value.autoClose > 0) {
-        setTimeout(() => {
-          notification.close()
-        }, config.value.autoClose * 1000)
-      }
+        if (appStore.isDebug) {
+          console.log('🔔 SW Notification sent:', { title, body, talker, type })
+        }
+      } else {
+        // 降级：移除 actions 后使用 new Notification()
+        const { actions, ...fallbackOptions } = notificationOptions
 
-      activeNotifications.value.set(messageId, notification)
+        const notification = new Notification(title, fallbackOptions)
+
+        if (appStore.isDebug) {
+          console.log('🔔 Fallback Notification created:', { title, body, talker, permission: permission.value, isEnabled: isEnabled.value })
+        }
+
+        notification.onclick = () => {
+          handleNotificationClick(messageId, talker, message)
+        }
+
+        notification.onerror = () => {
+          activeNotifications.value.delete(messageId)
+          console.error('通知显示失败:', { title, body, talker })
+        }
+
+        notification.onclose = () => {
+          activeNotifications.value.delete(messageId)
+        }
+
+        if (config.value.autoClose > 0) {
+          setTimeout(() => {
+            notification.close()
+          }, config.value.autoClose * 1000)
+        }
+
+        activeNotifications.value.set(messageId, notification)
+      }
 
       // 震动
       if (config.value.enableVibrate && 'vibrate' in navigator) {
@@ -510,7 +542,6 @@ export const useNotificationStore = defineStore('notification', () => {
       notifiedIds.value.add(messageId)
       saveNotifiedIds()
 
-      const appStore = useAppStore()
       if (appStore.isDebug) {
         console.log('🔔 Notification sent:', { type, talker, title, body })
       }

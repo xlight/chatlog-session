@@ -466,13 +466,43 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification clicked:', event.action);
 
-  event.notification.close();
+  const notification = event.notification;
+  const data = notification.data || {};
 
-  if (event.action === 'explore') {
-    event.waitUntil(
-      clients.openWindow('/')
-    );
+  notification.close();
+
+  // 'dismiss' action：只关闭通知
+  if (event.action === 'dismiss') {
+    return;
   }
+
+  // 'view' action 或默认点击：聚焦窗口并通知主线程导航
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      const messageData = {
+        type: 'notification-click',
+        talker: data.talker,
+        messageId: data.messageId,
+        message: data.message,
+      };
+
+      // 聚焦已有窗口并发送消息
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.focus();
+          client.postMessage(messageData);
+          return;
+        }
+      }
+
+      // 打开新窗口，延迟发送消息等待页面加载
+      return clients.openWindow('/').then((client) => {
+        if (client) {
+          setTimeout(() => client.postMessage(messageData), 1000);
+        }
+      });
+    })
+  );
 });
 
 // ============================================================================
