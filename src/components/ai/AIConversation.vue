@@ -71,6 +71,7 @@ const virtualizer = useVirtualizer(computed(() => ({
   count: displayMessages.value.length,
   getScrollElement: () => parentRef.value,
   estimateSize: () => 120,
+  measureElement: (element) => element.scrollHeight,
   getItemKey: (i: number) => displayMessages.value[i]?.id ?? String(i),
   anchorTo: 'end' as const,
   followOnAppend: 'smooth' as const,
@@ -219,6 +220,7 @@ function handleClearContext() {
             <div
               v-for="virtualRow in virtualRows"
               :key="String(virtualRow.key)"
+              :ref="virtualizer.measureElement"
               :data-index="virtualRow.index"
             >
               <AIMessageBubble
@@ -313,6 +315,7 @@ function handleClearContext() {
     flex: 1;
     overflow-y: auto;
     padding: 8px 0;
+    min-height: 0;
   }
 
   &__empty {

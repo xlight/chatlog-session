@@ -170,6 +170,8 @@ function schedulePostRender() {
     if (container.querySelector('.mermaid-code')) {
       await renderMermaid(container, appStore.isDark)
     }
+    // 通知虚拟滚动重新测量元素高度
+    container.dispatchEvent(new Event('resize'))
   }, 300)
 }
 

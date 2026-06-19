@@ -57,6 +57,7 @@ const virtualizer = useVirtualizer(computed(() => ({
   count: flatItems.value.length,
   getScrollElement: () => parentRef.value,
   estimateSize: (i: number) => estimateItemSize(flatItems.value[i]!),
+  measureElement: (element) => element.scrollHeight,
   getItemKey: (i: number) => flatItems.value[i]?.key ?? String(i),
   anchorTo: 'end' as const,
   followOnAppend: true,
@@ -75,9 +76,6 @@ watch(() => flatItems.value.length, disableScrollAdjustment)
 
 const virtualRows = computed(() => virtualizer.value.getVirtualItems())
 const totalSize = computed(() => virtualizer.value.getTotalSize())
-
-// 是否在底部（用于"回到底部"按钮）
-const isAtBottom = computed(() => virtualizer.value.isAtEnd())
 
 // 获取虚拟行对应的扁平化项
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -231,6 +229,12 @@ const scrollToBottom = (smooth = false) => {
   }
 }
 
+// 处理 MessageBubble 的 resize 事件（元素高度变化时重新测量）
+const handleBubbleResize = () => {
+  // measureElement 已经通过 ResizeObserver 自动处理
+  // 这里不需要额外操作，但保留事件处理以备将来使用
+}
+
 // 滚动到指定消息
 const scrollToMessage = (messageId: string | number) => {
   const idx = flatItems.value.findIndex(
@@ -375,6 +379,7 @@ defineExpose({
           <div
             v-for="virtualRow in virtualRows"
             :key="String(virtualRow.key)"
+            :ref="virtualizer.measureElement"
             :data-index="virtualRow.index"
           >
             <template v-if="getFlatItem(virtualRow.index)?.type === 'load-more'">
@@ -442,6 +447,7 @@ defineExpose({
                 :show-time="getFlatItem(virtualRow.index).showTime"
                 :show-name="getFlatItem(virtualRow.index).showName"
                 @gap-click="handleGapClick"
+                @resize="handleBubbleResize"
               />
             </template>
           </div>
@@ -509,7 +515,8 @@ defineExpose({
     overflow-y: auto;
     overflow-x: hidden;
     padding: 16px 0 80px 0;
-    scroll-behavior: smooth;
+    // 不要设置 scroll-behavior: smooth —— 与 TanStack Virtual 的滚动管理冲突
+    // 会导致弹性过冲（elastic overscroll）时跳回，smooth 只应在 JS 中按需使用
 
     &::-webkit-scrollbar {
       width: 8px;

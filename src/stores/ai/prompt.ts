@@ -50,6 +50,20 @@ const builtinPrompts: PromptTemplate[] = [
     ],
     tags: ['分析', '话题'],
   },
+
+  {
+    id: 'build-story',
+    name: '构建故事',
+    description: '根据聊天内容构建故事',
+    category: 'builtin',
+    content:
+      '根据群里的聊天记录，编一个以 战锤世界观为背景的 800 字科幻故事，符合一般故事的起承转合，要体现出群里的名字和聊天内容',
+    variables: [
+      { name: 'sessionName', description: '会话名称', source: 'auto' },
+      { name: 'content', description: '聊天内容', source: 'auto' },
+    ],
+    tags: ['故事', '科幻'],
+  },
   {
     id: 'sentiment',
     name: '情绪分析',
