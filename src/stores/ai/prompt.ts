@@ -1,8 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { PromptTemplate } from '@/types/ai'
+import { nanoid } from 'nanoid'
+import type { PromptTemplate, PromptVariable } from '@/types/ai'
 
-/** 内置 Prompt 模板 */
+// ==================== localStorage keys ====================
+
+const STORAGE_KEY_OVERRIDES = 'chatlog_prompt_overrides'
+const STORAGE_KEY_CUSTOM = 'chatlog_custom_prompts'
+
+// ==================== 内置 Prompt 模板（只读） ====================
+
 const builtinPrompts: PromptTemplate[] = [
   {
     id: 'summary',
@@ -50,14 +57,13 @@ const builtinPrompts: PromptTemplate[] = [
     ],
     tags: ['分析', '话题'],
   },
-
   {
     id: 'build-story',
     name: '构建故事',
     description: '根据聊天内容构建故事',
     category: 'builtin',
     content:
-      '根据群里的聊天记录，编一个以 战锤世界观为背景的 800 字科幻故事，符合一般故事的起承转合，要体现出群里的名字和聊天内容',
+      '根据群里的聊天记录，编一个以 战锤世界观为背景的 800 字科幻故事，要有起承转合的故事性，要像一个战锤世界，要有战锤式的开头语和结尾语，要体现出群里的名字和聊天内容',
     variables: [
       { name: 'sessionName', description: '会话名称', source: 'auto' },
       { name: 'content', description: '聊天内容', source: 'auto' },
@@ -102,7 +108,7 @@ const builtinPrompts: PromptTemplate[] = [
       + '1. **布局方向**：必须使用 graph TD (从上到下)，严禁使用 `LR` 或 `RL`。\n'
       + '2. **控制宽度（核心要求）**：\n'
       + '   - **禁止扁平化**：不要将所有节点放在同一层级。\n'
-      + '   - **强制分层**：请先建立宏观分类（如“科技”、“投资”、“生活”），再将具体话题归类到这些宏观分类下。\n'
+      + '   - **强制分层**：请先建立宏观分类（如"科技"、"投资"、"生活"），再将具体话题归类到这些宏观分类下。\n'
       + '   - **利用子图**：请务必使用 `subgraph` 将相关的话题包裹起来，通过嵌套子图来增加深度，从而减少单行节点的数量。\n'
       + '3. **节点样式**：\n'
       + '   - **人物**：必须使用圆形，并在末尾添加样式类 `:::person`。\n'
@@ -110,7 +116,6 @@ const builtinPrompts: PromptTemplate[] = [
       + '4. **连线与标签**：\n'
       + '   - 连线方向：人物 --> 话题。\n'
       + '   - 标签内容：简要概括该人物对该话题的核心观点（尽量精简文字）。\n'
-
       + '# Class Definitions\n'
       + '请在代码顶部定义以下样式：\n'
       + '- person: shape: circle, fill: #e1f5fe, stroke: #01579b\n'
@@ -146,20 +151,42 @@ const builtinPrompts: PromptTemplate[] = [
   },
 ]
 
+// ==================== 已知变量映射 ====================
+
+const KNOWN_VARIABLES: Record<string, Partial<PromptVariable>> = {
+  content: { description: '聊天内容', source: 'auto' },
+  sessionName: { description: '会话名称', source: 'auto', defaultValue: '当前会话' },
+}
+
+// ==================== Override 类型 ====================
+
+type PromptOverrides = Record<string, Partial<PromptTemplate>>
+
+// ==================== Store ====================
+
 export const useAIPromptStore = defineStore('aiPrompt', () => {
   // ==================== State ====================
 
-  const prompts = ref<PromptTemplate[]>(builtinPrompts)
+  const _overrides = ref<PromptOverrides>({})
+  const _customPrompts = ref<PromptTemplate[]>([])
 
   // ==================== Getters ====================
 
   const builtinList = computed(() =>
-    prompts.value.filter((p) => p.category === 'builtin')
+    builtinPrompts.map((p) => ({
+      ...p,
+      ...(_overrides.value[p.id] || {}),
+      _overridden: !!_overrides.value[p.id],
+    }))
   )
 
-  const customList = computed(() =>
-    prompts.value.filter((p) => p.category === 'custom')
-  )
+  const customList = computed(() => _customPrompts.value)
+
+  const prompts = computed(() => [...builtinList.value, ...customList.value])
+
+  function isOverridden(id: string): boolean {
+    return !!_overrides.value[id]
+  }
 
   // ==================== Actions ====================
 
@@ -167,13 +194,82 @@ export const useAIPromptStore = defineStore('aiPrompt', () => {
     return prompts.value.find((p) => p.id === id)
   }
 
+  // --- Builtin override actions ---
+
+  function updateBuiltinOverride(id: string, override: Partial<PromptTemplate>) {
+    _overrides.value[id] = { ..._overrides.value[id], ...override }
+    persistOverrides()
+  }
+
+  function removeBuiltinOverride(id: string) {
+    delete _overrides.value[id]
+    _overrides.value = { ..._overrides.value }
+    persistOverrides()
+  }
+
+  // --- Custom prompt actions ---
+
   function addPrompt(prompt: PromptTemplate) {
-    prompts.value.push(prompt)
+    _customPrompts.value.push(prompt)
+    persistCustomPrompts()
+  }
+
+  function addCustomPrompt(prompt: PromptTemplate) {
+    _customPrompts.value.push(prompt)
+    persistCustomPrompts()
+  }
+
+  function updateCustomPrompt(id: string, updates: Partial<PromptTemplate>) {
+    const idx = _customPrompts.value.findIndex((p) => p.id === id)
+    if (idx !== -1) {
+      _customPrompts.value[idx] = { ..._customPrompts.value[idx], ...updates }
+      persistCustomPrompts()
+    }
   }
 
   function removePrompt(id: string) {
-    prompts.value = prompts.value.filter((p) => p.id !== id)
+    _customPrompts.value = _customPrompts.value.filter((p) => p.id !== id)
+    persistCustomPrompts()
   }
+
+  function removeCustomPrompt(id: string) {
+    _customPrompts.value = _customPrompts.value.filter((p) => p.id !== id)
+    persistCustomPrompts()
+  }
+
+  // --- Duplicate ---
+
+  function duplicateBuiltinAsCustom(builtinId: string): PromptTemplate | null {
+    const source = builtinPrompts.find((p) => p.id === builtinId)
+    if (!source) return null
+    const newPrompt: PromptTemplate = {
+      ...source,
+      id: 'custom-' + nanoid(8),
+      category: 'custom',
+    }
+    addCustomPrompt(newPrompt)
+    return newPrompt
+  }
+
+  // --- Variable extraction ---
+
+  function extractVariables(content: string): PromptVariable[] {
+    const regex = /\{(\w+)\}/g
+    const found = new Set<string>()
+    let match: RegExpExecArray | null
+    while ((match = regex.exec(content)) !== null) {
+      found.add(match[1])
+    }
+
+    return Array.from(found).map((name) => ({
+      name,
+      description: KNOWN_VARIABLES[name]?.description ?? '',
+      defaultValue: KNOWN_VARIABLES[name]?.defaultValue,
+      source: KNOWN_VARIABLES[name]?.source ?? ('manual' as const),
+    }))
+  }
+
+  // --- Variable substitution ---
 
   function substituteVariables(
     template: string,
@@ -186,9 +282,46 @@ export const useAIPromptStore = defineStore('aiPrompt', () => {
     return result
   }
 
-  function $reset() {
-    prompts.value = [...builtinPrompts]
+  // ==================== Persistence ====================
+
+  function persistOverrides() {
+    try {
+      localStorage.setItem(STORAGE_KEY_OVERRIDES, JSON.stringify(_overrides.value))
+    } catch (e) {
+      console.error('Failed to persist prompt overrides:', e)
+    }
   }
+
+  function persistCustomPrompts() {
+    try {
+      localStorage.setItem(STORAGE_KEY_CUSTOM, JSON.stringify(_customPrompts.value))
+    } catch (e) {
+      console.error('Failed to persist custom prompts:', e)
+    }
+  }
+
+  function loadFromStorage() {
+    try {
+      const overridesRaw = localStorage.getItem(STORAGE_KEY_OVERRIDES)
+      if (overridesRaw) _overrides.value = JSON.parse(overridesRaw)
+
+      const customRaw = localStorage.getItem(STORAGE_KEY_CUSTOM)
+      if (customRaw) _customPrompts.value = JSON.parse(customRaw)
+    } catch (e) {
+      console.error('Failed to load prompt data from localStorage:', e)
+    }
+  }
+
+  function $reset() {
+    _overrides.value = {}
+    _customPrompts.value = []
+    localStorage.removeItem(STORAGE_KEY_OVERRIDES)
+    localStorage.removeItem(STORAGE_KEY_CUSTOM)
+  }
+
+  // ==================== Init ====================
+
+  loadFromStorage()
 
   return {
     // State
@@ -196,10 +329,18 @@ export const useAIPromptStore = defineStore('aiPrompt', () => {
     // Getters
     builtinList,
     customList,
+    isOverridden,
     // Actions
     getPromptById,
     addPrompt,
     removePrompt,
+    updateBuiltinOverride,
+    removeBuiltinOverride,
+    addCustomPrompt,
+    updateCustomPrompt,
+    removeCustomPrompt,
+    duplicateBuiltinAsCustom,
+    extractVariables,
     substituteVariables,
     $reset,
   }

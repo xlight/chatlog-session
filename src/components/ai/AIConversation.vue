@@ -9,7 +9,9 @@ import AIMessageBubble from './AIMessageBubble.vue'
 import AIInputBox from './AIInputBox.vue'
 import ContextBar from './ContextBar.vue'
 import PromptSelector from './PromptSelector.vue'
+import PromptEditorDialog from './PromptEditorDialog.vue'
 import RecentReplyCard from './RecentReplyCard.vue'
+import type { PromptTemplate } from '@/types/ai'
 
 const { conversation, sendMessage, stopGeneration } =
   useAIChat()
@@ -165,6 +167,48 @@ function handleClearContext() {
     return conversation.hasMermaidPrompt && m.content.includes('Mermaid')
   })
 }
+
+// PromptEditorDialog 状态
+const editorVisible = ref(false)
+const editorMode = ref<'create' | 'edit'>('create')
+const editingTemplate = ref<PromptTemplate | null>(null)
+const editingIsBuiltin = ref(false)
+
+function handlePromptEdit(prompt: PromptTemplate, isBuiltin: boolean) {
+  editorMode.value = 'edit'
+  editingTemplate.value = prompt
+  editingIsBuiltin.value = isBuiltin
+  editorVisible.value = true
+}
+
+function handlePromptDuplicate(builtinId: string) {
+  const duplicated = promptStore.duplicateBuiltinAsCustom(builtinId)
+  if (duplicated) {
+    editorMode.value = 'edit'
+    editingTemplate.value = duplicated
+    editingIsBuiltin.value = false
+    editorVisible.value = true
+  }
+}
+
+function handlePromptDelete(id: string) {
+  promptStore.removeCustomPrompt(id)
+}
+
+function handlePromptCreate() {
+  editorMode.value = 'create'
+  editingTemplate.value = null
+  editingIsBuiltin.value = false
+  editorVisible.value = true
+}
+
+function handleEditorSaved() {
+  // 保存后状态由 store 自动更新，无需额外操作
+}
+
+function handleEditorReset(id: string) {
+  // 恢复默认后状态由 store 自动更新
+}
 </script>
 
 <template>
@@ -277,6 +321,10 @@ function handleClearContext() {
           <PromptSelector
             v-if="!conversation.streaming"
             @select="handlePromptSelect"
+            @edit="handlePromptEdit"
+            @duplicate="handlePromptDuplicate"
+            @delete="handlePromptDelete"
+            @create="handlePromptCreate"
           />
           <el-dropdown
             v-if="currentSession && !conversation.streaming"
@@ -302,6 +350,15 @@ function handleClearContext() {
         </div>
       </template>
     </AIInputBox>
+
+    <PromptEditorDialog
+      v-model="editorVisible"
+      :mode="editorMode"
+      :template="editingTemplate"
+      :is-builtin="editingIsBuiltin"
+      @saved="handleEditorSaved"
+      @reset="handleEditorReset"
+    />
   </div>
 </template>
 
