@@ -12,6 +12,7 @@ export interface ChatMessage {
   content: string
   name?: string
   tool_call_id?: string
+  thinkingContent?: string
 }
 
 /** 工具调用信息 */

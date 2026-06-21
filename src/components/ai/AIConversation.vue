@@ -30,6 +30,14 @@ const currentFeedRange = ref({ seconds: 3600, label: '最近1小时' })
 
 const displayMessages = computed(() => conversation.messages)
 
+const lastAssistantMessage = computed(() => {
+  const msgs = displayMessages.value
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === 'assistant') return msgs[i]
+  }
+  return null
+})
+
 const currentSession = computed(() => {
   const id = sessionStore.currentSessionId
   if (!id) return null
@@ -271,7 +279,9 @@ function handleEditorReset(id: string) {
                 :message="displayMessages[virtualRow.index]"
                 :thinking-content="
                   displayMessages[virtualRow.index]?.role === 'assistant'
-                    ? conversation.thinkingContent
+                    ? (displayMessages[virtualRow.index] === lastAssistantMessage && conversation.streaming
+                      ? conversation.thinkingContent
+                      : displayMessages[virtualRow.index]?.thinkingContent)
                     : undefined
                 "
                 :thinking-visible="conversation.thinkingVisible"

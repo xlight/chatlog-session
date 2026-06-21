@@ -64,6 +64,7 @@ const consoleAdapter: AIStreamStore = {
   },
   setThinkingContent() {},
   setThinkingVisible() {},
+  finalizeThinking() {},
   setUsage() {},
   setCurrentModel() {},
   abortStream() {

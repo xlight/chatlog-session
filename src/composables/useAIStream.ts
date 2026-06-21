@@ -17,6 +17,7 @@ export interface AIStreamStore {
   thinkingVisible: Ref<boolean> | { value: boolean }
   setThinkingContent(content: string): void
   setThinkingVisible(visible: boolean): void
+  finalizeThinking(): void
   setUsage(usage: UsageInfo): void
   setCurrentModel(model: string): void
   ensureMermaidPrompt?(): void
@@ -97,6 +98,7 @@ export function useAIStream(store: AIStreamStore, options: UseAIStreamOptions) {
         if (finishReason === 'stop' || finishReason === 'length') {
           const finalContent = accumContent.join('')
           store.updateLastAssistantContent(finalContent)
+          store.finalizeThinking()
           const u = (chunk as unknown as { usage?: UsageInfo | null }).usage
           if (u) {
             store.setUsage(u)

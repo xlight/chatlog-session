@@ -128,6 +128,20 @@ export const useAIConversationStore = defineStore('aiConversation', () => {
     thinkingVisible.value = val
   }
 
+  function finalizeThinking() {
+    if (!thinkingContent.value) return
+    for (let i = messages.value.length - 1; i >= 0; i--) {
+      if (messages.value[i].role === 'assistant') {
+        messages.value[i] = {
+          ...messages.value[i],
+          thinkingContent: thinkingContent.value,
+        }
+        break
+      }
+    }
+    thinkingContent.value = ''
+  }
+
   function clearConversation() {
     messages.value = []
     error.value = null
@@ -207,6 +221,16 @@ graph TD
       hasMermaidPrompt.value = data.hasMermaidPrompt ?? false
       thinkingContent.value = data.thinkingContent ?? ''
       thinkingVisible.value = data.thinkingVisible ?? true
+      // 向后兼容：旧数据 thinkingContent 在 store 级别，迁移到最后一条 assistant 消息
+      if (data.thinkingContent && messages.value.length > 0) {
+        for (let i = messages.value.length - 1; i >= 0; i--) {
+          if (messages.value[i].role === 'assistant' && !messages.value[i].thinkingContent) {
+            messages.value[i] = { ...messages.value[i], thinkingContent: data.thinkingContent }
+            break
+          }
+        }
+        thinkingContent.value = ''
+      }
       return data.contextTags ?? []
     } catch {
       sessionStorage.removeItem(storageKey(sessionId))
@@ -259,6 +283,7 @@ graph TD
     setThinkingContent,
     appendThinkingContent,
     setThinkingVisible,
+    finalizeThinking,
     clearConversation,
     ensureMermaidPrompt,
     abortStream,

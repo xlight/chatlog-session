@@ -34,6 +34,7 @@ interface MockStoreBundle {
     setCurrentModel: ReturnType<typeof vi.fn>
     ensureMermaidPrompt: ReturnType<typeof vi.fn>
     removeLastAssistant: ReturnType<typeof vi.fn>
+    finalizeThinking: ReturnType<typeof vi.fn>
   }
 }
 
@@ -85,6 +86,16 @@ function createMockStore(): MockStoreBundle {
           return
         }
       }
+    }),
+    finalizeThinking: vi.fn(() => {
+      if (!thinkingContent.value) return
+      for (let i = messages.value.length - 1; i >= 0; i--) {
+        if (messages.value[i].role === 'assistant') {
+          messages.value[i] = { ...messages.value[i], thinkingContent: thinkingContent.value }
+          break
+        }
+      }
+      thinkingContent.value = ''
     }),
   }
 
