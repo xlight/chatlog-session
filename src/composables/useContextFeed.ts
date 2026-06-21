@@ -7,6 +7,22 @@ import { getMessageSummary } from '@/components/chat/message-types/config'
 
 export type FeedTimeRange = { seconds: number; label: string } | { type: 'today'; label: string } | { type: 'all'; label: string }
 
+export interface FeedTimeRangeOption {
+  key: string
+  label: string
+  value: FeedTimeRange
+}
+
+export const FEED_TIME_RANGES: FeedTimeRangeOption[] = [
+  { key: '1h', label: '最近1小时', value: { seconds: 3600, label: '最近1小时' } },
+  { key: '6h', label: '最近6小时', value: { seconds: 21600, label: '最近6小时' } },
+  { key: '12h', label: '最近12小时', value: { seconds: 43200, label: '最近12小时' } },
+  { key: 'today', label: '今天', value: { type: 'today', label: '今天' } },
+  { key: '3d', label: '最近3天', value: { seconds: 86400 * 3, label: '最近3天' } },
+  { key: '7d', label: '最近7天', value: { seconds: 86400 * 7, label: '最近7天' } },
+  { key: 'all', label: '全部', value: { type: 'all', label: '全部' } },
+]
+
 function formatTime(rawTime: string, createTime: number): string {
   if (rawTime) {
     try {

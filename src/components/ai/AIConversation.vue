@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { useAIChat } from '@/composables/useAIChat'
-import { useContextFeed } from '@/composables/useContextFeed'
+import { useContextFeed, FEED_TIME_RANGES } from '@/composables/useContextFeed'
 import { useSessionStore } from '@/stores/session'
 import { useAIPromptStore } from '@/stores/ai/prompt'
 import { useVirtualizer } from '@tanstack/vue-virtual'
@@ -43,15 +43,6 @@ const currentSession = computed(() => {
   if (!id) return null
   return sessionStore.sessions.find((s) => s.id === id) ?? null
 })
-
-const feedOptions = [
-  { value: { seconds: 3600, label: '最近1小时' }, label: '最近1小时' },
-  { value: { seconds: 21600, label: '最近6小时' }, label: '最近6小时' },
-  { value: { type: 'today', label: '今天' }, label: '今天' },
-  { value: { seconds: 259200, label: '最近3天' }, label: '最近3天' },
-  { value: { seconds: 604800, label: '最近7天' }, label: '最近7天' },
-  { value: { type: 'all', label: '全部' }, label: '全部' },
-]
 
 watch(
   () => sessionStore.currentSessionId,
@@ -348,8 +339,8 @@ function handleEditorReset(id: string) {
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item
-                  v-for="opt in feedOptions"
-                  :key="opt.label"
+                  v-for="opt in FEED_TIME_RANGES"
+                  :key="opt.key"
                   :command="opt.value"
                 >
                   {{ opt.label }}

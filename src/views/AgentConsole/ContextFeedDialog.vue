@@ -5,7 +5,7 @@
 import { computed, ref, watch } from 'vue'
 import {
   useContextFeed,
-  type FeedTimeRange,
+  FEED_TIME_RANGES,
 } from '@/composables/useContextFeed'
 import { useSessionStore } from '@/stores/session'
 import { useAIConsoleStore } from '@/stores/ai/console'
@@ -46,17 +46,7 @@ const searchKeyword = ref('')
 // 选中的源会话 ID
 const selectedSessionId = ref<string | null>(null)
 // 选中的时间范围 key
-const selectedRangeKey = ref<string>('1h')
-
-// 时间范围单选项（与 AI Panel 保持一致）
-const RANGES: Array<{ key: string; label: string; value: FeedTimeRange }> = [
-  { key: '1h', label: '最近1小时', value: { seconds: 3600, label: '最近1小时' } },
-  { key: '6h', label: '最近6小时', value: { seconds: 21600, label: '最近6小时' } },
-  { key: 'today', label: '今天', value: { type: 'today', label: '今天' } },
-  { key: '3d', label: '最近3天', value: { seconds: 86400 * 3, label: '最近3天' } },
-  { key: '7d', label: '最近7天', value: { seconds: 86400 * 7, label: '最近7天' } },
-  { key: 'all', label: '全部', value: { type: 'all', label: '全部' } },
-]
+const selectedRangeKey = ref<string>('12h')
 
 // 过滤后的会话列表
 const filteredSessions = computed(() => {
@@ -99,8 +89,8 @@ function handleConfirm() {
   }
 
   const range =
-    RANGES.find((r) => r.key === selectedRangeKey.value)?.value ??
-    RANGES[0].value
+    FEED_TIME_RANGES.find((r) => r.key === selectedRangeKey.value)?.value ??
+    FEED_TIME_RANGES[0].value
 
   // 调用 composable 拿格式化文本（contextTags 内部会推入新条目）
   const formattedText = feedSessionContext(selectedSession.value, range)
@@ -184,7 +174,7 @@ function handleClose() {
         <div class="range-label">时间范围</div>
         <el-radio-group v-model="selectedRangeKey" size="default">
           <el-radio-button
-            v-for="r in RANGES"
+            v-for="r in FEED_TIME_RANGES"
             :key="r.key"
             :value="r.key"
           >
@@ -245,7 +235,7 @@ function handleClose() {
         <div class="range-label">时间范围</div>
         <el-radio-group v-model="selectedRangeKey" size="default">
           <el-radio-button
-            v-for="r in RANGES"
+            v-for="r in FEED_TIME_RANGES"
             :key="r.key"
             :value="r.key"
           >
