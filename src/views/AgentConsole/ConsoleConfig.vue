@@ -204,10 +204,11 @@ function handleDeleteConfig(sessionId: string) {
       </el-form>
     </el-card>
 
-    <!-- Agent 默认配置 -->
+    <!-- 置顶会话默认配置 -->
     <el-card class="config-card" shadow="never">
       <template #header>
-        <span>Agent 默认配置</span>
+        <span>置顶会话默认配置</span>
+        <span class="form-hint" style="margin-left: 8px">仅对本地置顶会话生效，非置顶会话默认 L0（禁用）</span>
       </template>
       <el-form label-position="top" class="config-form">
         <el-form-item label="默认预设等级">

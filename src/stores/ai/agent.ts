@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useSessionStore } from '@/stores/session'
 import type {
   AgentConfig,
   AgentDraft,
@@ -120,10 +121,17 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
   const hasActiveSendings = computed(() => activeSendings.value.length > 0)
 
-  /** 获取指定会话的有效配置（session override → global defaults） */
+  /** 获取指定会话的有效配置（session override → 置顶会话 defaults / L0） */
   function getEffectiveConfig(sessionId: string): SessionAgentConfig {
-    const defaults = persistedConfig.value.defaults
     const sessionOverride = sessionConfigs.value[sessionId]
+
+    // 无单独配置时：置顶会话使用 persistedConfig.defaults，非置顶会话回退 L0
+    const sessionStore = useSessionStore()
+    const session = sessionStore.sessions.find(s => s.id === sessionId)
+    const isPinned = session?.isLocalPinned === true
+    const defaults = isPinned
+      ? persistedConfig.value.defaults
+      : { ...DEFAULT_PERSISTED_CONFIG.defaults, levelPreset: 'L0' as AgentLevelPreset, sendPermission: 'forbidden' as SendPermissionLevel, observerEnabled: false, keywordEnabled: false, observerAutoReply: false }
 
     const config: SessionAgentConfig = {
       sessionId,

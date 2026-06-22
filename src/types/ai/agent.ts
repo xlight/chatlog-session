@@ -114,7 +114,7 @@ export interface SessionAgentConfig {
  * 注：不包含 `enabled`（由 `settingsStore.ai.enabled` 管理）和 `aiBackend`（运行时 computed）
  */
 export interface PersistedAgentConfig {
-  /** 全局默认值 */
+  /** 置顶会话默认值 */
   defaults: {
     /** 默认预设级别 — 由 deriveLevelPreset() 推导 */
     levelPreset: AgentLevelPreset
