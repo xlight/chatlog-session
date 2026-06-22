@@ -1,7 +1,6 @@
 import { useAIAgentStore } from '@/stores/ai/agent'
 import { useMessageCacheStore } from '@/stores/messageCache'
 import { useSessionStore } from '@/stores/session'
-import { chatlogAPI } from '@/api/chatlog'
 import { triggerSessionAnalysis } from '@/composables/triggerSessionAnalysis'
 import type { Message } from '@/types/message'
 
@@ -85,9 +84,9 @@ class AnalysisQueue {
 
 async function getContextMessagesForSession(sid: string): Promise<Message[]> {
   const cacheStore = useMessageCacheStore()
-  return cacheStore.getOrFetch(sid, () =>
-    chatlogAPI.getSessionMessages(sid, undefined, MAX_CONTEXT_MESSAGES, 0, 1)
-  )
+  const cached = cacheStore.get(sid)
+  if (!cached || cached.length === 0) return [] // 无缓存直接跳过，避免触发 limit 50 的空请求
+  return cached.slice(-MAX_CONTEXT_MESSAGES)
 }
 
 export function useBackgroundObserver() {
