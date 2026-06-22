@@ -99,9 +99,10 @@ const configuredSessions = computed(() => {
   const overrides: Array<{ id: string; name: string; preset: AgentLevelPreset; config: SessionAgentConfig }> = []
   for (const [sid, config] of Object.entries(agentStore.sessionConfigs)) {
     const session = sessionStore.sessions.find((s) => s.id === sid)
+    const metadata = session ? sessionStore.getSessionSearchMetadata(session) : undefined
     overrides.push({
       id: sid,
-      name: session?.name ?? session?.talkerName ?? sid,
+      name: metadata?.displayName || session?.remark || session?.name || session?.talkerName || sid,
       preset: deriveLevelPreset(config),
       config,
     })
