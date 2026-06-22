@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
 import { useRouter } from 'vue-router'
@@ -48,6 +48,9 @@ function handleModelChange(modelId: string) {
 
 // ==================== Drag Resize ====================
 
+let activeMouseMove: ((ev: MouseEvent) => void) | null = null
+let activeMouseUp: (() => void) | null = null
+
 function startDrag(e: MouseEvent) {
   e.preventDefault()
   dragging.value = true
@@ -71,13 +74,31 @@ function startDrag(e: MouseEvent) {
     document.removeEventListener('mouseup', onMouseUp)
     document.body.style.cursor = ''
     document.body.style.userSelect = ''
+    activeMouseMove = null
+    activeMouseUp = null
   }
 
+  activeMouseMove = onMouseMove
+  activeMouseUp = onMouseUp
   document.addEventListener('mousemove', onMouseMove)
   document.addEventListener('mouseup', onMouseUp)
   document.body.style.cursor = 'col-resize'
   document.body.style.userSelect = 'none'
 }
+
+onUnmounted(() => {
+  if (activeMouseMove) {
+    document.removeEventListener('mousemove', activeMouseMove)
+  }
+  if (activeMouseUp) {
+    document.removeEventListener('mouseup', activeMouseUp)
+  }
+  if (dragging.value) {
+    dragging.value = false
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+})
 
 // ==================== Actions ====================
 

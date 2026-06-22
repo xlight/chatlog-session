@@ -48,6 +48,7 @@ const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
 
 const MAX_DRAFTS = 20
 const MAX_SENDING_STATUS = 50
+const MAX_RESULTS_PER_SESSION = 20
 
 function generateId(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -377,7 +378,11 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
   /** 添加 Observer 分析结果 */
   function addObserverResult(sessionId: string, result: ObserverResult): void {
     const results = observerResults.value.get(sessionId) ?? []
-    observerResults.value = new Map(observerResults.value).set(sessionId, [...results, result])
+    const updated = [...results, result]
+    if (updated.length > MAX_RESULTS_PER_SESSION) {
+      updated.splice(0, updated.length - MAX_RESULTS_PER_SESSION)
+    }
+    observerResults.value = new Map(observerResults.value).set(sessionId, updated)
   }
 
   /** 清空指定会话的 Observer 结果 */
@@ -411,7 +416,11 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
   /** 添加关键词匹配结果 */
   function addKeywordResult(sessionId: string, result: KeywordResult): void {
     const results = keywordResults.value.get(sessionId) ?? []
-    keywordResults.value = new Map(keywordResults.value).set(sessionId, [...results, result])
+    const updated = [...results, result]
+    if (updated.length > MAX_RESULTS_PER_SESSION) {
+      updated.splice(0, updated.length - MAX_RESULTS_PER_SESSION)
+    }
+    keywordResults.value = new Map(keywordResults.value).set(sessionId, updated)
   }
 
   /** 清空指定会话的关键词匹配结果 */

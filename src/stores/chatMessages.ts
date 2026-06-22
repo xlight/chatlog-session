@@ -826,6 +826,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
 
     currentPage.value = 1
     hasMore.value = true
+    messages.value = []
 
     const { useChatSelectionStore } = await import('./chatSelection')
     const selectionStore = useChatSelectionStore()

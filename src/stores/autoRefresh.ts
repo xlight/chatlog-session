@@ -80,6 +80,8 @@ interface RefreshStats {
 /**
  * 默认配置
  */
+const MAX_COMPLETED_TASKS = 50
+
 const DEFAULT_CONFIG: RefreshConfig = {
   enabled: true,
   interval: 5 * 60 * 1000,  // 5分钟
@@ -452,8 +454,9 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
         }
         
         // 设置超时
+        let timeoutId: ReturnType<typeof setTimeout> | undefined
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout')), this.config.timeout)
+          timeoutId = setTimeout(() => reject(new Error('Timeout')), this.config.timeout)
         })
 
         // 执行请求（传入当前缓存和起始时间）
@@ -462,7 +465,9 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
         const cached = cacheStore.get(task.talker)
         console.timeEnd(`[Perf] executeTask:cacheStore.get(${task.talker})`)
         const messagesPromise = this.fetchMessages(task.talker, cached, task.startFromTime)
-        const messages = await Promise.race([messagesPromise, timeoutPromise])
+        const messages = await Promise.race([messagesPromise, timeoutPromise]).finally(() => {
+          if (timeoutId !== undefined) clearTimeout(timeoutId)
+        })
 
         if (appStore.isDebug) {
           console.log(`✅ Fetched ${messages.length} messages for ${task.talker}`)
@@ -517,6 +522,7 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
         task.endTime = Date.now()
         this.activeCount--
         this.updateStats(task)
+        this.pruneCompletedTasks()
         if (appStore.isDebug) {
           console.log(`🏁 executeTask finished: ${task.talker}, status=${task.status}`)
         }
@@ -823,6 +829,27 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
       const index = this.needsRefreshTalkers.indexOf(talker)
       if (index >= 0) {
         this.needsRefreshTalkers.splice(index, 1)
+      }
+    },
+
+    /**
+     * 裁剪已完成的任务，保留最近 MAX_COMPLETED_TASKS 条
+     */
+    pruneCompletedTasks() {
+      const completed = this.tasks.filter(t => t.status === RefreshStatus.SUCCESS || t.status === RefreshStatus.FAILED)
+      if (completed.length > MAX_COMPLETED_TASKS) {
+        const toRemove = new Set(
+          completed
+            .sort((a, b) => (a.endTime ?? 0) - (b.endTime ?? 0))
+            .slice(0, completed.length - MAX_COMPLETED_TASKS)
+            .map(t => t.talker + '_' + t.startTime)
+        )
+        this.tasks = this.tasks.filter(t => {
+          if (t.status === RefreshStatus.SUCCESS || t.status === RefreshStatus.FAILED) {
+            return !toRemove.has(t.talker + '_' + t.startTime)
+          }
+          return true
+        })
       }
     },
 

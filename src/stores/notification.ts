@@ -97,6 +97,7 @@ export const useNotificationStore = defineStore('notification', () => {
   const history = ref<NotificationItem[]>([])
   const notifiedIds = ref<Set<string>>(new Set())
   const activeNotifications = ref<Map<string, Notification>>(new Map())
+  const autoCloseTimers: ReturnType<typeof setTimeout>[] = []
   const initialized = ref(false)
 
   // ==================== Getters ====================
@@ -524,9 +525,12 @@ export const useNotificationStore = defineStore('notification', () => {
         }
 
         if (config.value.autoClose > 0) {
-          setTimeout(() => {
+          const timerId = setTimeout(() => {
             notification.close()
+            const idx = autoCloseTimers.indexOf(timerId)
+            if (idx !== -1) autoCloseTimers.splice(idx, 1)
           }, config.value.autoClose * 1000)
+          autoCloseTimers.push(timerId)
         }
 
         activeNotifications.value.set(messageId, notification)
@@ -540,6 +544,10 @@ export const useNotificationStore = defineStore('notification', () => {
       // 记录通知
       addToHistory(type, talker, talkerName, message)
       notifiedIds.value.add(messageId)
+      if (notifiedIds.value.size > 1000) {
+        const arr = Array.from(notifiedIds.value)
+        notifiedIds.value = new Set(arr.slice(-1000))
+      }
       saveNotifiedIds()
 
       if (appStore.isDebug) {
@@ -893,6 +901,8 @@ export const useNotificationStore = defineStore('notification', () => {
    * $reset 方法：重置 store 到初始状态
    */
   function $reset() {
+    autoCloseTimers.forEach(id => clearTimeout(id))
+    autoCloseTimers.length = 0
     config.value = { ...DEFAULT_CONFIG }
     permission.value = 'default'
     history.value = []

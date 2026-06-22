@@ -56,10 +56,19 @@ class AnalysisQueue {
         return
       }
 
+      // 计算上次分析后的新消息数，更新 accumulatedMessageCount
+      if (state.lastAnalysisTime > 0) {
+        const lastAnalysisSec = state.lastAnalysisTime > 1e12 ? Math.floor(state.lastAnalysisTime / 1000) : state.lastAnalysisTime
+        const newCount = messages.filter(m => m.createTime > lastAnalysisSec).length
+        if (newCount > 0 && newCount !== state.accumulatedMessageCount) {
+          agentStore.updateObserverState(sid, { accumulatedMessageCount: newCount })
+        }
+      }
+
       console.log('[Observer:bg] trigger analysis', { sid, msgCount: messages.length, isTimerTick: true })
       await triggerSessionAnalysis(sid, {
         contextMessages: messages,
-        skipAccumulatedCheck: true,
+        skipAccumulatedCheck: false,
         isTimerTick: true,
       })
     } finally {
