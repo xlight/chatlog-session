@@ -72,7 +72,6 @@ const virtualizer = useVirtualizer(computed(() => ({
   count: displayMessages.value.length,
   getScrollElement: () => parentRef.value,
   estimateSize: () => 120,
-  measureElement: (element) => element.scrollHeight,
   getItemKey: (i: number) => displayMessages.value[i]?.id ?? String(i),
   anchorTo: 'end' as const,
   followOnAppend: 'smooth' as const,
@@ -90,7 +89,22 @@ onMounted(() => {
   })
 })
 
-// 流式输出时重新测量 — TanStack Virtual 内置 ResizeObserver 自动处理
+// 流式输出时平滑跟随：内容变化但 count 不变时，ResizeObserver 自动重测高度，
+// anchorTo:'end' 保持视口锚定末尾，若用户在底部则 scrollToEnd 平滑跟随
+watch(
+  () => lastAssistantMessage.value?.content,
+  () => {
+    if (!conversation.streaming) return
+    nextTick(() => {
+      const el = parentRef.value
+      if (!el) return
+      const distanceFromEnd = el.scrollHeight - el.scrollTop - el.clientHeight
+      if (distanceFromEnd < 80) {
+        virtualizer.value.scrollToEnd({ behavior: 'smooth' })
+      }
+    })
+  }
+)
 
 function handleSend(text: string) {
   conversation.ensureMermaidPrompt()
@@ -263,7 +277,7 @@ function handleEditorReset(id: string) {
             <div
               v-for="virtualRow in virtualRows"
               :key="String(virtualRow.key)"
-              :ref="virtualizer.measureElement"
+              :ref="(el: any) => el && virtualizer.measureElement(el)"
               :data-index="virtualRow.index"
             >
               <AIMessageBubble
