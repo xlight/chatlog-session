@@ -2,12 +2,18 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
+import { useSessionStore } from '@/stores/session'
+import { useAIAgentStore, deriveLevelPreset, applyLevelPreset } from '@/stores/ai/agent'
+import type { AgentLevelPreset } from '@/types/ai/agent'
 import { useRouter } from 'vue-router'
 import { listModels } from '@/api/llm'
 import type { ModelInfo } from '@/types/ai'
+import SessionAgentConfigDialog from '@/components/chat/SessionAgentConfigDialog.vue'
 
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
+const sessionStore = useSessionStore()
+const agentStore = useAIAgentStore()
 const router = useRouter()
 
 const dragging = ref(false)
@@ -21,6 +27,47 @@ const isAiReady = computed(() => {
 })
 
 const isMobile = computed(() => appStore.isMobile)
+
+// ==================== Agent Config ====================
+
+const currentSessionId = computed(() => sessionStore.currentSessionId)
+const showAgentDialog = ref(false)
+
+const agentLevelColors: Record<AgentLevelPreset, string> = {
+  L0: '#c0c4cc',
+  L1: '#e6a23c',
+  L2: '#409eff',
+  L3: '#67c23a',
+  L4: '#9b59b6',
+  Custom: '#f56c6c',
+}
+
+const agentLevelLabels: Record<AgentLevelPreset, string> = {
+  L0: '禁用', L1: '仅旁观', L2: '草稿确认',
+  L3: '关键词自动', L4: '智能代理', Custom: '自定义',
+}
+
+const presetOptions: AgentLevelPreset[] = ['L0', 'L1', 'L2', 'L3', 'L4', 'Custom']
+
+const currentPreset = computed(() => {
+  if (!currentSessionId.value) return 'L0' as AgentLevelPreset
+  const config = agentStore.getEffectiveConfig(currentSessionId.value)
+  return deriveLevelPreset(config)
+})
+
+const agentPermissionColor = computed(() => {
+  return agentLevelColors[currentPreset.value]
+})
+
+function handlePresetChange(preset: AgentLevelPreset) {
+  if (!currentSessionId.value) return
+  if (preset === 'Custom') {
+    showAgentDialog.value = true
+    return
+  }
+  const patch = applyLevelPreset(preset)
+  agentStore.setSessionConfig(currentSessionId.value, patch)
+}
 
 const panelWidthPx = computed(() => {
   const vw = window.innerWidth
@@ -153,6 +200,30 @@ onMounted(() => {
               :label="m.id"
             />
           </el-select>
+          <el-select
+            v-if="isAiReady && currentSessionId"
+            :model-value="currentPreset"
+            size="small"
+            style="width: 100px"
+            @update:model-value="handlePresetChange"
+          >
+            <el-option
+              v-for="p in presetOptions"
+              :key="p"
+              :label="`${p} ${agentLevelLabels[p]}`"
+              :value="p"
+            >
+              <span :style="{ color: agentLevelColors[p] }">{{ p }}</span>
+              <span style="margin-left: 4px">{{ agentLevelLabels[p] }}</span>
+            </el-option>
+          </el-select>
+          <el-tooltip v-if="isAiReady && currentSessionId" content="Agent 设置" placement="bottom">
+            <el-button text @click="showAgentDialog = true">
+              <el-icon :style="{ color: agentPermissionColor }">
+                <Cpu />
+              </el-icon>
+            </el-button>
+          </el-tooltip>
           <el-button
             v-if="!isAiReady"
             text
@@ -186,7 +257,7 @@ onMounted(() => {
       @mousedown="startDrag"
     />
 
-    <div class="ai-panel__header">
+      <div class="ai-panel__header">
       <div class="ai-panel__header-left">
         <h3>AI 助手</h3>
         <el-select
@@ -203,8 +274,32 @@ onMounted(() => {
             :label="m.id"
           />
         </el-select>
+        <el-select
+          v-if="isAiReady && currentSessionId"
+          :model-value="currentPreset"
+          size="small"
+          style="width: 100px"
+          @update:model-value="handlePresetChange"
+        >
+          <el-option
+            v-for="p in presetOptions"
+            :key="p"
+            :label="`${p} ${agentLevelLabels[p]}`"
+            :value="p"
+          >
+            <span :style="{ color: agentLevelColors[p] }">{{ p }}</span>
+            <span style="margin-left: 4px">{{ agentLevelLabels[p] }}</span>
+          </el-option>
+        </el-select>
       </div>
       <div class="ai-panel__header-actions">
+        <el-tooltip v-if="isAiReady && currentSessionId" content="Agent 设置" placement="bottom">
+          <el-button text @click="showAgentDialog = true">
+            <el-icon :style="{ color: agentPermissionColor }">
+              <Cpu />
+            </el-icon>
+          </el-button>
+        </el-tooltip>
         <slot name="header-actions" />
         <el-button text @click="handleClose">
           <el-icon><Close /></el-icon>
@@ -231,6 +326,13 @@ onMounted(() => {
       <slot v-else />
     </div>
   </div>
+
+  <SessionAgentConfigDialog
+    v-if="currentSessionId"
+    v-model="showAgentDialog"
+    :session-id="currentSessionId"
+    :session-name="''"
+  />
 </template>
 
 <style lang="scss" scoped>

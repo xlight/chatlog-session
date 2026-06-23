@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue'
 import type { Session, SessionDetail } from '@/types'
 import { useSessionDisplayName } from './composables'
 import { useChatroomStore } from '@/stores/chatroom'
-import { useAIAgentStore, deriveLevelPreset, applyLevelPreset } from '@/stores/ai/agent'
+import { useAppStore } from '@/stores/app'
+import { useAIAgentStore, deriveLevelPreset } from '@/stores/ai/agent'
 import type { AgentLevelPreset } from '@/types/ai/agent'
 import SessionAgentConfigDialog from './SessionAgentConfigDialog.vue'
 
@@ -28,6 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const chatroomStore = useChatroomStore()
+const appStore = useAppStore()
 const agentStore = useAIAgentStore()
 
 // 群聊成员数量
@@ -46,39 +48,11 @@ const agentLevelColors: Record<AgentLevelPreset, string> = {
   Custom: '#f56c6c',
 }
 
-const agentLevelLabels: Record<AgentLevelPreset, string> = {
-  L0: '禁用', L1: '仅旁观', L2: '草稿确认',
-  L3: '关键词自动', L4: '智能代理', Custom: '自定义',
-}
-
 const agentPermissionColor = computed(() => {
   if (!props.session?.id) return '#c0c4cc'
   const config = agentStore.getEffectiveConfig(props.session.id)
   return agentLevelColors[deriveLevelPreset(config)]
 })
-
-// Agent 状态摘要文本
-const agentStatusLabel = computed(() => {
-  if (!props.session?.id) return ''
-  const config = agentStore.getEffectiveConfig(props.session.id)
-  const preset = deriveLevelPreset(config)
-  const parts: string[] = [agentLevelLabels[preset]]
-  if (config.observer.enabled) parts.push('旁观')
-  if (config.keywordMonitor.enabled) parts.push('关键词')
-  return parts.join(' | ')
-})
-
-const presetOptions: AgentLevelPreset[] = ['L0', 'L1', 'L2', 'L3', 'L4', 'Custom']
-
-function handlePresetChange(preset: AgentLevelPreset) {
-  if (!props.session?.id) return
-  if (preset === 'Custom') {
-    showAgentDialog.value = true
-    return
-  }
-  const patch = applyLevelPreset(preset)
-  agentStore.setSessionConfig(props.session.id, patch)
-}
 
 // 使用 displayName composable
 const { displayName } = useSessionDisplayName({
@@ -184,61 +158,13 @@ function handleDropdownCommand(cmd: string) {
       </el-tooltip>
 
       <!-- Agent 状态指示器 -->
-      <el-popover
-        v-if="session?.id"
-        placement="bottom"
-        trigger="click"
-        :width="220"
-      >
-        <template #reference>
-          <el-button text class="agent-indicator" :title="agentStatusLabel">
-            <el-icon :style="{ color: agentPermissionColor }">
-              <Cpu />
-            </el-icon>
-          </el-button>
-        </template>
-        <div class="agent-quick-toggle">
-          <div class="toggle-row">
-            <span>旁观模式</span>
-            <el-switch
-              size="small"
-              :model-value="agentStore.getEffectiveConfig(session?.id ?? '').observer.enabled"
-              @update:model-value="agentStore.setSessionConfig(session!.id, { observer: { ...agentStore.getEffectiveConfig(session!.id).observer, enabled: $event } })"
-            />
-          </div>
-          <div class="toggle-row">
-            <span>关键词监测</span>
-            <el-switch
-              size="small"
-              :model-value="agentStore.getEffectiveConfig(session?.id ?? '').keywordMonitor.enabled"
-              @update:model-value="agentStore.setSessionConfig(session!.id, { keywordMonitor: { ...agentStore.getEffectiveConfig(session!.id).keywordMonitor, enabled: $event } })"
-            />
-          </div>
-          <div class="toggle-row">
-            <span>预设等级</span>
-            <el-select
-              size="small"
-              :model-value="deriveLevelPreset(agentStore.getEffectiveConfig(session?.id ?? ''))"
-              style="width: 120px"
-              @update:model-value="handlePresetChange"
-            >
-              <el-option
-                v-for="p in presetOptions"
-                :key="p"
-                :label="`${p} ${agentLevelLabels[p]}`"
-                :value="p"
-              >
-                <span :style="{ color: agentLevelColors[p] }">{{ p }}</span>
-                <span style="margin-left: 4px">{{ agentLevelLabels[p] }}</span>
-              </el-option>
-            </el-select>
-          </div>
-          <el-divider style="margin: 8px 0" />
-          <el-button text size="small" @click="showAgentDialog = true">
-            打开完整设置
-          </el-button>
-        </div>
-      </el-popover>
+      <el-tooltip v-if="session?.id" content="打开 AI 面板" placement="bottom">
+        <el-button text class="agent-indicator" @click="appStore.aiPanelOpen = true">
+          <el-icon :style="{ color: agentPermissionColor }">
+            <Cpu />
+          </el-icon>
+        </el-button>
+      </el-tooltip>
 
       <!-- 更多操作 -->
       <el-dropdown trigger="click" @command="handleDropdownCommand">
@@ -266,9 +192,6 @@ function handleDropdownCommand(cmd: string) {
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-
-      <!-- 额外操作 -->
-      <slot name="actions"></slot>
     </div>
 
     <!-- Agent 设置对话框 -->
@@ -342,20 +265,6 @@ function handleDropdownCommand(cmd: string) {
 .agent-indicator {
   :deep(.el-icon) {
     font-size: 18px;
-  }
-}
-
-.agent-quick-toggle {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  .toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 13px;
   }
 }
 
