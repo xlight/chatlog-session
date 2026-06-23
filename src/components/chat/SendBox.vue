@@ -5,7 +5,7 @@ import { CirclePlus, PictureRounded } from '@element-plus/icons-vue'
 import { sendmsgAPI } from '@/api/sendmsg'
 import { useSettingsStore } from '@/stores/settings'
 import { useAIAgentStore } from '@/stores/ai/agent'
-import { useDisplayName } from './composables/useDisplayName'
+import { useSessionDisplayName } from './composables/useDisplayName'
 import AgentDraftCard from '@/components/ai/AgentDraftCard.vue'
 import SendingStatusCard from '@/components/ai/SendingStatusCard.vue'
 import type { Session } from '@/types/session'
@@ -106,9 +106,8 @@ const POLLING_TIMEOUT = 30000
 
 // ==================== contact_name 解析 ====================
 
-const { displayName } = useDisplayName({
-  id: computed(() => props.session?.talker),
-  defaultName: computed(() => props.session?.name),
+const { displayName } = useSessionDisplayName({
+  session: computed(() => props.session)
 })
 
 const contactName = computed(() => {

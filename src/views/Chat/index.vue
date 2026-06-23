@@ -29,7 +29,7 @@ import ContactDetail from '@/views/Contact/ContactDetail.vue'
 import ChatExportDialog from '@/components/chat/ChatExportDialog.vue'
 import AIPanel from '@/components/ai/AIPanel.vue'
 import AIConversation from '@/components/ai/AIConversation.vue'
-import { useDisplayName } from '@/components/chat/composables'
+import { useSessionDisplayName } from '@/components/chat/composables'
 import type { Session, SessionFilterType } from '@/types'
 
 const appStore = useAppStore()
@@ -75,10 +75,8 @@ const currentSession = computed(() => {
 // 当前会话的初始时间（用于消息加载）
 const currentSessionTime = ref<string | undefined>(undefined)
 
-// 使用 displayName composable 获取移动端显示名称
-const { displayName: mobileDisplayName } = useDisplayName({
-  id: computed(() => currentSession.value?.id),
-  defaultName: computed(() => currentSession.value?.name || currentSession.value?.talkerName || ''),
+const { displayName: mobileDisplayName } = useSessionDisplayName({
+  session: computed(() => currentSession.value)
 })
 
 // 处理会话选择

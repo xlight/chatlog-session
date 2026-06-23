@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useDisplayName } from '@/components/chat/composables'
+import { useSessionDisplayName } from '@/components/chat/composables'
 import Avatar from '@/components/common/Avatar.vue'
 import type { Session } from '@/types'
 
@@ -10,10 +10,8 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// 使用 useDisplayName 获取显示名称
-const { displayName } = useDisplayName({
-  id: computed(() => props.session.id),
-  defaultName: computed(() => props.session.name || props.session.talkerName)
+const { displayName } = useSessionDisplayName({
+  session: computed(() => props.session)
 })
 </script>
 

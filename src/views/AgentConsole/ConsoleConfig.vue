@@ -11,6 +11,7 @@ import { listModels, testConnection } from '@/api/llm'
 import type { ModelInfo } from '@/types/ai'
 import type { AgentLevelPreset, SessionAgentConfig } from '@/types/ai/agent'
 import { deriveLevelPreset } from '@/stores/ai/agent'
+import { useDisplayName } from '@/composables/useDisplayName'
 import SessionAgentConfigDialog from '@/components/chat/SessionAgentConfigDialog.vue'
 
 const settingsStore = useSettingsStore()
@@ -96,13 +97,14 @@ async function handleTestConnection() {
 
 /** 已覆盖默认配置的会话列表 */
 const configuredSessions = computed(() => {
+  const { getSessionDisplayNameSync } = useDisplayName()
   const overrides: Array<{ id: string; name: string; preset: AgentLevelPreset; config: SessionAgentConfig }> = []
   for (const [sid, config] of Object.entries(agentStore.sessionConfigs)) {
     const session = sessionStore.sessions.find((s) => s.id === sid)
     const metadata = session ? sessionStore.getSessionSearchMetadata(session) : undefined
     overrides.push({
       id: sid,
-      name: metadata?.displayName || session?.remark || session?.name || session?.talkerName || sid,
+      name: session ? getSessionDisplayNameSync(session, metadata) : sid,
       preset: deriveLevelPreset(config),
       config,
     })

@@ -10,7 +10,7 @@ import { useAIActivityLogStore } from '@/stores/ai/activityLog'
 import { useAIAgentStore } from '@/stores/ai/agent'
 import { useAIChat } from '@/composables/useAIChat'
 import { useSessionStore } from '@/stores/session'
-import { useDisplayName } from './composables/useDisplayName'
+import { useDisplayName } from '@/composables/useDisplayName'
 import type { LastReply } from '@/types/ai'
 
 const visible = ref(false)
@@ -63,9 +63,11 @@ const canShowAgentDraft = computed(() => {
   return agentPermission.value !== 'forbidden'
 })
 
-const { displayName: agentContactName } = useDisplayName({
-  id: computed(() => props.message?.talker),
-  defaultName: computed(() => props.message?.talkerName),
+const { getMemberDisplayNameSync } = useDisplayName()
+const agentContactName = computed(() => {
+  const talker = props.message?.talker
+  if (!talker) return ''
+  return getMemberDisplayNameSync({ wxid: talker, nickname: props.message?.talkerName })
 })
 
 const handleCopy = async () => {

@@ -3,7 +3,6 @@ import { ref, computed, watch } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useContactStore } from '@/stores/contact'
 import { useChatroomStore } from '@/stores/chatroom'
-import { useDisplayName as useDisplayNameReactive } from '@/components/chat/composables/useDisplayName'
 import { useDisplayName } from '@/composables/useDisplayName'
 import MobileNavBar from '@/components/layout/MobileNavBar.vue'
 import Avatar from '@/components/common/Avatar.vue'
@@ -31,10 +30,17 @@ const contact = ref<Contact | null>(null)
 const chatroomDetail = ref<Chatroom | null>(null)
 const chatroomLoading = ref(false)
 
+const {
+  getMemberDisplayNameSync,
+  displayNameCache: memberDisplayNames,
+  preloadMemberNames,
+} = useDisplayName()
+
 // 群主显示名称
-const { displayName: ownerDisplayName } = useDisplayNameReactive({
-  id: computed(() => chatroomDetail.value?.owner),
-  defaultName: computed(() => chatroomDetail.value?.owner),
+const ownerDisplayName = computed(() => {
+  const owner = chatroomDetail.value?.owner
+  if (!owner) return ''
+  return getMemberDisplayNameSync({ wxid: owner })
 })
 
 // 加载联系人详情
@@ -151,13 +157,6 @@ const remainingMemberCount = computed(() => {
   const total = chatroomDetail.value.members.length
   return total > 10 ? total - 10 : 0
 })
-
-// 使用统一的 useDisplayName composable 获取成员显示名称
-const {
-  getMemberDisplayNameSync,
-  displayNameCache: memberDisplayNames,
-  preloadMemberNames,
-} = useDisplayName()
 
 // 加载成员显示名称
 const loadMemberDisplayNames = async () => {

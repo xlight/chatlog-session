@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { Session, SessionDetail } from '@/types'
-import { useDisplayName } from './composables'
+import { useSessionDisplayName } from './composables'
 import { useChatroomStore } from '@/stores/chatroom'
 import { useAIAgentStore, deriveLevelPreset, applyLevelPreset } from '@/stores/ai/agent'
 import type { AgentLevelPreset } from '@/types/ai/agent'
@@ -81,9 +81,8 @@ function handlePresetChange(preset: AgentLevelPreset) {
 }
 
 // 使用 displayName composable
-const { displayName } = useDisplayName({
-  id: computed(() => props.session?.id),
-  defaultName: computed(() => props.session?.name)
+const { displayName } = useSessionDisplayName({
+  session: computed(() => props.session)
 })
 
 // 会话类型显示文本

@@ -3,10 +3,12 @@
  * 提供 contact/chatroom/session 三种类型的 getDisplayName 方法，统一优先级链
  */
 
-import { ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 import { useContactStore } from '@/stores/contact'
+import { useSessionStore } from '@/stores/session'
 import type { Contact, Chatroom } from '@/types/contact'
 import type { Session } from '@/types/session'
+import type { SessionSearchMetadata } from '@/stores/sessionSearch'
 
 export function useDisplayName() {
   const contactStore = useContactStore()
@@ -32,21 +34,23 @@ export function useDisplayName() {
 
   /**
    * 获取会话显示名称（同步，从缓存或本地数据）
-   * 优先级：session.name > session.talkerName > 缓存 > session.id
+   * 优先级：searchMetadata?.displayName > session.remark > session.name > session.talkerName > session.talker
    */
-  function getSessionDisplayNameSync(session: Session): string {
-    if (session.name) return session.name
-    if (session.talkerName) return session.talkerName
-    const cached = displayNameCache.value.get(session.id)
-    if (cached) return cached
-    return session.id
+  function getSessionDisplayNameSync(session: Session, searchMetadata?: SessionSearchMetadata | null): string {
+    return (
+      searchMetadata?.displayName ||
+      session.remark ||
+      session.name ||
+      session.talkerName ||
+      session.talker
+    )
   }
 
   /**
    * 获取会话显示名称（异步，尝试从 contact store 获取更准确的名称）
-   * 优先级：contactStore 名称 > session.name > session.talkerName > session.id
+   * 优先级：contactStore 名称 > searchMetadata?.displayName > session.remark > session.name > session.talkerName > session.talker
    */
-  async function getSessionDisplayName(session: Session): Promise<string> {
+  async function getSessionDisplayName(session: Session, searchMetadata?: SessionSearchMetadata | null): Promise<string> {
     // 先从缓存中获取
     if (displayNameCache.value.has(session.id)) {
       return displayNameCache.value.get(session.id)!
@@ -63,8 +67,7 @@ export function useDisplayName() {
       console.warn('获取会话显示名称失败:', session.id, err)
     }
 
-    // 使用默认名称
-    const defaultName = session.name || session.talkerName || session.id
+    const defaultName = searchMetadata?.displayName || session.remark || session.name || session.talkerName || session.talker
     displayNameCache.value.set(session.id, defaultName)
     return defaultName
   }
@@ -148,4 +151,39 @@ export function useDisplayName() {
     // 缓存管理
     clearCache,
   }
+}
+
+export function useSessionDisplayName(options: {
+  session: Ref<Session | null>
+  searchMetadata?: Ref<SessionSearchMetadata | null>
+}) {
+  const { getSessionDisplayNameSync, getSessionDisplayName } = useDisplayName()
+  const sessionStore = useSessionStore()
+  const loading = ref(false)
+
+  const resolvedSearchMetadata = computed(() => {
+    if (options.searchMetadata) return options.searchMetadata.value
+    const session = options.session.value
+    if (!session) return null
+    return sessionStore.getSessionSearchMetadata(session) ?? null
+  })
+
+  const displayName = computed(() => {
+    const session = options.session.value
+    if (!session) return ''
+    return getSessionDisplayNameSync(session, resolvedSearchMetadata.value)
+  })
+
+  async function refresh() {
+    const session = options.session.value
+    if (!session) return
+    loading.value = true
+    try {
+      await getSessionDisplayName(session, resolvedSearchMetadata.value)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return { displayName, loading, refresh }
 }

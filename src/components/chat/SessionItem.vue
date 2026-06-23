@@ -5,6 +5,7 @@ import type { Session } from '@/types'
 import { formatSessionTime } from '@/utils'
 import { useSessionStore } from '@/stores/session'
 import { useContextMenu } from './composables'
+import { useDisplayName } from '@/composables/useDisplayName'
 import Avatar from '@/components/common/Avatar.vue'
 
 interface Props {
@@ -31,15 +32,8 @@ const {
 
 const searchMetadata = computed(() => sessionStore.getSessionSearchMetadata(props.session))
 
-const displayName = computed(() => {
-  return (
-    searchMetadata.value?.displayName ||
-    props.session.remark ||
-    props.session.name ||
-    props.session.talkerName ||
-    props.session.talker
-  )
-})
+const { getSessionDisplayNameSync } = useDisplayName()
+const displayName = computed(() => getSessionDisplayNameSync(props.session, searchMetadata.value))
 
 const isSearchMode = computed(() => sessionStore.isSearchMode)
 
