@@ -501,7 +501,8 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
   position: relative;
 
   &--self {
-    flex-direction: row-reverse;
+    flex-direction: row;
+    justify-content: flex-end;
 
     .message-bubble__content {
       align-items: flex-end;
