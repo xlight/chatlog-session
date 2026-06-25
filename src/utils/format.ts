@@ -4,6 +4,7 @@
  */
 
 import DOMPurify from 'dompurify'
+import { MessageTypeNames, MessageType } from '@/types/message'
 
 /**
  * 格式化文件大小
@@ -119,19 +120,12 @@ export function formatMessageContent(content: string, maxLength?: number): strin
  * @returns 预览文本
  */
 export function formatMessagePreview(type: number, content?: string): string {
-  const typeLabels: Record<number, string> = {
-    1: content || '[文本消息]',
-    3: '[图片]',
-    34: '[语音]',
-    43: '[视频]',
-    47: '[表情]',
-    48: '[位置]',
-    49: '[文件]',
-    10000: '[系统消息]',
-    10002: '[撤回消息]',
+  if (type === MessageType.Text) {
+    return content || '[文本消息]'
   }
 
-  return typeLabels[type] || '[未知消息]'
+  const label = MessageTypeNames[type as MessageType]
+  return label ? `[${label}]` : '[未知消息]'
 }
 
 /**
