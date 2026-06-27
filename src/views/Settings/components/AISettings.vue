@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { testConnection, inferProviderName, resetClient, listModels } from '@/api/llm'
 import type { AISettingsData } from '@/stores/settings'
 import type { ModelInfo } from '@/types/ai'
+import MCPSettings from '../MCPSettings.vue'
 
 const props = defineProps<{
   modelValue: AISettingsData
@@ -286,5 +287,9 @@ const providerName = () => inferProviderName(props.modelValue.llmBaseUrl)
         </div>
       </template>
     </el-alert>
+
+    <el-divider />
+
+    <MCPSettings />
   </div>
 </template>

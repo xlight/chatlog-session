@@ -14,6 +14,7 @@ export interface ConsoleChatSession {
   createdAt: number
   updatedAt: number
   contextFeed?: ContextSource[]
+  toolCallRecords?: import('./mcp').ToolCallRecord[]
 }
 
 /** Console 统计信息（总览 Tab 用） */

@@ -487,6 +487,7 @@ describe('deriveLevelPreset', () => {
       promptTemplateId: 'builtin-reply',
       maxAutoReplies: 0,
       cooldownMs: 5000,
+      mcpTools: { enabled: false, requireConfirmation: true, allowedTools: [], deniedTools: [], callTimeoutMs: 30000, maxLoopCount: 10 },
       ...overrides,
     }
   }

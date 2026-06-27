@@ -9,6 +9,7 @@ import { useRouter } from 'vue-router'
 import { listModels } from '@/api/llm'
 import type { ModelInfo } from '@/types/ai'
 import SessionAgentConfigDialog from '@/components/chat/SessionAgentConfigDialog.vue'
+import MCPStatusBadge from './MCPStatusBadge.vue'
 
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
@@ -185,6 +186,7 @@ onMounted(() => {
     <div class="ai-panel">
       <div class="ai-panel__header">
         <h3>AI 助手</h3>
+        <MCPStatusBadge v-if="isAiReady" />
         <div class="ai-panel__header-actions">
           <el-select
             v-if="isAiReady && models.length > 0"
@@ -260,6 +262,7 @@ onMounted(() => {
       <div class="ai-panel__header">
       <div class="ai-panel__header-left">
         <h3>AI 助手</h3>
+        <MCPStatusBadge v-if="isAiReady" />
         <el-select
           v-if="isAiReady && models.length > 0"
           :model-value="settingsStore.ai.llmDefaultModel"

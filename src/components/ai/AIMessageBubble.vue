@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import type { ChatMessage } from '@/types/ai'
+import type { ToolCallRecord } from '@/types/ai/mcp'
 import { renderMarkdown, escapeHtml } from '@/utils/markdown'
 import { useAppStore } from '@/stores/app'
+import ToolCallCard from './ToolCallCard.vue'
 
 const props = defineProps<{
   message: ChatMessage
   thinkingContent?: string
   thinkingVisible?: boolean
+  toolCallRecords?: ToolCallRecord[]
 }>()
 
 const emit = defineEmits<{
   'toggle-thinking': []
+  'confirm-tool-call': [id: string]
+  'reject-tool-call': [id: string]
 }>()
 
 const appStore = useAppStore()
@@ -235,6 +240,17 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
+      <!-- MCP 工具调用记录 -->
+      <div v-if="toolCallRecords?.length && isAssistant" class="ai-message__tool-calls">
+        <ToolCallCard
+          v-for="record in toolCallRecords"
+          :key="record.id"
+          :record="record"
+          @confirm="emit('confirm-tool-call', $event)"
+          @reject="emit('reject-tool-call', $event)"
+        />
+      </div>
+
       <!-- 消息内容 -->
       <div
         ref="contentRef"
@@ -302,6 +318,10 @@ onBeforeUnmount(() => {
   &__thinking {
     margin-bottom: 8px;
     font-size: 13px;
+  }
+
+  &__tool-calls {
+    margin-bottom: 8px;
   }
 
   .thinking-toggle {

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { ChatMessage, AIError, LastReply, UsageInfo, ContextTag } from '@/types/ai'
+import type { ToolCallRecord } from '@/types/ai/mcp'
 
 // ==================== 持久化常量 ====================
 
@@ -42,6 +43,9 @@ export const useAIConversationStore = defineStore('aiConversation', () => {
 
   // 最近一次「帮我回复」/「分析消息」生成的草稿（RecentReplyCard 显示用）
   const lastReply = ref<LastReply | null>(null)
+
+  // MCP 工具调用记录
+  const toolCallRecords = ref<ToolCallRecord[]>([])
 
   // ==================== Getters ====================
 
@@ -149,6 +153,7 @@ export const useAIConversationStore = defineStore('aiConversation', () => {
     thinkingContent.value = ''
     thinkingVisible.value = true
     hasMermaidPrompt.value = false
+    toolCallRecords.value = []
   }
 
   function ensureMermaidPrompt() {
@@ -187,6 +192,17 @@ graph TD
   function markLastReplyInjected() {
     if (lastReply.value) {
       lastReply.value = { ...lastReply.value, injected: true }
+    }
+  }
+
+  function addToolCallRecord(record: ToolCallRecord) {
+    toolCallRecords.value.push(record)
+  }
+
+  function updateToolCallRecord(id: string, updates: Partial<ToolCallRecord>) {
+    const idx = toolCallRecords.value.findIndex((r) => r.id === id)
+    if (idx >= 0) {
+      toolCallRecords.value[idx] = { ...toolCallRecords.value[idx], ...updates }
     }
   }
 
@@ -265,6 +281,7 @@ graph TD
     abortController,
     hasMermaidPrompt,
     lastReply,
+    toolCallRecords,
 
     // Getters
     hasMessages,
@@ -290,6 +307,8 @@ graph TD
     removeLastAssistant,
     setLastReply,
     markLastReplyInjected,
+    addToolCallRecord,
+    updateToolCallRecord,
     saveToSession,
     loadFromSession,
     removeSession,

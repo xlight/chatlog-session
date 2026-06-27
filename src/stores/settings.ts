@@ -72,6 +72,7 @@ export interface AISettingsData {
   enabled: boolean
   privacyAcknowledged: boolean
   showConsoleInSidebar: boolean
+  mcpServers: import('@/types/ai/mcp').MCPServerConfig[]
 }
 
 // ==================== 默认值 ====================
@@ -137,6 +138,7 @@ const defaultAISettings: AISettingsData = {
   enabled: false,
   privacyAcknowledged: false,
   showConsoleInSidebar: true,
+  mcpServers: [],
 }
 
 export const useSettingsStore = defineStore('settings', () => {

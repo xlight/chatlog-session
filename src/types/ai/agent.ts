@@ -59,6 +59,7 @@ export type AgentAction =
   | 'summarize'
   | 'extract_todos'
   | 'profile'
+  | 'mcp_tool_call'
 
 /** 会话级 Agent 配置（完整版，含 observer 和 keywordMonitor） */
 export interface SessionAgentConfig {
@@ -107,6 +108,8 @@ export interface SessionAgentConfig {
   maxAutoReplies: number
   /** 冷却时间（毫秒） */
   cooldownMs: number
+  /** MCP 工具权限配置 */
+  mcpTools: import('./mcp').MCPToolPermission
 }
 
 /** 全局持久化 Agent 配置（存储在 localStorage）
@@ -144,6 +147,8 @@ export interface PersistedAgentConfig {
     maxAutoReplies: number
     /** 默认冷却时间（毫秒） */
     cooldownMs: number
+    /** 默认 MCP 工具权限 */
+    mcpTools: import('./mcp').MCPToolPermission
   }
 }
 

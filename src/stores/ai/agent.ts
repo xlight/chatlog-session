@@ -17,6 +17,7 @@ import type {
   StreamingObserverResult,
   KeywordResult,
 } from '@/types/ai/agent'
+import { DEFAULT_MCP_TOOL_PERMISSION } from '@/types/ai/mcp'
 
 const DEFAULT_CONFIG: AgentConfig = {
   enabled: false,
@@ -44,6 +45,7 @@ const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
     promptTemplateId: 'builtin-reply',
     maxAutoReplies: 0,
     cooldownMs: 600000,
+    mcpTools: { ...DEFAULT_MCP_TOOL_PERMISSION },
   },
 }
 
@@ -70,11 +72,11 @@ export function deriveLevelPreset(config: SessionAgentConfig): AgentLevelPreset 
 
 export function applyLevelPreset(preset: AgentLevelPreset): Partial<SessionAgentConfig> {
   switch (preset) {
-    case 'L0': return { sendPermission: 'forbidden', observer: { enabled: false, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 20 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
-    case 'L1': return { sendPermission: 'forbidden', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 15 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
-    case 'L2': return { sendPermission: 'draft_confirm', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 15 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
-    case 'L3': return { sendPermission: 'auto', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 25 }, keywordMonitor: { enabled: true, matchPatterns: [] } }
-    case 'L4': return { sendPermission: 'auto', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: true, autoReplyCount: 1, maxContextMessages: 25 }, keywordMonitor: { enabled: false, matchPatterns: [] } }
+    case 'L0': return { sendPermission: 'forbidden', observer: { enabled: false, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 20 }, keywordMonitor: { enabled: false, matchPatterns: [] }, mcpTools: { ...DEFAULT_MCP_TOOL_PERMISSION, enabled: false } }
+    case 'L1': return { sendPermission: 'forbidden', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 15 }, keywordMonitor: { enabled: false, matchPatterns: [] }, mcpTools: { ...DEFAULT_MCP_TOOL_PERMISSION, enabled: false } }
+    case 'L2': return { sendPermission: 'draft_confirm', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 15 }, keywordMonitor: { enabled: false, matchPatterns: [] }, mcpTools: { ...DEFAULT_MCP_TOOL_PERMISSION, enabled: true, requireConfirmation: true } }
+    case 'L3': return { sendPermission: 'auto', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: false, autoReplyCount: 1, maxContextMessages: 25 }, keywordMonitor: { enabled: true, matchPatterns: [] }, mcpTools: { ...DEFAULT_MCP_TOOL_PERMISSION, enabled: true, requireConfirmation: false } }
+    case 'L4': return { sendPermission: 'auto', observer: { enabled: true, intervalSeconds: 300, minNewMessages: 5, autoReply: true, autoReplyCount: 1, maxContextMessages: 25 }, keywordMonitor: { enabled: false, matchPatterns: [] }, mcpTools: { ...DEFAULT_MCP_TOOL_PERMISSION, enabled: true, requireConfirmation: false } }
     case 'Custom': return {}
   }
 }
@@ -131,7 +133,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     const isPinned = session?.isLocalPinned === true
     const defaults = isPinned
       ? persistedConfig.value.defaults
-      : { ...DEFAULT_PERSISTED_CONFIG.defaults, levelPreset: 'L0' as AgentLevelPreset, sendPermission: 'forbidden' as SendPermissionLevel, observerEnabled: false, keywordEnabled: false, observerAutoReply: false }
+      : { ...DEFAULT_PERSISTED_CONFIG.defaults, levelPreset: 'L0' as AgentLevelPreset, sendPermission: 'forbidden' as SendPermissionLevel, observerEnabled: false, keywordEnabled: false, observerAutoReply: false, mcpTools: { ...DEFAULT_MCP_TOOL_PERMISSION, enabled: false } }
 
     const config: SessionAgentConfig = {
       sessionId,
@@ -157,6 +159,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
       promptTemplateId: sessionOverride?.promptTemplateId ?? defaults.promptTemplateId,
       maxAutoReplies: sessionOverride?.maxAutoReplies ?? defaults.maxAutoReplies,
       cooldownMs: sessionOverride?.cooldownMs ?? defaults.cooldownMs,
+      mcpTools: sessionOverride?.mcpTools ?? defaults.mcpTools ?? { ...DEFAULT_MCP_TOOL_PERMISSION },
     }
 
     if (sessionOverride?.model) {

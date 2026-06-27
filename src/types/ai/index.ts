@@ -13,6 +13,8 @@ export interface ChatMessage {
   name?: string
   tool_call_id?: string
   thinkingContent?: string
+  tool_calls?: ToolCall[]
+  toolCallRecords?: import('./mcp').ToolCallRecord[]
 }
 
 /** 工具调用信息 */
@@ -115,6 +117,10 @@ export interface ChatStreamRequest {
   max_tokens?: number
   stream?: boolean
   signal?: AbortSignal
+  tools?: Array<{
+    type: 'function'
+    function: { name: string; description?: string; parameters: unknown }
+  }>
 }
 
 /** 流式 chunk 中的选项增量 */

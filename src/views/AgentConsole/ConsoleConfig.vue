@@ -10,6 +10,8 @@ import { Connection, Refresh, Edit, Delete } from '@element-plus/icons-vue'
 import { listModels, testConnection } from '@/api/llm'
 import type { ModelInfo } from '@/types/ai'
 import type { AgentLevelPreset, SessionAgentConfig } from '@/types/ai/agent'
+import type { MCPToolPermission } from '@/types/ai/mcp'
+import { DEFAULT_MCP_TOOL_PERMISSION } from '@/types/ai/mcp'
 import { deriveLevelPreset } from '@/stores/ai/agent'
 import { useDisplayName } from '@/composables/useDisplayName'
 import SessionAgentConfigDialog from '@/components/chat/SessionAgentConfigDialog.vue'
@@ -340,6 +342,77 @@ function handleDeleteConfig(sessionId: string) {
         </el-form-item>
 
         </template>
+
+        <el-divider content-position="left">MCP 工具权限</el-divider>
+
+        <el-form-item label="启用 MCP 工具">
+          <el-switch
+            :model-value="agentStore.persistedConfig.defaults.mcpTools.enabled"
+            @update:model-value="
+              agentStore.persistedConfig = {
+                ...agentStore.persistedConfig,
+                defaults: {
+                  ...agentStore.persistedConfig.defaults,
+                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, enabled: $event },
+                },
+              }
+            "
+          />
+          <span class="form-hint">允许 AI 调用 MCP Server 提供的工具</span>
+        </el-form-item>
+
+        <el-form-item v-if="agentStore.persistedConfig.defaults.mcpTools.enabled" label="需要确认">
+          <el-switch
+            :model-value="agentStore.persistedConfig.defaults.mcpTools.requireConfirmation"
+            @update:model-value="
+              agentStore.persistedConfig = {
+                ...agentStore.persistedConfig,
+                defaults: {
+                  ...agentStore.persistedConfig.defaults,
+                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, requireConfirmation: $event },
+                },
+              }
+            "
+          />
+          <span class="form-hint">工具调用前需用户确认</span>
+        </el-form-item>
+
+        <el-form-item v-if="agentStore.persistedConfig.defaults.mcpTools.enabled" label="调用超时 (ms)">
+          <el-input-number
+            :model-value="agentStore.persistedConfig.defaults.mcpTools.callTimeoutMs"
+            :min="5000"
+            :max="120000"
+            :step="5000"
+            @update:model-value="
+              agentStore.persistedConfig = {
+                ...agentStore.persistedConfig,
+                defaults: {
+                  ...agentStore.persistedConfig.defaults,
+                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, callTimeoutMs: $event },
+                },
+              }
+            "
+          />
+        </el-form-item>
+
+        <el-form-item v-if="agentStore.persistedConfig.defaults.mcpTools.enabled" label="最大循环次数">
+          <el-input-number
+            :model-value="agentStore.persistedConfig.defaults.mcpTools.maxLoopCount"
+            :min="1"
+            :max="50"
+            :step="1"
+            @update:model-value="
+              agentStore.persistedConfig = {
+                ...agentStore.persistedConfig,
+                defaults: {
+                  ...agentStore.persistedConfig.defaults,
+                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, maxLoopCount: $event },
+                },
+              }
+            "
+          />
+          <span class="form-hint">LLM → 工具 → LLM 循环的最大次数</span>
+        </el-form-item>
 
         <el-divider content-position="left">回复限制</el-divider>
 

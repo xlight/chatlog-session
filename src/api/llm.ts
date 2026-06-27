@@ -89,6 +89,9 @@ export async function* chatStream(
         stream: true,
         temperature: request.temperature,
         max_tokens: request.max_tokens,
+        ...(request.tools?.length ? { tools: request.tools as Parameters<
+          typeof client.chat.completions.create
+        >[0]['tools'] } : {}),
       },
       { signal: request.signal }
     )

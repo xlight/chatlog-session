@@ -2,12 +2,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { useAIConsoleStore } from '@/stores/ai/console'
 import { useAIActivityLogStore } from '@/stores/ai/activityLog'
+import { useAIAgentStore } from '@/stores/ai/agent'
 import { useAIStream, type AIStreamStore } from '@/composables/useAIStream'
 import { useSettingsStore } from '@/stores/settings'
 import { useAppStore } from '@/stores/app'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import type { AIError, ChatMessage } from '@/types/ai'
+import type { ToolCallRecord } from '@/types/ai/mcp'
 import ConsoleSessionList from './ConsoleSessionList.vue'
 import AIMessageBubble from '@/components/ai/AIMessageBubble.vue'
 import AIInputBox from '@/components/ai/AIInputBox.vue'
@@ -82,11 +84,50 @@ const consoleAdapter: AIStreamStore = {
       }
     }
   },
+  addToolCallRecord(record: ToolCallRecord) {
+    if (!currentSessionId.value) return
+    const s = consoleStore.sessions.find((x) => x.id === currentSessionId.value)
+    if (!s) return
+    if (!s.toolCallRecords) s.toolCallRecords = []
+    s.toolCallRecords.push(record)
+  },
+  updateToolCallRecord(id: string, updates: Partial<ToolCallRecord>) {
+    if (!currentSessionId.value) return
+    const s = consoleStore.sessions.find((x) => x.id === currentSessionId.value)
+    if (!s?.toolCallRecords) return
+    const idx = s.toolCallRecords.findIndex((r) => r.id === id)
+    if (idx >= 0) {
+      s.toolCallRecords[idx] = { ...s.toolCallRecords[idx], ...updates }
+    }
+  },
 }
 
 const stream = useAIStream(consoleAdapter, {
   getMessages: () => currentSession.value?.messages ?? [],
   getModel: () => settingsStore.ai.llmDefaultModel,
+  getAgentConfig: () => {
+    const sid = currentSessionId.value
+    if (!sid) return null
+    const agentStore = useAIAgentStore()
+    const config = agentStore.getEffectiveConfig(sid)
+    return { mcpTools: config.mcpTools }
+  },
+  requestToolConfirmation: async (record) => {
+    try {
+      await ElMessageBox.confirm(
+        `允许 AI 调用工具「${record.toolName}」？`,
+        '工具调用确认',
+        {
+          confirmButtonText: '允许',
+          cancelButtonText: '拒绝',
+          type: 'warning',
+        }
+      )
+      return true
+    } catch {
+      return false
+    }
+  },
   onComplete: () => {
     activityLog.addEntry('console_chat', 'ConsoleChat 消息生成完成')
   },
