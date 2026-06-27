@@ -4,6 +4,7 @@ import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
 import { useSessionStore } from '@/stores/session'
 import { useAIAgentStore, deriveLevelPreset, applyLevelPreset } from '@/stores/ai/agent'
+import { useMCPStore } from '@/stores/ai/mcp'
 import type { AgentLevelPreset } from '@/types/ai/agent'
 import { useRouter } from 'vue-router'
 import { listModels } from '@/api/llm'
@@ -15,6 +16,7 @@ const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const sessionStore = useSessionStore()
 const agentStore = useAIAgentStore()
+const mcpStore = useMCPStore()
 const router = useRouter()
 
 const dragging = ref(false)
@@ -158,6 +160,18 @@ function goToSettings() {
   router.push('/settings?tab=ai')
 }
 
+// ==================== MCP Auto-Connect ====================
+
+async function connectMCP() {
+  if (!isAiReady.value) return
+  if (mcpStore.connectedCount > 0 || mcpStore.connectingCount > 0) return
+  try {
+    await mcpStore.initialize()
+  } catch {
+    // Silently fail - MCP connection is best-effort
+  }
+}
+
 // ==================== Lifecycle ====================
 
 onMounted(() => {
@@ -169,6 +183,7 @@ onMounted(() => {
     }
   }
   loadModels()
+  connectMCP()
 })
 </script>
 
