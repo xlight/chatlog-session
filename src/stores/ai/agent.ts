@@ -250,6 +250,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
         observerEnabled: patch.observer?.enabled ?? persistedConfig.value.defaults.observerEnabled,
         observerAutoReply: patch.observer?.autoReply ?? persistedConfig.value.defaults.observerAutoReply,
         keywordEnabled: patch.keywordMonitor?.enabled ?? persistedConfig.value.defaults.keywordEnabled,
+        mcpTools: patch.mcpTools ?? persistedConfig.value.defaults.mcpTools,
       },
     }
   }
