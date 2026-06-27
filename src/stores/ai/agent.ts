@@ -159,7 +159,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
       promptTemplateId: sessionOverride?.promptTemplateId ?? defaults.promptTemplateId,
       maxAutoReplies: sessionOverride?.maxAutoReplies ?? defaults.maxAutoReplies,
       cooldownMs: sessionOverride?.cooldownMs ?? defaults.cooldownMs,
-      mcpTools: sessionOverride?.mcpTools ?? defaults.mcpTools ?? { ...DEFAULT_MCP_TOOL_PERMISSION },
+      mcpTools: { ...DEFAULT_MCP_TOOL_PERMISSION, ...(defaults.mcpTools ?? {}), ...(sessionOverride?.mcpTools ?? {}) },
     }
 
     if (sessionOverride?.model) {
@@ -497,6 +497,34 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
       changed = true
     }
 
+    if (!(defaults as any).mcpTools) {
+      (defaults as any).mcpTools = { ...DEFAULT_MCP_TOOL_PERMISSION }
+      changed = true
+    } else {
+      const mcp = (defaults as any).mcpTools
+      if (mcp.enabled === undefined) { mcp.enabled = false; changed = true }
+      if (mcp.requireConfirmation === undefined) { mcp.requireConfirmation = true; changed = true }
+      if (!mcp.allowedTools) { mcp.allowedTools = []; changed = true }
+      if (!mcp.deniedTools) { mcp.deniedTools = []; changed = true }
+      if (mcp.callTimeoutMs === undefined) { mcp.callTimeoutMs = 30000; changed = true }
+      if (mcp.maxLoopCount === undefined) { mcp.maxLoopCount = 10; changed = true }
+    }
+
+    for (const [sid, cfg] of Object.entries(sessionConfigs.value)) {
+      if (!(cfg as any).mcpTools) {
+        ;(cfg as any).mcpTools = { ...DEFAULT_MCP_TOOL_PERMISSION }
+        changed = true
+      } else {
+        const mcp = (cfg as any).mcpTools
+        if (mcp.enabled === undefined) { mcp.enabled = false; changed = true }
+        if (mcp.requireConfirmation === undefined) { mcp.requireConfirmation = true; changed = true }
+        if (!mcp.allowedTools) { mcp.allowedTools = []; changed = true }
+        if (!mcp.deniedTools) { mcp.deniedTools = []; changed = true }
+        if (mcp.callTimeoutMs === undefined) { mcp.callTimeoutMs = 30000; changed = true }
+        if (mcp.maxLoopCount === undefined) { mcp.maxLoopCount = 10; changed = true }
+      }
+    }
+
     // 推导 levelPreset
     const tempConfig: SessionAgentConfig = {
       sessionId: '__migration__',
@@ -517,6 +545,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
       },
       maxAutoReplies: defaults.maxAutoReplies,
       cooldownMs: defaults.cooldownMs,
+      mcpTools: (defaults as any).mcpTools,
     }
 
     const derivedPreset = deriveLevelPreset(tempConfig)
@@ -527,6 +556,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
     if (changed) {
       persistedConfig.value = { ...persistedConfig.value }
+      sessionConfigs.value = { ...sessionConfigs.value }
     }
   }
 

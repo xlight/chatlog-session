@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAIAgentStore, deriveLevelPreset, applyLevelPreset } from '@/stores/ai/agent'
 import type { AgentLevelPreset } from '@/types/ai/agent'
+import type { MCPToolPermission } from '@/types/ai/mcp'
+import { DEFAULT_MCP_TOOL_PERMISSION } from '@/types/ai/mcp'
 
 const props = defineProps<{
   modelValue: boolean
@@ -93,6 +95,16 @@ function updateKeyword<K extends keyof import('@/types/ai/agent').SessionAgentCo
   const config = agentStore.getEffectiveConfig(props.sessionId)
   agentStore.setSessionConfig(props.sessionId, {
     keywordMonitor: { ...config.keywordMonitor, [field]: value },
+  })
+}
+
+const mcpTools = computed(() => effectiveConfig.value.mcpTools)
+const showMcpSection = computed(() => isCustomMode.value || ['L2', 'L3', 'L4'].includes(derivedPreset.value))
+
+function updateMCP<K extends keyof MCPToolPermission>(field: K, value: MCPToolPermission[K]) {
+  const config = agentStore.getEffectiveConfig(props.sessionId)
+  agentStore.setSessionConfig(props.sessionId, {
+    mcpTools: { ...DEFAULT_MCP_TOOL_PERMISSION, ...config.mcpTools, [field]: value },
   })
 }
 
@@ -325,6 +337,43 @@ function handlePresetChange(preset: AgentLevelPreset) {
             :model-value="keywordPatterns"
             placeholder="逗号分隔多个关键词"
             @update:model-value="handlePatternsInput"
+          />
+        </el-form-item>
+      </template>
+
+      <!-- L2+ / Custom : MCP 工具权限 -->
+      <template v-if="showMcpSection">
+        <el-divider content-position="left">MCP 工具</el-divider>
+
+        <el-form-item label="启用 MCP 工具">
+          <el-switch
+            :model-value="mcpTools.enabled"
+            @update:model-value="updateMCP('enabled', $event as boolean)"
+          />
+        </el-form-item>
+        <el-form-item v-if="mcpTools.enabled" label="需要确认">
+          <el-switch
+            :model-value="mcpTools.requireConfirmation"
+            @update:model-value="updateMCP('requireConfirmation', $event as boolean)"
+          />
+        </el-form-item>
+        <el-form-item v-if="mcpTools.enabled" label="调用超时（秒）">
+          <el-input-number
+            :model-value="Math.round(mcpTools.callTimeoutMs / 1000)"
+            :min="5"
+            :max="300"
+            :step="5"
+            style="width: 100%"
+            @update:model-value="updateMCP('callTimeoutMs', ($event as number) * 1000)"
+          />
+        </el-form-item>
+        <el-form-item v-if="mcpTools.enabled" label="最大循环次数">
+          <el-input-number
+            :model-value="mcpTools.maxLoopCount"
+            :min="1"
+            :max="50"
+            style="width: 100%"
+            @update:model-value="updateMCP('maxLoopCount', $event as number)"
           />
         </el-form-item>
       </template>
