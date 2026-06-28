@@ -31,6 +31,8 @@ export interface MCPServerConfig {
   enabled: boolean
   /** 是否自动连接 */
   autoConnect?: boolean
+  /** 内置 Server 标记（如 "chatlog-api"、"sendmsg-api"），内置 Server 不可删除、URL 自动同步 */
+  builtin?: string
 }
 
 // ==================== MCP Server 运行时信息 ====================
@@ -175,6 +177,28 @@ export const DEFAULT_MCP_TOOL_PERMISSION: MCPToolPermission = {
   callTimeoutMs: 30000,
   maxLoopCount: 10,
 }
+
+/** 内置 MCP Server 模板（URL 在运行时由对应 API 地址推导） */
+export const BUILTIN_MCP_SERVERS: Array<Omit<MCPServerConfig, 'url'> & { builtin: string; urlSource: 'apiBaseUrl' | 'sendmsgApiUrl' }> = [
+  {
+    id: 'chatlog-api',
+    name: 'Chatlog API',
+    transport: 'streamable-http',
+    urlSource: 'apiBaseUrl',
+    enabled: true,
+    autoConnect: true,
+    builtin: 'chatlog-api',
+  },
+  {
+    id: 'sendmsg-api',
+    name: 'Sendmsg API',
+    transport: 'streamable-http',
+    urlSource: 'sendmsgApiUrl',
+    enabled: true,
+    autoConnect: true,
+    builtin: 'sendmsg-api',
+  },
+]
 
 // ==================== 工具命名空间工具函数 ====================
 

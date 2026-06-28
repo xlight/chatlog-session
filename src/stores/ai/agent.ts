@@ -168,6 +168,15 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
     config.levelPreset = deriveLevelPreset(config)
 
+    // 当 sessionOverride 未显式设置 mcpTools 时，根据推导出的 levelPreset 补充默认值
+    // 修复旧数据缺少 mcpTools 字段导致 L3/L4 下 mcpTools.enabled 仍为 false 的问题
+    if (!sessionOverride?.mcpTools) {
+      const presetMcp = applyLevelPreset(config.levelPreset).mcpTools
+      if (presetMcp) {
+        config.mcpTools = { ...DEFAULT_MCP_TOOL_PERMISSION, ...presetMcp }
+      }
+    }
+
     return config
   }
 

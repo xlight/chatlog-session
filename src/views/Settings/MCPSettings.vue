@@ -101,6 +101,7 @@ function getToolCount(configId: string): number {
         <div class="mcp-server-item__info">
           <div class="mcp-server-item__header">
             <span class="mcp-server-item__name">{{ server.name }}</span>
+            <el-tag v-if="server.builtin" type="warning" size="small" effect="plain">内置</el-tag>
             <el-tag :type="getStatusType(server.id)" size="small" effect="plain">
               {{ getStatusLabel(server.id) }}
             </el-tag>
@@ -137,8 +138,8 @@ function getToolCount(configId: string): number {
           >
             断开
           </el-button>
-          <el-button size="small" text @click="handleEdit(server)">编辑</el-button>
-          <el-button size="small" type="danger" text @click="handleDelete(server)">删除</el-button>
+          <el-button v-if="!server.builtin" size="small" text @click="handleEdit(server)">编辑</el-button>
+          <el-button v-if="!server.builtin" size="small" type="danger" text @click="handleDelete(server)">删除</el-button>
         </div>
       </div>
 

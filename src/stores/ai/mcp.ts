@@ -4,7 +4,7 @@
  * 管理 MCP Server 连接、工具发现、工具调用等运行时状态
  */
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type {
   MCPServerConfig,
   MCPServerInfo,
@@ -14,7 +14,7 @@ import type {
   ToolCallRecord,
   MCPToolPermission,
 } from '@/types/ai/mcp'
-import { DEFAULT_MCP_TOOL_PERMISSION } from '@/types/ai/mcp'
+import { DEFAULT_MCP_TOOL_PERMISSION, BUILTIN_MCP_SERVERS } from '@/types/ai/mcp'
 import { MCPClient } from '@/api/mcp'
 import { useSettingsStore } from '../settings'
 
@@ -95,6 +95,46 @@ export const useMCPStore = defineStore('mcp', () => {
 
   function getServerInfo(configId: string): MCPServerInfo | undefined {
     return serverInfos.value.get(configId)
+  }
+
+  function getBuiltinUrl(urlSource: 'apiBaseUrl' | 'sendmsgApiUrl'): string {
+    const settingsStore = useSettingsStore()
+    if (urlSource === 'apiBaseUrl') {
+      return `${settingsStore.normalizedApiBaseUrl}/mcp`
+    }
+    return `${settingsStore.sendmsg.apiUrl.replace(/\/+$/, '')}/mcp`
+  }
+
+  function ensureBuiltinServers(): void {
+    const settingsStore = useSettingsStore()
+    for (const template of BUILTIN_MCP_SERVERS) {
+      const exists = settingsStore.ai.mcpServers.some(s => s.builtin === template.builtin)
+      if (!exists) {
+        settingsStore.ai.mcpServers.push({
+          ...template,
+          url: getBuiltinUrl(template.urlSource),
+        })
+      }
+    }
+  }
+
+  async function syncBuiltinMcpServers(): Promise<void> {
+    const settingsStore = useSettingsStore()
+    for (const template of BUILTIN_MCP_SERVERS) {
+      const server = settingsStore.ai.mcpServers.find(s => s.builtin === template.builtin)
+      if (!server) continue
+      const newUrl = getBuiltinUrl(template.urlSource)
+      if (server.url === newUrl) continue
+
+      const wasConnected = serverInfos.value.get(server.id)?.status === 'connected'
+      if (wasConnected) {
+        await disconnectServer(server.id)
+      }
+      server.url = newUrl
+      if (wasConnected && server.enabled) {
+        await connectServer(server.id)
+      }
+    }
   }
 
   async function connectServer(configId: string): Promise<void> {
@@ -200,6 +240,8 @@ export const useMCPStore = defineStore('mcp', () => {
 
   async function initialize(): Promise<void> {
     const settingsStore = useSettingsStore()
+    ensureBuiltinServers()
+    await syncBuiltinMcpServers()
     const configs = settingsStore.ai.mcpServers.filter(s => s.enabled && s.autoConnect)
 
     await Promise.allSettled(
@@ -214,6 +256,8 @@ export const useMCPStore = defineStore('mcp', () => {
 
   function removeServer(configId: string): void {
     const settingsStore = useSettingsStore()
+    const config = settingsStore.ai.mcpServers.find(s => s.id === configId)
+    if (config?.builtin) return
     disconnectServer(configId)
     settingsStore.ai.mcpServers = settingsStore.ai.mcpServers.filter(s => s.id !== configId)
     serverInfos.value.delete(configId)
@@ -291,6 +335,10 @@ export const useMCPStore = defineStore('mcp', () => {
     }
   }
 
+  const settingsStore = useSettingsStore()
+  watch(() => settingsStore.api.apiBaseUrl, () => syncBuiltinMcpServers())
+  watch(() => settingsStore.sendmsg.apiUrl, () => syncBuiltinMcpServers())
+
   return {
     serverInfos,
     pendingConfirmations,
@@ -315,5 +363,7 @@ export const useMCPStore = defineStore('mcp', () => {
     requestToolConfirmation,
     isToolAllowed,
     getToolPermissionForLevel,
+    ensureBuiltinServers,
+    syncBuiltinMcpServers,
   }
 })
