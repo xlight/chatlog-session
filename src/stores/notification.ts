@@ -474,7 +474,7 @@ export const useNotificationStore = defineStore('notification', () => {
       const appStore = useAppStore()
 
       // Service Worker 通知支持 actions，new Notification() 不支持
-      if (pwaStore.swManager?.isActive) {
+      if (pwaStore.isActive) {
         const swNotificationOptions: Record<string, any> = {
           ...notificationOptions,
           data: {
@@ -496,7 +496,7 @@ export const useNotificationStore = defineStore('notification', () => {
           ]
         }
 
-        await pwaStore.swManager.showNotification(title, swNotificationOptions)
+        await pwaStore.showNotification(title, swNotificationOptions)
 
         if (appStore.isDebug) {
           console.log('🔔 SW Notification sent:', { title, body, talker, type })

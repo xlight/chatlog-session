@@ -1,24 +1,10 @@
-import { describe, it, expect, vi } from 'vitest'
-import {
-  getVersionInfo,
-  getVersion,
-  getBuildDate,
-  getBuildTime,
-  getGitHash,
-  getGitBranch,
-  formatVersionInfo,
-  printVersionInfo,
-  checkVersion,
-} from '@/utils/version'
+import { describe, it, expect } from 'vitest'
+import { getVersionInfo, getVersion } from '@/utils/version'
 
 describe('version utils', () => {
-  describe('getVersion / getBuildDate / getBuildTime / getGitHash / getGitBranch', () => {
-    it('returns the test-defined values', () => {
+  describe('getVersion', () => {
+    it('returns the test-defined value', () => {
       expect(getVersion()).toBe('test')
-      expect(getBuildDate()).toBe('2026-05-15')
-      expect(getBuildTime()).toBe('2026-05-15 12:00:00')
-      expect(getGitHash()).toBe('testhash')
-      expect(getGitBranch()).toBe('main')
     })
   })
 
@@ -40,41 +26,6 @@ describe('version utils', () => {
     it('does not append branch suffix when branch is main', () => {
       const info = getVersionInfo()
       expect(info.fullVersion).toBe('test')
-    })
-  })
-
-  describe('formatVersionInfo', () => {
-    it('formats version string with hash and build date', () => {
-      const result = formatVersionInfo()
-      expect(result).toContain('vtest')
-      expect(result).toContain('testhash')
-      expect(result).toContain('2026-05-15')
-    })
-  })
-
-  describe('printVersionInfo', () => {
-    it('logs to console without throwing', () => {
-      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-      const tableSpy = vi.spyOn(console, 'table').mockImplementation(() => {})
-      printVersionInfo()
-      expect(logSpy).toHaveBeenCalled()
-      expect(tableSpy).toHaveBeenCalled()
-      logSpy.mockRestore()
-      tableSpy.mockRestore()
-    })
-  })
-
-  describe('checkVersion', () => {
-    it('compares semver-like versions correctly when current >= required', () => {
-      expect(checkVersion('0.0.0')).toBe(true)
-    })
-
-    it('returns false when current is less than required', () => {
-      expect(checkVersion('999.0.0')).toBe(false)
-    })
-
-    it('handles versions with hash/branch suffixes', () => {
-      expect(checkVersion('0.0.0+abc')).toBe(true)
     })
   })
 })

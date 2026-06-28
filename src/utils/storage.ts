@@ -13,8 +13,7 @@ export type StorageType = 'local' | 'session'
  */
 export interface StorageOptions {
   type?: StorageType
-  expire?: number // 过期时间（秒）
-  encrypt?: boolean // 是否加密（已废弃，保留接口兼容）
+  expire?: number
 }
 
 /**
@@ -126,60 +125,6 @@ class Storage {
     }
   }
 
-  /**
-   * 获取所有键
-   */
-  keys(type: StorageType = 'local'): string[] {
-    try {
-      const storage = this.getStorage(type)
-      const keys = Object.keys(storage)
-
-      return keys
-        .filter(key => key.startsWith(this.prefix))
-        .map(key => key.replace(this.prefix, ''))
-    } catch (error) {
-      console.error('Failed to get storage keys:', error)
-      return []
-    }
-  }
-
-  /**
-   * 检查键是否存在
-   */
-  has(key: string, options: StorageOptions = {}): boolean {
-    return this.get(key, options) !== null
-  }
-
-  /**
-   * 获取存储大小（字节）
-   */
-  size(type: StorageType = 'local'): number {
-    try {
-      const storage = this.getStorage(type)
-      let size = 0
-
-      Object.keys(storage).forEach(key => {
-        if (key.startsWith(this.prefix)) {
-          const value = storage.getItem(key)
-          if (value) {
-            size += key.length + value.length
-          }
-        }
-      })
-
-      return size
-    } catch (error) {
-      console.error('Failed to get storage size:', error)
-      return 0
-    }
-  }
-
-  /**
-   * 设置前缀
-   */
-  setPrefix(prefix: string): void {
-    this.prefix = prefix
-  }
 }
 
 /**
@@ -247,55 +192,4 @@ export function clearSession(): void {
   storage.clear('session')
 }
 
-/**
- * 检查是否支持 localStorage
- */
-export function isLocalStorageAvailable(): boolean {
-  try {
-    const test = '__storage_test__'
-    localStorage.setItem(test, test)
-    localStorage.removeItem(test)
-    return true
-  } catch {
-    return false
-  }
-}
-
-/**
- * 检查是否支持 sessionStorage
- */
-export function isSessionStorageAvailable(): boolean {
-  try {
-    const test = '__storage_test__'
-    sessionStorage.setItem(test, test)
-    sessionStorage.removeItem(test)
-    return true
-  } catch {
-    return false
-  }
-}
-
-/**
- * 获取存储使用情况
- */
-export function getStorageUsage(): {
-  local: { size: number; keys: number }
-  session: { size: number; keys: number }
-} {
-  return {
-    local: {
-      size: storage.size('local'),
-      keys: storage.keys('local').length,
-    },
-    session: {
-      size: storage.size('session'),
-      keys: storage.keys('session').length,
-    },
-  }
-}
-
-
-/**
- * 默认导出
- */
 export default storage

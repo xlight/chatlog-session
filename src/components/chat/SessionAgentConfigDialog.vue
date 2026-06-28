@@ -218,19 +218,19 @@ function handlePresetChange(preset: AgentLevelPreset) {
         <el-form-item label="旁观分析">
           <el-switch
             :model-value="observerEnabled"
-            @update:model-value="updateObserver('enabled', $event)"
+            @update:model-value="updateObserver('enabled', $event as boolean)"
           />
         </el-form-item>
         <el-form-item label="关键词监测">
           <el-switch
             :model-value="keywordEnabled"
-            @update:model-value="updateKeyword('enabled', $event)"
+            @update:model-value="updateKeyword('enabled', $event as boolean)"
           />
         </el-form-item>
         <el-form-item label="分析后回复">
           <el-switch
             :model-value="observerAutoReply"
-            @update:model-value="updateObserver('autoReply', $event)"
+            @update:model-value="updateObserver('autoReply', $event as boolean)"
           />
         </el-form-item>
       </template>
@@ -246,7 +246,7 @@ function handlePresetChange(preset: AgentLevelPreset) {
             :max="3600"
             :step="30"
             style="width: 100%"
-            @update:model-value="updateObserver('intervalSeconds', $event)"
+            @update:model-value="updateObserver('intervalSeconds', $event as number)"
           />
         </el-form-item>
         <el-form-item label="最少新消息">
@@ -255,7 +255,7 @@ function handlePresetChange(preset: AgentLevelPreset) {
             :min="1"
             :max="100"
             style="width: 100%"
-            @update:model-value="updateObserver('minNewMessages', $event)"
+            @update:model-value="updateObserver('minNewMessages', $event as number)"
           />
         </el-form-item>
         <el-form-item label="上下文消息数">
@@ -264,7 +264,7 @@ function handlePresetChange(preset: AgentLevelPreset) {
             :min="5"
             :max="100"
             style="width: 100%"
-            @update:model-value="updateObserver('maxContextMessages', $event)"
+            @update:model-value="updateObserver('maxContextMessages', $event as number)"
           />
         </el-form-item>
         <el-form-item label="最大回复次数">
@@ -273,7 +273,7 @@ function handlePresetChange(preset: AgentLevelPreset) {
             :min="0"
             :max="100"
             style="width: 100%"
-            @update:model-value="updateField('maxAutoReplies', $event)"
+            @update:model-value="updateField('maxAutoReplies', $event as number)"
           />
         </el-form-item>
         <el-form-item label="Prompt 覆盖">
@@ -323,7 +323,7 @@ function handlePresetChange(preset: AgentLevelPreset) {
             :min="1"
             :max="10"
             style="width: 100%"
-            @update:model-value="updateObserver('autoReplyCount', $event)"
+            @update:model-value="updateObserver('autoReplyCount', $event as number)"
           />
         </el-form-item>
       </template>

@@ -16,7 +16,7 @@ function generateId(): string {
 }
 
 async function generateKeywordReply(
-  sessionId: string,
+  _sessionId: string,
   messages: ReturnType<typeof getContextMessages> extends Promise<infer T> ? T : never,
   keywordResult: KeywordResult,
   config: SessionAgentConfig,
@@ -78,7 +78,7 @@ export function useKeywordMonitor(sessionId: string | Ref<string>) {
   }
 
   async function handleMatch(
-    messageContent: string,
+    _messageContent: string,
     messageId: number,
     matchedPattern: string,
   ): Promise<void> {
@@ -107,7 +107,7 @@ ${contextText}
       })
 
       for await (const chunk of stream) {
-        fullContent += chunk.content || ''
+        fullContent += chunk.choices[0]?.delta?.content || ''
       }
 
       // 提取回复建议（关键词后第一段非空内容，或「建议回复」后的内容）

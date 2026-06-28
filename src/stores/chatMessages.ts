@@ -21,7 +21,6 @@ import { formatDateGroup, formatDate } from '@/utils/date'
 import {
   assertChronologicalOrder,
   getMessageTimestamp,
-  getLatestMessageTime,
   getFirstMessageTime,
   fetchSmartHistoryMessages,
   deduplicateMessages,

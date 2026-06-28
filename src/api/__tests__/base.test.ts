@@ -4,7 +4,6 @@ import { BaseAPI } from '@/api/base'
 vi.mock('@/utils/request', () => ({
   request: {
     get: vi.fn(),
-    all: vi.fn(),
   },
 }))
 
@@ -188,20 +187,4 @@ describe('BaseAPI', () => {
     })
   })
 
-  describe('batchGet', () => {
-    it('calls getDetail for each id and uses request.all', async () => {
-      vi.mocked(request.get)
-        .mockResolvedValueOnce({ id: 1, name: 'a' })
-        .mockResolvedValueOnce({ id: 2, name: 'b' })
-      vi.mocked(request.all).mockResolvedValue([
-        { id: 1, label: 'a' },
-        { id: 2, label: 'b' },
-      ])
-
-      await (api as any).batchGet(['1', '2'])
-
-      expect(request.get).toHaveBeenCalledTimes(2)
-      expect(request.all).toHaveBeenCalled()
-    })
   })
-})

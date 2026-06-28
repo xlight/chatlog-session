@@ -6,7 +6,6 @@ export * from './request'
 export * from './storage'
 export * from './date'
 export * from './format'
-export { db } from './db'
 
 // 默认导出
 export { default as request } from './request'
@@ -42,16 +41,6 @@ export {
 } from './storage'
 
 export {
-  // Format utils
   formatFileSize,
   formatNumber,
-  formatMessageContent,
-  formatMessagePreview,
-  formatContactName,
-  formatVoiceDuration,
-  formatVideoDuration,
-  truncateText,
-  highlightKeyword,
-  escapeHtml,
-  formatError,
 } from './format'

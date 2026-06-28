@@ -502,7 +502,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     let changed = false
 
     // send_cancellable / full_auto → auto
-    if (defaults.sendPermission === 'send_cancellable' || defaults.sendPermission === 'full_auto') {
+    if ((defaults as any).sendPermission === 'send_cancellable' || (defaults as any).sendPermission === 'full_auto') {
       (defaults as any).sendPermission = 'auto'
       changed = true
     }
@@ -520,7 +520,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
       if (mcp.maxLoopCount === undefined) { mcp.maxLoopCount = 10; changed = true }
     }
 
-    for (const [sid, cfg] of Object.entries(sessionConfigs.value)) {
+    for (const [_sid, cfg] of Object.entries(sessionConfigs.value)) {
       if (!(cfg as any).mcpTools) {
         ;(cfg as any).mcpTools = { ...DEFAULT_MCP_TOOL_PERMISSION }
         changed = true
@@ -548,6 +548,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
         minNewMessages: defaults.observerMinNewMessages,
         autoReply: defaults.observerAutoReply,
         autoReplyCount: defaults.observerAutoReplyCount,
+        maxContextMessages: defaults.observerMaxContextMessages,
       },
       keywordMonitor: {
         enabled: defaults.keywordEnabled,

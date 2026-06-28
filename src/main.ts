@@ -12,13 +12,6 @@ import './assets/styles/index.scss'
 import { db } from './utils/db'
 import { setOnErrorCallback } from './utils/request'
 
-// 开发环境：导入缓存调试工具
-if (import.meta.env.DEV) {
-  import('./utils/debugCache').then(module => {
-    module.installDebugTools()
-  })
-}
-
 const app = createApp(App)
 
 // 注入 UI 错误处理回调到 request 模块

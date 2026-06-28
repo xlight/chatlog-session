@@ -147,17 +147,10 @@ export abstract class BaseDatabase {
   }
 
   /**
-   * 通用批量保存方法
-   *
-   * 使用单个事务写入所有数据，通过 transaction.oncomplete 确认持久化完成。
-  /** 每个事务的最大写入条数 */
-  private static readonly CHUNK_SIZE = 2000
-
-  /**
    * 在单个事务中写入一批数据（内部辅助方法）
    * 使用 relaxed durability 跳过 fsync，适用于可重建的缓存数据
    */
-  private writeChunk<T>(db: IDBDatabase, storeName: string, items: T[]): Promise<void> {
+  protected writeChunk<T>(db: IDBDatabase, storeName: string, items: T[]): Promise<void> {
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([storeName], 'readwrite', { durability: 'relaxed' })
       const store = transaction.objectStore(storeName)
@@ -181,13 +174,12 @@ export abstract class BaseDatabase {
   /**
    * 通用批量保存方法
    *
-   * 将数据分块写入（每块 CHUNK_SIZE 条），避免单事务提交时刷盘数据量过大。
+   * 将数据分块写入（每块 chunkSize 条），避免单事务提交时刷盘数据量过大。
    */
-  protected async saveMany<T>(storeName: string, items: T[]): Promise<void> {
+  protected async saveMany<T>(storeName: string, items: T[], chunkSize = 2000): Promise<void> {
     if (items.length === 0) return
 
     const t0 = performance.now()
-    const chunkSize = BaseDatabase.CHUNK_SIZE
     const totalChunks = Math.ceil(items.length / chunkSize)
     console.log(`⏱️ [saveMany] 开始写入 ${items.length} 条到 [${storeName}]，分 ${totalChunks} 块`)
 
@@ -213,9 +205,8 @@ export abstract class BaseDatabase {
    * 第一个事务负责 clear + 写入第一块，后续事务只写入。
    * 分块可以显著减少单次事务提交的刷盘数据量。
    */
-  protected async clearAndSaveMany<T>(storeName: string, items: T[]): Promise<void> {
+  protected async clearAndSaveMany<T>(storeName: string, items: T[], chunkSize = 2000): Promise<void> {
     const t0 = performance.now()
-    const chunkSize = BaseDatabase.CHUNK_SIZE
     const totalChunks = Math.ceil(items.length / chunkSize)
     console.log(
       `⏱️ [clearAndSaveMany] 开始清空并写入 ${items.length} 条到 [${storeName}]，分 ${totalChunks} 块`
@@ -448,10 +439,6 @@ export abstract class BaseDatabase {
 
   /**
    * 通用游标分页方法
-   * @param storeName 对象存储名
-   * @param offset 偏移量
-   * @param limit 每页大小
-   * @returns 分页结果
    */
   protected async getPaginated<T = any>(
     storeName: string,
@@ -504,4 +491,5 @@ export abstract class BaseDatabase {
       this.initPromise = null
       console.log(`🔒 数据库 [${this.config.name}] 已关闭`)
     }
-  }}
+  }
+}

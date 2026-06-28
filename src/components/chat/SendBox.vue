@@ -234,7 +234,7 @@ function onSendingCompleted(draftId: string) {
   emit('refresh')
 }
 
-function onSendingFailed(draftId: string, _error: string) {
+function onSendingFailed(_draftId: string, _error: string) {
   // 保留失败状态让用户看到，不自动移除
 }
 

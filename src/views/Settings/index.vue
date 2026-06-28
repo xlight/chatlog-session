@@ -6,7 +6,7 @@ import { useNotificationStore } from '@/stores/notification'
 import { useSessionStore } from '@/stores/session'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
-import { getVersion, getBuildDate, getVersionInfo } from '@/utils/version'
+import { getVersion, getVersionInfo } from '@/utils/version'
 import { downloadJSON, downloadText, downloadMarkdown } from '@/utils/download'
 import { formatBackupAsText, formatBackupAsMarkdown } from '@/utils/message-format'
 import { chatlogAPI } from '@/api/chatlog'
@@ -48,7 +48,7 @@ const versionInfo = computed(() => {
   const info = getVersionInfo()
   return {
     version: info.version || getVersion(),
-    buildDate: info.buildDate || getBuildDate(),
+    buildDate: info.buildDate || __BUILD_DATE__,
     gitHash: info.gitHash,
     gitBranch: info.gitBranch,
     buildTime: info.buildTime,

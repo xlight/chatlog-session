@@ -169,7 +169,7 @@ async function generateAndSendReply(
         agentStore.incrementAutoReplyTracker(currentSid)
         if (sendResult.message_id !== undefined) {
           agentStore.addSendingStatus({
-            draftId: sendResult.id,
+            draftId: String(sendResult.message_id),
             messageId: sendResult.message_id,
             contactName,
             contentPreview: trimmedContent.slice(0, 50),

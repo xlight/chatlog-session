@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { MCPServerConfig, MCPTransportType } from '@/types/ai/mcp'
+import type { MCPServerConfig } from '@/types/ai/mcp'
 
 const props = defineProps<{
   modelValue: boolean

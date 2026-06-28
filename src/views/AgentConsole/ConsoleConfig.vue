@@ -10,8 +10,6 @@ import { Connection, Refresh, Edit, Delete } from '@element-plus/icons-vue'
 import { listModels, testConnection } from '@/api/llm'
 import type { ModelInfo } from '@/types/ai'
 import type { AgentLevelPreset, SessionAgentConfig } from '@/types/ai/agent'
-import type { MCPToolPermission } from '@/types/ai/mcp'
-import { DEFAULT_MCP_TOOL_PERMISSION } from '@/types/ai/mcp'
 import { deriveLevelPreset } from '@/stores/ai/agent'
 import { useDisplayName } from '@/composables/useDisplayName'
 import SessionAgentConfigDialog from '@/components/chat/SessionAgentConfigDialog.vue'
@@ -234,7 +232,7 @@ function handleDeleteConfig(sessionId: string) {
         <el-form-item label="默认允许的操作">
           <el-checkbox-group
             :model-value="agentStore.persistedConfig.defaults.allowedActions"
-            @update:model-value="agentStore.setDefaultActions($event)"
+            @update:model-value="agentStore.setDefaultActions($event as import('@/types/ai/agent').AgentAction[])"
           >
             <el-checkbox value="analyze">分析</el-checkbox>
             <el-checkbox value="draft_reply">回复</el-checkbox>
@@ -254,7 +252,7 @@ function handleDeleteConfig(sessionId: string) {
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
-                defaults: { ...agentStore.persistedConfig.defaults, observerEnabled: $event },
+                defaults: { ...agentStore.persistedConfig.defaults, observerEnabled: $event as boolean },
               }
             "
           />
@@ -268,7 +266,7 @@ function handleDeleteConfig(sessionId: string) {
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
-                defaults: { ...agentStore.persistedConfig.defaults, observerIntervalSeconds: $event },
+                defaults: { ...agentStore.persistedConfig.defaults, observerIntervalSeconds: $event as number },
               }
             "
           />
@@ -281,7 +279,7 @@ function handleDeleteConfig(sessionId: string) {
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
-                defaults: { ...agentStore.persistedConfig.defaults, observerMinNewMessages: $event },
+                defaults: { ...agentStore.persistedConfig.defaults, observerMinNewMessages: $event as number },
               }
             "
           />
@@ -293,7 +291,7 @@ function handleDeleteConfig(sessionId: string) {
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
-                defaults: { ...agentStore.persistedConfig.defaults, observerAutoReply: $event },
+                defaults: { ...agentStore.persistedConfig.defaults, observerAutoReply: $event as boolean },
               }
             "
           />
@@ -306,7 +304,7 @@ function handleDeleteConfig(sessionId: string) {
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
-                defaults: { ...agentStore.persistedConfig.defaults, observerAutoReplyCount: $event },
+                defaults: { ...agentStore.persistedConfig.defaults, observerAutoReplyCount: $event as number },
               }
             "
           />
@@ -320,7 +318,7 @@ function handleDeleteConfig(sessionId: string) {
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
-                defaults: { ...agentStore.persistedConfig.defaults, keywordEnabled: $event },
+                defaults: { ...agentStore.persistedConfig.defaults, keywordEnabled: $event as boolean },
               }
             "
           />
@@ -353,7 +351,7 @@ function handleDeleteConfig(sessionId: string) {
                 ...agentStore.persistedConfig,
                 defaults: {
                   ...agentStore.persistedConfig.defaults,
-                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, enabled: $event },
+                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, enabled: $event as boolean },
                 },
               }
             "
@@ -369,7 +367,7 @@ function handleDeleteConfig(sessionId: string) {
                 ...agentStore.persistedConfig,
                 defaults: {
                   ...agentStore.persistedConfig.defaults,
-                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, requireConfirmation: $event },
+                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, requireConfirmation: $event as boolean },
                 },
               }
             "
@@ -388,7 +386,7 @@ function handleDeleteConfig(sessionId: string) {
                 ...agentStore.persistedConfig,
                 defaults: {
                   ...agentStore.persistedConfig.defaults,
-                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, callTimeoutMs: $event },
+                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, callTimeoutMs: $event as number },
                 },
               }
             "
@@ -406,7 +404,7 @@ function handleDeleteConfig(sessionId: string) {
                 ...agentStore.persistedConfig,
                 defaults: {
                   ...agentStore.persistedConfig.defaults,
-                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, maxLoopCount: $event },
+                  mcpTools: { ...agentStore.persistedConfig.defaults.mcpTools, maxLoopCount: $event as number },
                 },
               }
             "
@@ -424,7 +422,7 @@ function handleDeleteConfig(sessionId: string) {
             @update:model-value="
               agentStore.persistedConfig = {
                 ...agentStore.persistedConfig,
-                defaults: { ...agentStore.persistedConfig.defaults, maxAutoReplies: $event },
+                defaults: { ...agentStore.persistedConfig.defaults, maxAutoReplies: $event as number },
               }
             "
           />

@@ -2,9 +2,6 @@ import type { Message } from '@/types/message'
 import type { VirtualListItem } from '@/types/virtual-list'
 import { findMessageTypeConfig } from '@/components/chat/message-types/config'
 
-// body padding: 10px top + 10px bottom
-const BODY_PADDING = 20
-
 // bubble padding: 8px top + 8px bottom
 const BUBBLE_PADDING = 16
 

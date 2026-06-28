@@ -20,13 +20,13 @@ import type { Message } from '@/types/message'
 import { toCST, formatCSTRange } from '@/utils/timezone'
 
 // 懒加载 chatMessages store（避免循环依赖）
-let _useChatMessagesStore: (() => ReturnType<typeof import('pinia').defineStore>) | null = null
+let _useChatMessagesStore: any = null
 async function getChatMessagesStore() {
   if (!_useChatMessagesStore) {
     const mod = await import('./chatMessages')
     _useChatMessagesStore = mod.useChatMessagesStore
   }
-  return (_useChatMessagesStore as any)()
+  return _useChatMessagesStore()
 }
 
 /**

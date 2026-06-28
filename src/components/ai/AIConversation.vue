@@ -219,7 +219,7 @@ function handleEditorSaved() {
   // 保存后状态由 store 自动更新，无需额外操作
 }
 
-function handleEditorReset(id: string) {
+function handleEditorReset(_id: string) {
   // 恢复默认后状态由 store 自动更新
 }
 </script>

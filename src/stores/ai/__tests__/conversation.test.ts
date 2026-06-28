@@ -16,7 +16,6 @@ function createStore() {
 }
 
 const SESSION_A = 'session_a'
-const SESSION_B = 'session_b'
 
 const SAMPLE_MSG: ChatMessage = {
   role: 'user',
@@ -50,7 +49,7 @@ describe('saveToSession', () => {
     const store = createStore()
     store.addMessage(SAMPLE_MSG)
     store.setCurrentModel('gpt-4')
-    store.setLastReply({ messageId: '1', content: '草稿', promptType: 'reply', sourceMessageId: '1' })
+    store.setLastReply({ messageId: '1', content: '草稿', promptType: 'reply', sourceMessageId: '1', generatedAt: Date.now(), injected: false })
 
     store.saveToSession(SESSION_A)
 

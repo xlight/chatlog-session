@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAIAgentStore } from '@/stores/ai/agent'
 import { sendmsgAPI } from '@/api/sendmsg'

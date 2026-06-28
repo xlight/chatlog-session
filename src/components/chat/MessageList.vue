@@ -379,7 +379,7 @@ defineExpose({
           <div
             v-for="virtualRow in virtualRows"
             :key="String(virtualRow.key)"
-            :ref="virtualizer.measureElement"
+            :ref="((node: any) => { if (node) virtualizer.measureElement(node) })"
             :data-index="virtualRow.index"
           >
             <template v-if="getFlatItem(virtualRow.index)?.type === 'load-more'">
