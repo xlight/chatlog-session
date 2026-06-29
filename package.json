@@ -21,7 +21,7 @@
     "axios": "^1.17.0",
     "dayjs": "^1.11.10",
     "dompurify": "^3.4.2",
-    "element-plus": "^2.13.7",
+    "element-plus": "^2.14.2",
     "marked": "^18.0.4",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
