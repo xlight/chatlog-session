@@ -166,7 +166,7 @@ ${contextText}
             if (sendResult.ok) {
               agentStore.incrementAutoReplyTracker(currentSid)
               if (sendResult.message_id !== undefined) {
-                agentSendQueue.addTask({ contactName, content: result.content, contentPreview: result.content.slice(0, 50), messageId: sendResult.message_id, status: 'sending', createdAt: Date.now() })
+                agentSendQueue.addTask({ contactName, content: replyContent, contentPreview: replyContent.slice(0, 50), messageId: sendResult.message_id, status: 'sending', createdAt: Date.now() })
               }
             } else {
               agentStore.addDraft({

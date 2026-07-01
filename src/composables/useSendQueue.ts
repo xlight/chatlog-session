@@ -48,19 +48,6 @@ export function useSendQueue(options: UseSendQueueOptions = {}) {
     return id
   }
 
-  /** 注册一个已发送的 task（外部调用 sendmsgAPI.send 后），自动启动轮询 */
-  function registerTask(task: Omit<SendTask, 'id'> & { id?: number }): number {
-    const id = task.id ?? ++taskIdCounter
-    tasks.value.push({
-      ...task,
-      id,
-    } as SendTask)
-    if (task.messageId) {
-      startPolling(task.messageId, id)
-    }
-    return id
-  }
-
   function updateTask(id: number, updates: Partial<SendTask>) {
     const task = tasks.value.find(t => t.id === id)
     if (task) {

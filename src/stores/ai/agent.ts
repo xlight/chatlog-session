@@ -104,7 +104,6 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
   // --- 不变 state ---
   const drafts = ref<AgentDraft[]>([])
-  const draftTaskMap = ref<Map<string, string>>(new Map())
   const autoReplyTrackers = ref<Map<string, AutoReplyTracker>>(new Map())
 
   // ==================== Getters ====================
@@ -115,7 +114,6 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
   const hasPendingDrafts = computed(() => pendingDrafts.value.length > 0)
 
-  const hasActiveSendings = computed(() => draftTaskMap.value.size > 0)
 
   /** 获取指定会话的有效配置（session override → 置顶会话 defaults / L0） */
   function getEffectiveConfig(sessionId: string): SessionAgentConfig {
@@ -338,22 +336,6 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
   // ==================== Draft Task Mapping ====================
 
-  function addDraftTask(draftId: string, taskId: string): void {
-    draftTaskMap.value.set(draftId, taskId)
-  }
-
-  function getTaskIdByDraftId(draftId: string): string | undefined {
-    return draftTaskMap.value.get(draftId)
-  }
-
-  function removeDraftTask(draftId: string): void {
-    draftTaskMap.value.delete(draftId)
-  }
-
-  function clearDraftTaskMap(): void {
-    draftTaskMap.value.clear()
-  }
-
   // ==================== Observer Actions ====================
 
   /** 获取指定会话的 Observer 状态 */
@@ -568,7 +550,6 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     observerStreaming.value = new Map()
     keywordResults.value = new Map()
     drafts.value = []
-    draftTaskMap.value = new Map()
     autoReplyTrackers.value = new Map()
   }
 
@@ -583,13 +564,11 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     observerStreaming,
     keywordResults,
     drafts,
-    draftTaskMap,
     autoReplyTrackers,
 
     // Getters
     pendingDrafts,
     hasPendingDrafts,
-    hasActiveSendings,
     canAutoReply,
     getEffectiveConfig,
 
@@ -631,10 +610,6 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     clearSentDrafts,
 
     // Draft Task Mapping
-    addDraftTask,
-    getTaskIdByDraftId,
-    removeDraftTask,
-    clearDraftTaskMap,
 
     // Auto Reply Tracking
     getAutoReplyTracker,

@@ -178,8 +178,6 @@ describe('drafts', () => {
   })
 })
 
-)
-
 describe('canAutoReply', () => {
   it('未启用时不可自动回复', () => {
     const store = freshStore()
@@ -701,7 +699,7 @@ describe('$reset', () => {
 
     expect(store.config.enabled).toBe(false)
     expect(store.drafts).toHaveLength(0)
-    expect(store.draftTaskMap.size).toBe(0)
+
     expect(store.autoReplyTrackers.size).toBe(0)
     expect(store.observerStates.size).toBe(0)
     expect(store.observerResults.size).toBe(0)
