@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAIAgentStore } from '@/stores/ai/agent'
+import { agentSendQueue } from '@/composables/useSendQueue'
 import { sendmsgAPI } from '@/api/sendmsg'
 import type { AgentDraft } from '@/types/ai/agent'
 
@@ -32,14 +33,11 @@ const timeLabel = computed(() => {
   return `${Math.floor(diff / 86400000)} 天前`
 })
 
-const isSending = computed(() =>
-  agentStore.sendingStatuses.some(
-    (s) => s.draftId === props.draft.id && s.status === 'sending'
-  )
-)
+const isSending = ref(false)
 
 async function handleSend() {
   if (isSending.value) return
+  isSending.value = true
 
   try {
     const result = await sendmsgAPI.send(props.draft.contactName, props.draft.content)
@@ -51,13 +49,7 @@ async function handleSend() {
 
     if (result.message_id !== undefined) {
       agentStore.markDraftSent(props.draft.id, result.message_id)
-      agentStore.addSendingStatus({
-        draftId: props.draft.id,
-        messageId: result.message_id,
-        contactName: props.draft.contactName,
-        contentPreview: previewText.value,
-        status: 'sending',
-      })
+      agentSendQueue.addTask({ contactName: props.draft.contactName, content: props.draft.content, contentPreview: props.draft.content.slice(0, 50), messageId: result.message_id, status: 'sending', createdAt: Date.now() })
       emit('sent', props.draft.id, result.message_id)
       ElMessage.success('草稿已发送')
     } else {
@@ -66,6 +58,7 @@ async function handleSend() {
       ElMessage.success('草稿已发送')
     }
   } catch (error: unknown) {
+    isSending.value = false
     ElMessage.error(error instanceof Error ? error.message : '发送失败')
   }
 }

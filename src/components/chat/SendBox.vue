@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CirclePlus, PictureRounded } from '@element-plus/icons-vue'
 import { sendmsgAPI } from '@/api/sendmsg'
 import { useSettingsStore } from '@/stores/settings'
 import { useAIAgentStore } from '@/stores/ai/agent'
 import { useSessionDisplayName } from './composables/useDisplayName'
+import { useSendQueue, agentSendQueue } from '@/composables/useSendQueue'
+import type { SendTask } from '@/api/sendmsg'
 import AgentDraftCard from '@/components/ai/AgentDraftCard.vue'
-import SendingStatusCard from '@/components/ai/SendingStatusCard.vue'
 import type { Session } from '@/types/session'
 
 const settingsStore = useSettingsStore()
@@ -66,43 +67,12 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 const isDragOver = ref(false)
 const showEmojiPicker = ref(false)
 
-// ==================== 发送中消息 ====================
+// ==================== 发送队列 ====================
 
-interface PendingMessage {
-  id: number
-  content: string
-  status: 'sending' | 'success' | 'error'
-  error?: string
-  /** 队列消息 ID，用于取消和轮询 */
-  messageId?: number
-}
-
-const pendingMessages = ref<PendingMessage[]>([])
-let pendingIdCounter = 0
-
-function addPendingMessage(content: string): number {
-  const id = ++pendingIdCounter
-  pendingMessages.value.push({ id, content, status: 'sending' })
-  return id
-}
-
-function updatePendingMessage(id: number, status: 'success' | 'error', error?: string) {
-  const msg = pendingMessages.value.find(m => m.id === id)
-  if (msg) {
-    msg.status = status
-    msg.error = error
-  }
-  setTimeout(() => {
-    pendingMessages.value = pendingMessages.value.filter(m => m.id !== id)
-  }, 3000)
-}
-
-// ==================== 轮询管理 ====================
-
-const pollingTimers = ref<Map<number, ReturnType<typeof setInterval>>>(new Map())
-const pollingStartTimes = ref<Map<number, number>>(new Map())
-const POLLING_INTERVAL = 1000
-const POLLING_TIMEOUT = 30000
+const { tasks: pendingMessages, send: queueSend, cancel: queueCancel, getStageLabel } = useSendQueue({
+  autoRemoveDelay: 3000,
+  onCompleted: () => emit('refresh'),
+})
 
 // ==================== contact_name 解析 ====================
 
@@ -141,16 +111,9 @@ const hasText = computed(() => messageText.value.trim().length > 0)
 
 // ==================== 发送 / 取消逻辑 ====================
 
-async function cancelPendingMessage(msg: PendingMessage) {
-  if (!msg.messageId) return
+async function cancelPendingMessage(msg: SendTask) {
   try {
-    const result = await sendmsgAPI.cancelJob(msg.messageId)
-    if (result.ok) {
-      stopPolling(msg.messageId)
-      updatePendingMessage(msg.id, 'error', '已取消')
-    } else {
-      ElMessage.error(result.error || '取消失败')
-    }
+    await queueCancel(msg.id)
   } catch (error: unknown) {
     ElMessage.error(error instanceof Error ? error.message : '取消失败')
   }
@@ -161,27 +124,7 @@ async function sendMessage() {
   if (!text || !canSend.value) return
 
   messageText.value = ''
-  const pendingId = addPendingMessage(text)
-
-  try {
-    const result = await sendmsgAPI.send(contactName.value, text)
-
-    if (!result.ok) {
-      updatePendingMessage(pendingId, 'error', result.error || result.message || '发送失败')
-      return
-    }
-
-    if (result.message_id !== undefined) {
-      const msg = pendingMessages.value.find(m => m.id === pendingId)
-      if (msg) msg.messageId = result.message_id
-      startPolling(result.message_id, pendingId)
-    } else {
-      updatePendingMessage(pendingId, 'success')
-      emit('refresh')
-    }
-  } catch (error: unknown) {
-    updatePendingMessage(pendingId, 'error', error instanceof Error ? error.message : '发送请求失败')
-  }
+  await queueSend(contactName.value, text)
 }
 
 // ==================== 文件发送逻辑 ====================
@@ -189,32 +132,11 @@ async function sendMessage() {
 async function sendDraft(draftId: string, content: string): Promise<{ ok: boolean; messageId?: number; error?: string }> {
   if (!content || !canSend.value) return { ok: false, error: '无法发送' }
 
-  const pendingId = addPendingMessage(content)
-
-  try {
-    const result = await sendmsgAPI.send(contactName.value, content)
-
-    if (!result.ok) {
-      updatePendingMessage(pendingId, 'error', result.error || result.message || '发送失败')
-      return { ok: false, error: result.error || result.message || '发送失败' }
-    }
-
-    if (result.message_id !== undefined) {
-      const msg = pendingMessages.value.find(m => m.id === pendingId)
-      if (msg) msg.messageId = result.message_id
-      startPolling(result.message_id, pendingId)
-      emit('draftSent', draftId, result.message_id)
-      return { ok: true, messageId: result.message_id }
-    } else {
-      updatePendingMessage(pendingId, 'success')
-      emit('refresh')
-      return { ok: true }
-    }
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : '发送请求失败'
-    updatePendingMessage(pendingId, 'error', msg)
-    return { ok: false, error: msg }
+  const result = await queueSend(contactName.value, content)
+  if (result.ok && result.messageId) {
+    emit('draftSent', draftId, result.messageId)
   }
+  return { ok: result.ok, messageId: result.messageId, error: result.error }
 }
 
 function clearDraft() {
@@ -229,18 +151,15 @@ function onDraftDismissed(draftId: string) {
   agentStore.removeDraft(draftId)
 }
 
-function onSendingCompleted(draftId: string) {
-  agentStore.removeSendingStatus(draftId)
-  emit('refresh')
+async function cancelAgentTask(msg: SendTask) {
+  try {
+    await agentSendQueue.cancel(msg.id)
+  } catch (error: unknown) {
+    ElMessage.error(error instanceof Error ? error.message : '取消失败')
+  }
 }
 
-function onSendingFailed(_draftId: string, _error: string) {
-  // 保留失败状态让用户看到，不自动移除
-}
-
-function onSendingCancelled(draftId: string) {
-  agentStore.removeSendingStatus(draftId)
-}
+const agentPendingTasks = computed(() => agentSendQueue.tasks.value)
 
 // ==================== 文件发送逻辑 ====================
 
@@ -266,91 +185,13 @@ async function sendFileOrImage(file: File) {
   const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
   const isImage = IMAGE_EXTENSIONS.has(ext)
   const label = isImage ? `📷 ${file.name}` : `📎 ${file.name}`
-  const pendingId = addPendingMessage(label)
 
-  try {
+  await queueSend(contactName.value, label, async (contactName, _content) => {
     const result = isImage
-      ? await sendmsgAPI.sendImageUpload(contactName.value, file)
-      : await sendmsgAPI.sendFileUpload(contactName.value, file)
-
-    if (!result.ok) {
-      updatePendingMessage(pendingId, 'error', result.error || result.message || '发送失败')
-      return
-    }
-
-    if (result.message_id !== undefined) {
-      const msg = pendingMessages.value.find(m => m.id === pendingId)
-      if (msg) msg.messageId = result.message_id
-      startPolling(result.message_id, pendingId)
-    } else {
-      updatePendingMessage(pendingId, 'success')
-      emit('refresh')
-    }
-  } catch (error: unknown) {
-    updatePendingMessage(pendingId, 'error', error instanceof Error ? error.message : '发送请求失败')
-  }
-}
-
-// ==================== 轮询 ====================
-
-function startPolling(messageId: number, pendingId: number) {
-  pollingStartTimes.value.set(messageId, Date.now())
-
-  const timer = setInterval(async () => {
-    try {
-      const response = await sendmsgAPI.getQueueStatus(messageId)
-
-      const startTime = pollingStartTimes.value.get(messageId) || Date.now()
-      if (Date.now() - startTime > POLLING_TIMEOUT) {
-        stopPolling(messageId)
-        updatePendingMessage(pendingId, 'error', '发送超时，请到微信确认')
-        return
-      }
-
-      if (!response.ok || !response.message) {
-        return
-      }
-
-      const msgStatus = response.message.status
-
-      if (msgStatus === 'completed') {
-        stopPolling(messageId)
-        updatePendingMessage(pendingId, 'success')
-        emit('refresh')
-      } else if (msgStatus === 'failed') {
-        stopPolling(messageId)
-        updatePendingMessage(pendingId, 'error', response.message.error_message || '发送失败')
-      } else if (msgStatus === 'cancelled') {
-        stopPolling(messageId)
-        updatePendingMessage(pendingId, 'error', '消息已取消')
-      }
-    } catch {
-      const startTime = pollingStartTimes.value.get(messageId) || Date.now()
-      if (Date.now() - startTime > POLLING_TIMEOUT) {
-        stopPolling(messageId)
-        updatePendingMessage(pendingId, 'error', '发送超时，请到微信确认')
-      }
-    }
-  }, POLLING_INTERVAL)
-
-  pollingTimers.value.set(messageId, timer)
-}
-
-function stopPolling(messageId: number) {
-  const timer = pollingTimers.value.get(messageId)
-  if (timer) {
-    clearInterval(timer)
-    pollingTimers.value.delete(messageId)
-  }
-  pollingStartTimes.value.delete(messageId)
-}
-
-function stopAllPolling() {
-  for (const timer of pollingTimers.value.values()) {
-    clearInterval(timer)
-  }
-  pollingTimers.value.clear()
-  pollingStartTimes.value.clear()
+      ? await sendmsgAPI.sendImageUpload(contactName, file)
+      : await sendmsgAPI.sendFileUpload(contactName, file)
+    return { ok: result.ok, message_id: result.message_id, error: result.error, message: result.message }
+  })
 }
 
 // ==================== 粘贴图片 ====================
@@ -457,10 +298,6 @@ onMounted(() => {
   checkServiceAvailability()
 })
 
-onUnmounted(() => {
-  stopAllPolling()
-})
-
 defineExpose({ injectDraft, sendDraft, clearDraft, draftText })
 </script>
 
@@ -488,14 +325,14 @@ defineExpose({ injectDraft, sendDraft, clearDraft, draftText })
         v-for="msg in pendingMessages"
         :key="msg.id"
         class="pending-msg"
-        :class="`pending-${msg.status}`"
+        :class="`pending-${msg.status === 'completed' ? 'success' : msg.status === 'cancelled' ? 'error' : msg.status}`"
       >
         <el-icon v-if="msg.status === 'sending'" class="is-loading"><Loading /></el-icon>
-        <el-icon v-else-if="msg.status === 'success'"><CircleCheckFilled /></el-icon>
+        <el-icon v-else-if="msg.status === 'completed'"><CircleCheckFilled /></el-icon>
         <el-icon v-else><CircleCloseFilled /></el-icon>
-        <span class="pending-content">{{ msg.content }}</span>
+        <span class="pending-content">{{ msg.contentPreview }}</span>
         <span class="pending-status">
-          {{ msg.status === 'sending' ? '发送中...' : msg.status === 'success' ? '已发送' : msg.error || '发送失败' }}
+          {{ msg.status === 'sending' ? getStageLabel(msg.stage) : msg.status === 'completed' ? '已发送' : msg.error || '发送失败' }}
         </span>
         <el-button
           v-if="msg.status === 'sending' && msg.messageId"
@@ -523,16 +360,40 @@ defineExpose({ injectDraft, sendDraft, clearDraft, draftText })
       />
     </div>
 
-    <!-- Agent 发送状态卡片 -->
-    <div v-if="agentStore.sendingStatuses.length > 0" class="agent-sending-statuses">
-      <SendingStatusCard
-        v-for="status in agentStore.sendingStatuses"
-        :key="status.draftId"
-        :status="status"
-        @completed="onSendingCompleted"
-        @failed="onSendingFailed"
-        @cancelled="onSendingCancelled"
-      />
+    <!-- Agent 发送状态 -->
+    <div v-if="agentPendingTasks.length > 0" class="agent-sending-statuses">
+      <div
+        v-for="msg in agentPendingTasks"
+        :key="msg.id"
+        class="pending-msg"
+        :class="`pending-${msg.status === 'completed' ? 'success' : msg.status === 'cancelled' ? 'error' : msg.status}`"
+      >
+        <el-icon v-if="msg.status === 'sending'" class="is-loading"><Loading /></el-icon>
+        <el-icon v-else-if="msg.status === 'completed'"><CircleCheckFilled /></el-icon>
+        <el-icon v-else><CircleCloseFilled /></el-icon>
+        <span class="pending-content">{{ msg.contentPreview }}</span>
+        <span class="pending-status">
+          {{ msg.status === 'sending' ? agentSendQueue.getStageLabel(msg.stage) : msg.status === 'completed' ? '已发送' : msg.error || '发送失败' }}
+        </span>
+        <el-button
+          v-if="msg.status === 'sending' && msg.messageId"
+          text
+          size="small"
+          class="pending-cancel"
+          @click="cancelAgentTask(msg)"
+        >
+          取消
+        </el-button>
+        <el-button
+          v-if="msg.status !== 'sending'"
+          text
+          size="small"
+          class="pending-cancel"
+          @click="agentSendQueue.remove(msg.id)"
+        >
+          关闭
+        </el-button>
+      </div>
     </div>
 
     <!-- 草稿插槽（供外部扩展） -->

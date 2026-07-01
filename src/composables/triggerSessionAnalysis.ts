@@ -1,4 +1,5 @@
 import { useAIAgentStore } from '@/stores/ai/agent'
+import { agentSendQueue } from '@/composables/useSendQueue'
 import { useSessionStore } from '@/stores/session'
 import { chatStream } from '@/api/llm'
 import { sendmsgAPI } from '@/api/sendmsg'
@@ -168,13 +169,7 @@ async function generateAndSendReply(
       if (sendResult.ok) {
         agentStore.incrementAutoReplyTracker(currentSid)
         if (sendResult.message_id !== undefined) {
-          agentStore.addSendingStatus({
-            draftId: String(sendResult.message_id),
-            messageId: sendResult.message_id,
-            contactName,
-            contentPreview: trimmedContent.slice(0, 50),
-            status: 'sending',
-          })
+          agentSendQueue.addTask({ contactName, content: trimmedContent, contentPreview: trimmedContent.slice(0, 50), messageId: sendResult.message_id, status: 'sending', createdAt: Date.now() })
         }
       } else {
         agentStore.addDraft({

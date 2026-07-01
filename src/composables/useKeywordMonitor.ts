@@ -1,5 +1,6 @@
 import { ref, watch, type Ref } from 'vue'
 import { useAIAgentStore } from '@/stores/ai/agent'
+import { agentSendQueue } from '@/composables/useSendQueue'
 import { useSessionStore } from '@/stores/session'
 import { useChatMessagesStore } from '@/stores/chatMessages'
 import { chatStream } from '@/api/llm'
@@ -165,13 +166,7 @@ ${contextText}
             if (sendResult.ok) {
               agentStore.incrementAutoReplyTracker(currentSid)
               if (sendResult.message_id !== undefined) {
-                agentStore.addSendingStatus({
-                  draftId: result.id,
-                  messageId: sendResult.message_id,
-                  contactName,
-                  contentPreview: replyContent.slice(0, 50),
-                  status: 'sending',
-                })
+                agentSendQueue.addTask({ contactName, content: result.content, contentPreview: result.content.slice(0, 50), messageId: sendResult.message_id, status: 'sending', createdAt: Date.now() })
               }
             } else {
               agentStore.addDraft({

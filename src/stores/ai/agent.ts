@@ -4,7 +4,6 @@ import { useSessionStore } from '@/stores/session'
 import type {
   AgentConfig,
   AgentDraft,
-  AgentSendingStatus,
   AgentSessionFilter,
   SendPermissionLevel,
   AgentLevelPreset,
@@ -50,7 +49,6 @@ const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
 }
 
 const MAX_DRAFTS = 20
-const MAX_SENDING_STATUS = 50
 const MAX_RESULTS_PER_SESSION = 20
 
 function generateId(): string {
@@ -106,7 +104,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
   // --- 不变 state ---
   const drafts = ref<AgentDraft[]>([])
-  const sendingStatuses = ref<AgentSendingStatus[]>([])
+  const draftTaskMap = ref<Map<string, string>>(new Map())
   const autoReplyTrackers = ref<Map<string, AutoReplyTracker>>(new Map())
 
   // ==================== Getters ====================
@@ -117,11 +115,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
   const hasPendingDrafts = computed(() => pendingDrafts.value.length > 0)
 
-  const activeSendings = computed(() =>
-    sendingStatuses.value.filter((s) => s.status === 'sending')
-  )
-
-  const hasActiveSendings = computed(() => activeSendings.value.length > 0)
+  const hasActiveSendings = computed(() => draftTaskMap.value.size > 0)
 
   /** 获取指定会话的有效配置（session override → 置顶会话 defaults / L0） */
   function getEffectiveConfig(sessionId: string): SessionAgentConfig {
@@ -342,35 +336,22 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     drafts.value = drafts.value.filter((d) => !d.sent)
   }
 
-  // ==================== Sending Status Actions ====================
+  // ==================== Draft Task Mapping ====================
 
-  function addSendingStatus(status: Omit<AgentSendingStatus, 'startedAt'>): AgentSendingStatus {
-    const newStatus: AgentSendingStatus = {
-      ...status,
-      startedAt: Date.now(),
-    }
-    sendingStatuses.value.push(newStatus)
-
-    if (sendingStatuses.value.length > MAX_SENDING_STATUS) {
-      sendingStatuses.value = sendingStatuses.value.slice(-MAX_SENDING_STATUS)
-    }
-
-    return newStatus
+  function addDraftTask(draftId: string, taskId: string): void {
+    draftTaskMap.value.set(draftId, taskId)
   }
 
-  function updateSendingStatus(draftId: string, update: Partial<AgentSendingStatus>): void {
-    const status = sendingStatuses.value.find((s) => s.draftId === draftId)
-    if (status) {
-      Object.assign(status, update)
-    }
+  function getTaskIdByDraftId(draftId: string): string | undefined {
+    return draftTaskMap.value.get(draftId)
   }
 
-  function removeSendingStatus(draftId: string): void {
-    sendingStatuses.value = sendingStatuses.value.filter((s) => s.draftId !== draftId)
+  function removeDraftTask(draftId: string): void {
+    draftTaskMap.value.delete(draftId)
   }
 
-  function clearSendingStatuses(): void {
-    sendingStatuses.value = []
+  function clearDraftTaskMap(): void {
+    draftTaskMap.value.clear()
   }
 
   // ==================== Observer Actions ====================
@@ -587,7 +568,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     observerStreaming.value = new Map()
     keywordResults.value = new Map()
     drafts.value = []
-    sendingStatuses.value = []
+    draftTaskMap.value = new Map()
     autoReplyTrackers.value = new Map()
   }
 
@@ -602,13 +583,12 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     observerStreaming,
     keywordResults,
     drafts,
-    sendingStatuses,
+    draftTaskMap,
     autoReplyTrackers,
 
     // Getters
     pendingDrafts,
     hasPendingDrafts,
-    activeSendings,
     hasActiveSendings,
     canAutoReply,
     getEffectiveConfig,
@@ -650,11 +630,11 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     clearDrafts,
     clearSentDrafts,
 
-    // Sending Status Actions
-    addSendingStatus,
-    updateSendingStatus,
-    removeSendingStatus,
-    clearSendingStatuses,
+    // Draft Task Mapping
+    addDraftTask,
+    getTaskIdByDraftId,
+    removeDraftTask,
+    clearDraftTaskMap,
 
     // Auto Reply Tracking
     getAutoReplyTracker,

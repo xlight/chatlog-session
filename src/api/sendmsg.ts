@@ -31,6 +31,33 @@ export interface SendMessageResponse {
   error?: string
 }
 
+/** 发送阶段标签映射 */
+export const STAGE_LABEL_MAP: Record<string, string> = {
+  find_window: '查找微信窗口...',
+  search_contact: '搜索联系人...',
+  verify_chat: '验证聊天窗口...',
+  send_text: '发送消息...',
+}
+
+/** 获取发送阶段显示文本 */
+export function getStageLabel(stage?: string): string {
+  if (!stage) return '发送中...'
+  return STAGE_LABEL_MAP[stage] ?? stage
+}
+
+/** 统一发送任务 */
+export interface SendTask {
+  id: number
+  contactName: string
+  content: string
+  contentPreview: string
+  messageId?: number
+  status: 'sending' | 'completed' | 'failed' | 'cancelled'
+  stage?: string
+  error?: string
+  createdAt: number
+}
+
 /** 队列消息详情 */
 export interface QueueMessageDetail {
   id: number
@@ -45,6 +72,7 @@ export interface QueueMessageDetail {
   scheduled_at: string | null
   created_at: string
   updated_at: string
+  stage?: string | null
 }
 
 /** 队列消息状态响应 */

@@ -265,24 +265,6 @@ export interface AgentDraft {
   jobId?: number
 }
 
-/** Agent 发送任务状态 */
-export interface AgentSendingStatus {
-  /** 草稿 ID */
-  draftId: string
-  /** 队列 message_id */
-  messageId: number
-  /** 联系人名称 */
-  contactName: string
-  /** 发送内容摘要 */
-  contentPreview: string
-  /** 发送状态 */
-  status: 'sending' | 'completed' | 'failed' | 'cancelled'
-  /** 错误信息 */
-  error?: string
-  /** 开始时间 */
-  startedAt: number
-}
-
 /** Agent 活动类型扩展（追加到 ActivityAction） */
 export type AgentActivityAction =
   | 'agent_draft_generated'

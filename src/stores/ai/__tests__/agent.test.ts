@@ -178,70 +178,7 @@ describe('drafts', () => {
   })
 })
 
-describe('sendingStatuses', () => {
-  it('addSendingStatus 添加状态', () => {
-    const store = freshStore()
-    const status = store.addSendingStatus({
-      draftId: 'd1',
-      messageId: 100,
-      contactName: '张三',
-      contentPreview: '你好...',
-      status: 'sending',
-    })
-
-    expect(status.startedAt).toBeGreaterThan(0)
-    expect(store.sendingStatuses).toHaveLength(1)
-  })
-
-  it('updateSendingStatus 更新状态', () => {
-    const store = freshStore()
-    store.addSendingStatus({
-      draftId: 'd1',
-      messageId: 100,
-      contactName: '张三',
-      contentPreview: '你好...',
-      status: 'sending',
-    })
-
-    store.updateSendingStatus('d1', { status: 'completed' })
-    expect(store.sendingStatuses[0].status).toBe('completed')
-  })
-
-  it('removeSendingStatus 删除状态', () => {
-    const store = freshStore()
-    store.addSendingStatus({
-      draftId: 'd1',
-      messageId: 100,
-      contactName: '张三',
-      contentPreview: '你好...',
-      status: 'sending',
-    })
-
-    store.removeSendingStatus('d1')
-    expect(store.sendingStatuses).toHaveLength(0)
-  })
-
-  it('activeSendings 只返回 sending 状态', () => {
-    const store = freshStore()
-    store.addSendingStatus({
-      draftId: 'd1',
-      messageId: 100,
-      contactName: '张三',
-      contentPreview: '你好...',
-      status: 'sending',
-    })
-    store.addSendingStatus({
-      draftId: 'd2',
-      messageId: 101,
-      contactName: '李四',
-      contentPreview: '再见...',
-      status: 'completed',
-    })
-
-    expect(store.activeSendings).toHaveLength(1)
-    expect(store.hasActiveSendings).toBe(true)
-  })
-})
+)
 
 describe('canAutoReply', () => {
   it('未启用时不可自动回复', () => {
@@ -764,7 +701,7 @@ describe('$reset', () => {
 
     expect(store.config.enabled).toBe(false)
     expect(store.drafts).toHaveLength(0)
-    expect(store.sendingStatuses).toHaveLength(0)
+    expect(store.draftTaskMap.size).toBe(0)
     expect(store.autoReplyTrackers.size).toBe(0)
     expect(store.observerStates.size).toBe(0)
     expect(store.observerResults.size).toBe(0)
