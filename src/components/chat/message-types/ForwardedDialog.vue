@@ -828,7 +828,7 @@ const handleLocationClick = (item: ForwardedDataItem) => {
   }
 }
 
-.dark-mode {
+html.dark {
   .forwarded-dialog {
     .forwarded-item {
       background-color: rgba(255, 255, 255, 0.05);

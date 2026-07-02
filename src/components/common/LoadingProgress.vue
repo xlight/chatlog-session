@@ -295,7 +295,7 @@ const shouldShow = computed(() => {
 }
 
 // 暗色模式
-.dark-mode {
+html.dark {
   .loading-progress {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   }

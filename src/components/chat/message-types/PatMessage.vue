@@ -78,7 +78,7 @@ defineProps<Props>()
   }
 }
 
-.dark-mode {
+html.dark {
   .message-pat {
     .pat-card {
       background: rgba(255, 255, 255, 0.05);

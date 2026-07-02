@@ -201,7 +201,7 @@ const formattedDesc = computed(() => {
   }
 }
 
-.dark-mode {
+html.dark {
   .message-forwarded {
     .forwarded-card {
       background: rgba(255, 255, 255, 0.05);

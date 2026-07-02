@@ -132,7 +132,7 @@ const handleClick = () => {
   }
 }
 
-.dark-mode {
+html.dark {
   .message-video .video-placeholder {
     background-color: rgba(255, 255, 255, 0.05);
   }

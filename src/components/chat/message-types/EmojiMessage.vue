@@ -210,7 +210,7 @@ const handleImageError = () => {
   }
 }
 
-.dark-mode {
+html.dark {
   .message-emoji {
     .emoji-error {
       background-color: rgba(255, 255, 255, 0.05);

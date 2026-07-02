@@ -23,7 +23,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div id="app" :class="{ 'dark-mode': appStore.isDark }">
+  <div id="app">
     <router-view />
     <InstallPrompt />
     <UpdateNotification />
@@ -64,7 +64,7 @@ body,
   --header-height: 60px;
 }
 
-.dark-mode {
+html.dark {
   --message-bg-other: #2b2b2b;
   --message-bg-self: #2d6a4f;
 }
@@ -88,11 +88,11 @@ body,
   background: rgba(0, 0, 0, 0.3);
 }
 
-.dark-mode ::-webkit-scrollbar-thumb {
+html.dark ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.dark-mode ::-webkit-scrollbar-thumb:hover {
+html.dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 

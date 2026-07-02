@@ -202,7 +202,7 @@ const handleClick = () => {
 }
 
 // 暗色模式适配
-.dark-mode {
+html.dark {
   .jielong-card {
     background: var(--el-fill-color-darker);
     border-color: var(--el-border-color);

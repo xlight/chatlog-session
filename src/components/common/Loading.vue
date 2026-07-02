@@ -69,7 +69,7 @@ const iconSize = computed(() => sizeMap[props.size])
     transition: background-color 0.3s;
 
     @at-root {
-      :global(.dark) & {
+      html.dark & {
         background-color: rgba(0, 0, 0, 0.8);
       }
     }

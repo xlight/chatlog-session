@@ -707,7 +707,7 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
   }
 }
 
-.dark-mode {
+html.dark {
   .message-bubble--other .message-bubble__body {
     background: var(--el-fill-color-dark);
     border-color: var(--el-border-color-darker);

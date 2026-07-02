@@ -469,7 +469,7 @@ watch(
   }
 }
 
-.dark-mode {
+html.dark {
   .image-viewer-dialog {
     :deep(.el-dialog__body) {
       background-color: #1a1a1a;

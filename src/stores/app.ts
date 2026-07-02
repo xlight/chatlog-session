@@ -101,15 +101,21 @@ export const useAppStore = defineStore('app', () => {
   // ==================== Getters ====================
 
   /**
-   * 是否为暗色主题（从 settingsStore 读取）
+   * 是否为暗色主题（ref，由 updateIsDark 主动同步）
    */
-  const isDark = computed(() => {
+  const isDark = ref(false)
+
+  /**
+   * 根据 settingsStore.appearance.theme 和系统偏好更新 isDark
+   */
+  function updateIsDark() {
     const theme = settingsStore.appearance.theme
     if (theme === 'auto') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches
+      isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
+    } else {
+      isDark.value = theme === 'dark'
     }
-    return theme === 'dark'
-  })
+  }
 
   /**
    * 是否启用调试模式
@@ -130,6 +136,7 @@ export const useAppStore = defineStore('app', () => {
     checkMobile()
     window.addEventListener('resize', checkMobile)
 
+    updateIsDark()
     setupThemeListener()
     applyTheme()
 
@@ -211,6 +218,7 @@ export const useAppStore = defineStore('app', () => {
 
     // 如果更新了主题，重新设置监听器并应用主题
     if (newSettings.theme && newSettings.theme !== oldTheme) {
+      updateIsDark()
       setupThemeListener()
       applyTheme()
     }
@@ -226,6 +234,7 @@ export const useAppStore = defineStore('app', () => {
     if (settingsStore.appearance.theme === 'auto') {
       systemThemeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
       systemThemeListener = () => {
+        updateIsDark()
         applyTheme()
       }
       systemThemeMediaQuery.addEventListener('change', systemThemeListener)

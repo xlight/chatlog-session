@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { useAIChat } from '@/composables/useAIChat'
 import { useContextFeed, FEED_TIME_RANGES } from '@/composables/useContextFeed'
+import { useSessionDisplayName } from '@/composables/useDisplayName'
 import { useSessionStore } from '@/stores/session'
 import { useAIPromptStore } from '@/stores/ai/prompt'
 import { useVirtualizer } from '@tanstack/vue-virtual'
@@ -42,6 +43,10 @@ const currentSession = computed(() => {
   const id = sessionStore.currentSessionId
   if (!id) return null
   return sessionStore.sessions.find((s) => s.id === id) ?? null
+})
+
+const { displayName: sessionDisplayName } = useSessionDisplayName({
+  session: currentSession
 })
 
 watch(
@@ -132,11 +137,11 @@ function handleFeedContext(range?: { seconds?: number; type?: string; label: str
   if (!systemContent) return
 
   const session = currentSession.value
-  const sessionName = session.name || session.talkerName || '未知会话'
+  const displayName = sessionDisplayName.value || session.talkerName || session.talker || '未知会话'
   const timeLabel = range.label
   const systemMsg = {
     role: 'system' as const,
-    content: `以下是会话「${sessionName}」在 ${timeLabel} 的聊天记录作为上下文：\n\n${systemContent}`,
+    content: `以下是会话「${displayName}」(${session.talker}) 在 ${timeLabel} 的聊天记录作为上下文：\n\n${systemContent}`,
   }
   const existingSystem = conversation.messages.filter(
     (m) => m.role === 'system'

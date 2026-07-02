@@ -441,7 +441,7 @@ const handleCommand = async (command: string) => {
   background-color: var(--el-border-color-lighter);
 }
 
-.dark-mode {
+html.dark {
   .session-item {
     &--active {
       background-color: rgba(255, 255, 255, 0.08);

@@ -117,7 +117,7 @@ const isLinkRefer = computed(() => props.referMessageType === 'link')
   }
 }
 
-.dark-mode {
+html.dark {
   .refer-content {
     background: var(--el-fill-color-darker);
   }

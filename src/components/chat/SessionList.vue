@@ -561,7 +561,7 @@ defineExpose({
   margin-left: 8px;
 }
 
-.dark-mode {
+html.dark {
   .session-list__content {
     &::-webkit-scrollbar-thumb {
       background: rgba(255, 255, 255, 0.1);

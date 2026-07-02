@@ -203,7 +203,7 @@ const handleImageError = () => {
   }
 }
 
-.dark-mode {
+html.dark {
   .message-image {
     .image-wrapper,
     .image-placeholder,

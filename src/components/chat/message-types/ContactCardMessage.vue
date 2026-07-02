@@ -99,7 +99,7 @@ const handleClick = () => {
   }
 }
 
-.dark-mode {
+html.dark {
   .media-placeholder {
     background: var(--el-fill-color-dark);
     border-color: var(--el-border-color-darker);

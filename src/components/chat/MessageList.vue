@@ -700,7 +700,7 @@ defineExpose({
 }
 
 // 暗色模式
-.dark-mode {
+html.dark {
   .message-list {
     &__content {
       &::-webkit-scrollbar-thumb {

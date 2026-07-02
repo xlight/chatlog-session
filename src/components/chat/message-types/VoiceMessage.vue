@@ -356,7 +356,7 @@ const waveClass = computed(() => ({
 }
 
 // 暗色模式适配
-.dark-mode {
+html.dark {
   .voice-player {
     .voice-icon,
     .voice-wave .wave-bar {

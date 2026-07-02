@@ -374,7 +374,7 @@ const CurrentViewComponent = computed(() => {
 }
 
 // 暗色模式
-.dark-mode {
+html.dark {
   .sidebar {
     &::-webkit-scrollbar-thumb {
       background: rgba(255, 255, 255, 0.1);

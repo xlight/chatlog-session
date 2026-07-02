@@ -176,7 +176,7 @@ const handleClick = () => {
   }
 }
 
-.dark-mode {
+html.dark {
   .message-shopping-miniprogram {
     .shopping-card {
       background: #2b2b2b;

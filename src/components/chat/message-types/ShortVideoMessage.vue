@@ -163,7 +163,7 @@ const handleClick = () => {
   }
 }
 
-.dark-mode {
+html.dark {
   .message-short-video {
     .short-video-card {
       background: #2b2b2b;
