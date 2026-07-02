@@ -2,6 +2,7 @@
  * 路由配置
  */
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
+import { useClarity } from '@/composables/useClarity'
 
 /**
  * 路由定义
@@ -115,9 +116,14 @@ router.beforeEach((to, _from, next) => {
 /**
  * 全局后置守卫
  */
-router.afterEach(() => {
+router.afterEach((to) => {
   // 滚动到顶部
   window.scrollTo(0, 0)
+
+  if (to.name) {
+    const { setTag } = useClarity()
+    setTag('page', String(to.name))
+  }
 })
 
 export default router

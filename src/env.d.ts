@@ -14,6 +14,7 @@ interface ImportMetaEnv {
   readonly VITE_API_TIMEOUT: string
   readonly VITE_ENABLE_DEBUG: string
   readonly VITE_BASE_PATH: string
+  readonly VITE_CLARITY_PROJECT_ID: string
 }
 
 interface ImportMeta {

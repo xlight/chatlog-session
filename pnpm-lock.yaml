@@ -11,6 +11,9 @@ importers:
       '@element-plus/icons-vue':
         specifier: ^2.3.1
         version: 2.3.2(vue@3.5.34(typescript@6.0.3))
+      '@microsoft/clarity':
+        specifier: ^1.0.2
+        version: 1.0.2
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
@@ -502,6 +505,9 @@ packages:
 
   '@mermaid-js/parser@1.1.1':
     resolution: {integrity: sha512-VuHdsYMK1bT6X2JbcAaWAhugTRvRBRyuZgd+c22swUeI9g/ntaxF7CY7dYarhZovofCbUNO0G7JesfmNtjYOCw==}
+
+  '@microsoft/clarity@1.0.2':
+    resolution: {integrity: sha512-9EZYROFpJxEGmQpHvUFqvD3ZJ7QQSqnibYSWmS+1xusoZfG1QQ1/Al9yVBBc11DWMbJrs1pe1hLT273it/skJg==}
 
   '@modelcontextprotocol/sdk@1.29.0':
     resolution: {integrity: sha512-zo37mZA9hJWpULgkRpowewez1y6ML5GsXJPY8FI0tBBCd77HEvza4jDqRKOXgHNn867PVGCyTdzqpz0izu5ZjQ==}
@@ -3281,6 +3287,8 @@ snapshots:
   '@mermaid-js/parser@1.1.1':
     dependencies:
       '@chevrotain/types': 11.1.2
+
+  '@microsoft/clarity@1.0.2': {}
 
   '@modelcontextprotocol/sdk@1.29.0(zod@4.4.3)':
     dependencies:

@@ -11,6 +11,7 @@ import router from './router'
 import './assets/styles/index.scss'
 import { db } from './utils/db'
 import { setOnErrorCallback } from './utils/request'
+import { useClarity } from './composables/useClarity'
 
 const app = createApp(App)
 
@@ -37,6 +38,13 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 db.init().catch(err => {
   console.error('❌ IndexedDB 初始化失败:', err)
 })
+
+// Clarity: 仅当 VITE_CLARITY_PROJECT_ID 存在时初始化
+const clarityProjectId = import.meta.env.VITE_CLARITY_PROJECT_ID
+if (clarityProjectId) {
+  const { init } = useClarity()
+  init(clarityProjectId)
+}
 
 // 挂载应用
 app.mount('#app')
