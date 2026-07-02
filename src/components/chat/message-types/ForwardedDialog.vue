@@ -220,6 +220,8 @@ const handleLocationClick = (item: ForwardedDataItem) => {
     :title="title"
     width="600px"
     :close-on-click-modal="true"
+    align-center
+    append-to-body
   >
     <div class="forwarded-dialog">
       <div v-if="messages.length > 0" class="forwarded-list">
@@ -431,6 +433,7 @@ const handleLocationClick = (item: ForwardedDataItem) => {
     width="90%"
     :style="{ maxWidth: '1200px' }"
     align-center
+    append-to-body
     destroy-on-close
     @closed="handleVideoPreviewClosed"
   >
