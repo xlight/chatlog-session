@@ -12,6 +12,7 @@ import MobileTabBar from '@/components/layout/MobileTabBar.vue'
 import logoUrl from '/logo.svg?url'
 
 const DashboardView = defineAsyncComponent(() => import('./Dashboard/index.vue'))
+const SocialView = defineAsyncComponent(() => import('./Social/index.vue'))
 
 
 const appStore = useAppStore()
@@ -25,7 +26,7 @@ const isContactLoading = computed(() => contactStore.isBackgroundLoading)
 const showConsoleInSidebar = computed(() => settingsStore.ai.showConsoleInSidebar)
 
 // 当前激活的视图
-type ViewType = 'chat' | 'contact' | 'search' | 'dashboard' | 'settings' | 'agent'
+type ViewType = 'chat' | 'contact' | 'search' | 'dashboard' | 'settings' | 'agent' | 'social'
 const currentView = ref<ViewType>('chat')
 
 // 同步 activeNav 和 currentView
@@ -86,6 +87,8 @@ const CurrentViewComponent = computed(() => {
       return SearchView
     case 'dashboard':
       return DashboardView
+    case 'social':
+      return SocialView
     case 'settings':
       return SettingsView
     case 'agent':
@@ -157,6 +160,18 @@ const CurrentViewComponent = computed(() => {
           >
             <el-icon size="24">
               <DataLine />
+            </el-icon>
+          </div>
+        </el-tooltip>
+
+        <el-tooltip content="社交财务" placement="right">
+          <div
+            class="nav-item"
+            :class="{ active: isActive('social') }"
+            @click="switchView('social')"
+          >
+            <el-icon size="24">
+              <Collection />
             </el-icon>
           </div>
         </el-tooltip>

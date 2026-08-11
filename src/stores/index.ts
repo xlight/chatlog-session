@@ -19,6 +19,10 @@ export { useAutoRefreshStore } from './autoRefresh'
 export { useNotificationStore } from './notification'
 export { usePWAStore } from './pwa'
 export { useSessionSearch } from './sessionSearch'
+export { useTransferStore } from './transfer'
+export { useRedPacketStore } from './redpacket'
+export { useFavoriteStore } from './favorite'
+export { useMomentsStore } from './moments'
 
 import { useAppStore } from './app'
 import { useChatMessagesStore } from './chatMessages'
@@ -35,6 +39,10 @@ import { useMessageCacheStore } from './messageCache'
 import { useAutoRefreshStore } from './autoRefresh'
 import { useNotificationStore } from './notification'
 import { usePWAStore } from './pwa'
+import { useTransferStore } from './transfer'
+import { useRedPacketStore } from './redpacket'
+import { useFavoriteStore } from './favorite'
+import { useMomentsStore } from './moments'
 
 /**
  * 重置所有 store
@@ -55,6 +63,10 @@ export function resetAllStores() {
   const autoRefreshStore = useAutoRefreshStore()
   const notificationStore = useNotificationStore()
   const pwaStore = usePWAStore()
+  const transferStore = useTransferStore()
+  const redPacketStore = useRedPacketStore()
+  const favoriteStore = useFavoriteStore()
+  const momentsStore = useMomentsStore()
 
   appStore.$reset()
   chatMessagesStore.$reset()
@@ -71,4 +83,8 @@ export function resetAllStores() {
   autoRefreshStore.$reset()
   notificationStore.$reset()
   pwaStore.$reset()
+  transferStore.$reset()
+  redPacketStore.$reset()
+  favoriteStore.$reset()
+  momentsStore.$reset()
 }

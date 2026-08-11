@@ -1,0 +1,512 @@
+/**
+ * 转账记录 Tab
+ * 展示微信转账记录，支持方向/年份筛选和金额统计
+ */
+
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { useTransferStore } from '@/stores/transfer'
+import { useAppStore } from '@/stores/app'
+import { useRouter } from 'vue-router'
+import Loading from '@/components/common/Loading.vue'
+import Empty from '@/components/common/Empty.vue'
+import Error from '@/components/common/Error.vue'
+
+const transferStore = useTransferStore()
+const appStore = useAppStore()
+const router = useRouter()
+
+// 方向选项
+const directionOptions = [
+  { value: 'all', label: '全部' },
+  { value: 'out', label: '发出' },
+  { value: 'in', label: '收到' },
+]
+
+// 方向选择
+const selectedDirection = ref('all')
+// 年份选择（使用字符串避免 el-select 类型冲突）
+const selectedYear = ref('')
+
+// 当前页码
+const currentPage = ref(1)
+const pageSize = ref(20)
+
+// 是否首次加载
+const initialLoading = ref(true)
+
+// 格式化金额（分为单位 → 元）
+function formatAmount(amount: number): string {
+  return (amount / 100).toFixed(2)
+}
+
+// 格式化时间
+function formatTime(timestamp: number): string {
+  const date = new Date(timestamp * 1000)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hour}:${minute}`
+}
+
+// 获取当前年份
+const currentYear = new Date().getFullYear()
+// 生成可选年份范围
+const yearOptions = computed(() => {
+  const years: { value: number; label: string }[] = [
+    { value: 0, label: '全部年份' },
+  ]
+  for (let y = currentYear; y >= currentYear - 10; y--) {
+    years.push({ value: y, label: `${y}年` })
+  }
+  return years
+})
+
+// 状态描述
+function getStatusDesc(status: number): string {
+  const map: Record<number, string> = {
+    0: '待处理',
+    1: '已完成',
+    2: '已退款',
+    3: '已过期',
+  }
+  return map[status] ?? `未知(${status})`
+}
+
+// 状态标签类型
+function getStatusType(status: number): 'success' | 'warning' | 'info' | 'danger' {
+  if (status === 1) return 'success'
+  if (status === 2) return 'danger'
+  if (status === 3) return 'info'
+  return 'warning'
+}
+
+// 查询
+async function handleSearch() {
+  currentPage.value = 1
+  await transferStore.fetch({
+    direction: selectedDirection.value as 'all' | 'out' | 'in',
+    year: selectedYear.value ? Number(selectedYear.value) : undefined,
+    limit: pageSize.value,
+    offset: 0,
+  })
+}
+
+// 分页切换
+async function handlePageChange(page: number) {
+  currentPage.value = page
+  const offset = (page - 1) * pageSize.value
+  transferStore.setPage(pageSize.value, offset)
+  await transferStore.fetch()
+}
+
+// 点击会话名跳转
+function goToSession(sessionName: string) {
+  if (sessionName) {
+    appStore.setActiveNav('chat')
+    router.push({ name: 'Chat', query: { talker: sessionName } })
+  }
+}
+
+onMounted(async () => {
+  initialLoading.value = true
+  await transferStore.fetch({ limit: pageSize.value, offset: 0 })
+  initialLoading.value = false
+})
+</script>
+
+<template>
+  <div class="transfer-tab">
+    <!-- 页头 -->
+    <div class="tab-header">
+      <div class="header-left">
+        <h2>转账记录</h2>
+        <span v-if="transferStore.total > 0" class="header-count">
+          共 {{ transferStore.total }} 笔
+        </span>
+      </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">方向</span>
+        <el-select
+          v-model="selectedDirection"
+          style="width: 100px"
+          size="small"
+          @change="handleSearch"
+        >
+          <el-option
+            v-for="opt in directionOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+      </div>
+
+      <div class="filter-group">
+        <span class="filter-label">年份</span>
+        <el-select
+          v-model="selectedYear"
+          style="width: 120px"
+          size="small"
+          clearable
+          placeholder="全部年份"
+          @change="handleSearch"
+        >
+          <el-option
+            label="全部年份"
+            value=""
+          />
+          <el-option
+            v-for="opt in yearOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="String(opt.value)"
+          />
+        </el-select>
+      </div>
+
+      <el-button type="primary" size="small" :loading="transferStore.loading" @click="handleSearch">
+        <el-icon class="el-icon--left"><Search /></el-icon>
+        查询
+      </el-button>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div v-if="transferStore.stats.sentCount > 0 || transferStore.stats.receivedCount > 0" class="stats-cards">
+      <el-card shadow="hover" class="stat-card">
+        <div class="stat-card__header">
+          <el-icon class="stat-icon sent"><Top /></el-icon>
+          <span>发出</span>
+        </div>
+        <div class="stat-card__value">{{ transferStore.stats.sentCount }} 笔</div>
+        <div v-if="transferStore.sentAmountTotal > 0" class="stat-card__sub">
+          合计 ¥{{ transferStore.sentAmountTotal.toFixed(2) }}
+        </div>
+      </el-card>
+
+      <el-card shadow="hover" class="stat-card">
+        <div class="stat-card__header">
+          <el-icon class="stat-icon received"><Bottom /></el-icon>
+          <span>收到</span>
+        </div>
+        <div class="stat-card__value">{{ transferStore.stats.receivedCount }} 笔</div>
+        <div v-if="transferStore.receivedAmountTotal > 0" class="stat-card__sub">
+          合计 ¥{{ transferStore.receivedAmountTotal.toFixed(2) }}
+        </div>
+      </el-card>
+    </div>
+
+    <!-- 加载状态 -->
+    <Loading v-if="initialLoading && transferStore.loading" />
+
+    <!-- 错误状态 -->
+    <Error
+      v-else-if="transferStore.error"
+      :message="transferStore.error.message"
+      @retry="handleSearch"
+    />
+
+    <!-- 空状态 -->
+    <Empty v-else-if="!transferStore.loading && transferStore.items.length === 0" description="暂无转账记录" />
+
+    <!-- 数据列表 -->
+    <div v-else class="data-list">
+      <TransitionGroup name="list-fade">
+        <el-card
+          v-for="item in transferStore.items"
+          :key="item.nativeUrl"
+          shadow="hover"
+          class="data-card"
+        >
+          <div class="data-card__main">
+            <div class="data-card__left">
+              <el-tag
+                :type="item.isSender ? 'danger' : 'success'"
+                size="small"
+                effect="plain"
+              >
+                {{ item.isSender ? '发出' : '收到' }}
+              </el-tag>
+              <div class="data-card__info">
+                <div class="data-card__session">
+                  <span class="label">对方</span>
+                  <span
+                    class="value clickable"
+                    @click="goToSession(item.receiveId || item.sendId)"
+                  >
+                    {{ item.receiveId || item.sendId }}
+                  </span>
+                </div>
+                <div v-if="item.desc" class="data-card__desc">
+                  <span class="label">备注</span>
+                  <span class="value">{{ item.desc }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="data-card__right">
+              <div class="data-card__amount" :class="item.isSender ? 'is-sent' : 'is-received'">
+                {{ item.isSender ? '-' : '+' }}¥{{ formatAmount(item.amount) }}
+              </div>
+              <div class="data-card__time">
+                {{ formatTime(item.transferTime) }}
+              </div>
+              <el-tag :type="getStatusType(item.status)" size="small" effect="light">
+                {{ getStatusDesc(item.status) }}
+              </el-tag>
+            </div>
+          </div>
+        </el-card>
+      </TransitionGroup>
+
+      <!-- 分页 -->
+      <div v-if="transferStore.total > pageSize" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          :page-size="pageSize"
+          :total="transferStore.total"
+          layout="prev, pager, next"
+          background
+          small
+          @current-change="handlePageChange"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<style lang="scss" scoped>
+.transfer-tab {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow: hidden;
+
+  .tab-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      h2 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--el-text-color-primary);
+      }
+
+      .header-count {
+        font-size: 13px;
+        color: var(--el-text-color-secondary);
+      }
+    }
+  }
+
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .filter-label {
+        font-size: 13px;
+        color: var(--el-text-color-secondary);
+        white-space: nowrap;
+      }
+    }
+  }
+
+  .stats-cards {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+
+    .stat-card {
+      flex: 1;
+      min-width: 180px;
+
+      :deep(.el-card__body) {
+        padding: 16px;
+      }
+
+      &__header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--el-text-color-secondary);
+        margin-bottom: 8px;
+
+        .stat-icon {
+          font-size: 18px;
+
+          &.sent {
+            color: var(--el-color-danger);
+          }
+
+          &.received {
+            color: var(--el-color-success);
+          }
+        }
+      }
+
+      &__value {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--el-text-color-primary);
+        margin-bottom: 4px;
+      }
+
+      &__sub {
+        font-size: 13px;
+        color: var(--el-color-primary);
+        font-weight: 500;
+      }
+    }
+  }
+
+  .data-list {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: var(--el-border-color-light);
+      border-radius: 2px;
+    }
+  }
+
+  .data-card {
+    margin-bottom: 8px;
+
+    :deep(.el-card__body) {
+      padding: 14px 16px;
+    }
+
+    &__main {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    &__left {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    &__info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    &__session,
+    &__desc {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .label {
+        font-size: 12px;
+        color: var(--el-text-color-secondary);
+        flex-shrink: 0;
+      }
+
+      .value {
+        font-size: 13px;
+        color: var(--el-text-color-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        &.clickable {
+          color: var(--el-color-primary);
+          cursor: pointer;
+
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+    }
+
+    &__right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    &__amount {
+      font-size: 18px;
+      font-weight: 700;
+
+      &.is-sent {
+        color: var(--el-color-danger);
+      }
+
+      &.is-received {
+        color: var(--el-color-success);
+      }
+    }
+
+    &__time {
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
+    }
+  }
+
+  .pagination-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0 4px;
+    flex-shrink: 0;
+  }
+}
+
+// 列表动画
+.list-fade-enter-active,
+.list-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.list-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.list-fade-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+</style>

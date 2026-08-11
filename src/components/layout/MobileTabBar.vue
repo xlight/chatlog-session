@@ -36,6 +36,12 @@ const tabs: TabItem[] = [
     badge: null
   },
   {
+    key: 'social',
+    label: '社交',
+    icon: 'Collection',
+    badge: null
+  },
+  {
     key: 'settings',
     label: '设置',
     icon: 'Setting',

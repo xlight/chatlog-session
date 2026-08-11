@@ -90,6 +90,7 @@ onMounted(async () => {
 // 处理主题变化
 const handleThemeChange = (theme: string) => {
   settingsStore.appearance.theme = theme as 'light' | 'dark' | 'auto'
+  appStore.updateIsDark()
   appStore.setupThemeListener()
   appStore.applyTheme()
   ElMessage.success('主题已切换')

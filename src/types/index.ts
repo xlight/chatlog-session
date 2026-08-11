@@ -14,6 +14,9 @@ export * from './session'
 // 联系人相关类型
 export * from './contact'
 
+// 社交 & 财务相关类型
+export * from './social'
+
 // 应用相关类型
 export interface AppConfig {
   title: string

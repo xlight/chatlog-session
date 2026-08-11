@@ -10,11 +10,15 @@ import mediaAPI from './media'
 import chatroomAPI from './chatroom'
 import { dashboardAPI } from './dashboard'
 import { sendmsgAPI } from './sendmsg'
+import { transferAPI } from './transfer'
+import { redPacketAPI } from './redpacket'
+import { favoriteAPI } from './favorite'
+import { momentsAPI } from './moments'
 
 /**
  * 导出所有 API
  */
-export { chatlogAPI, sessionAPI, contactAPI, mediaAPI, chatroomAPI, dashboardAPI, sendmsgAPI }
+export { chatlogAPI, sessionAPI, contactAPI, mediaAPI, chatroomAPI, dashboardAPI, sendmsgAPI, transferAPI, redPacketAPI, favoriteAPI, momentsAPI }
 export { BaseAPI } from './base'
 
 /**
@@ -28,6 +32,10 @@ export default {
   chatroom: chatroomAPI,
   dashboard: dashboardAPI,
   sendmsg: sendmsgAPI,
+  transfer: transferAPI,
+  redpacket: redPacketAPI,
+  favorite: favoriteAPI,
+  moments: momentsAPI,
 }
 
 /**

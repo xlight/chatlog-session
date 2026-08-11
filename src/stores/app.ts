@@ -397,6 +397,7 @@ export const useAppStore = defineStore('app', () => {
     loadSettings,
     saveSettings,
     updateSettings,
+    updateIsDark,
     toggleTheme,
     applyTheme,
     setupThemeListener,
