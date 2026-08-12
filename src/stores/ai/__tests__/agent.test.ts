@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAIAgentStore, deriveLevelPreset, applyLevelPreset } from '@/stores/ai/agent'
+import { useSessionStore } from '@/stores/session'
 import type { SessionAgentConfig } from '@/types/ai/agent'
+import type { Session } from '@/types/session'
 
 function freshStore() {
   sessionStorage.clear()
@@ -244,10 +246,27 @@ describe('persistedConfig defaults', () => {
 })
 
 describe('getEffectiveConfig', () => {
-  it('无会话覆盖时返回全局默认值', () => {
+  it('非置顶会话无覆盖时回落 L0 等效配置', () => {
     const store = freshStore()
     const config = store.getEffectiveConfig('test-session')
     expect(config.sessionId).toBe('test-session')
+    expect(config.levelPreset).toBe('L0')
+    expect(config.sendPermission).toBe('forbidden')
+    expect(config.observer.enabled).toBe(false)
+    expect(config.keywordMonitor.enabled).toBe(false)
+  })
+
+  it('置顶会话无覆盖时返回全局默认值', () => {
+    const store = freshStore()
+    const sessionStore = useSessionStore()
+    sessionStore.sessions.push({
+      id: 'pinned-1',
+      talker: 'pinned-1',
+      talkerName: '置顶会话',
+      isLocalPinned: true,
+    } as Session)
+    const config = store.getEffectiveConfig('pinned-1')
+    expect(config.sessionId).toBe('pinned-1')
     expect(config.levelPreset).toBe('Custom')
     expect(config.sendPermission).toBe('draft_confirm')
     expect(config.observer.enabled).toBe(false)
@@ -274,8 +293,15 @@ describe('getEffectiveConfig', () => {
     expect(store.getEffectiveConfig('s1').sendPermission).toBe('auto')
   })
 
-  it('清除会话配置后恢复全局默认', () => {
+  it('清除会话配置后恢复置顶会话全局默认', () => {
     const store = freshStore()
+    const sessionStore = useSessionStore()
+    sessionStore.sessions.push({
+      id: 's1',
+      talker: 's1',
+      talkerName: '测试会话',
+      isLocalPinned: true,
+    } as Session)
     store.setSessionConfig('s1', { sendPermission: 'auto' })
     store.clearSessionConfig('s1')
     expect(store.getEffectiveConfig('s1').sendPermission).toBe('draft_confirm')

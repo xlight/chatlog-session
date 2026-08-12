@@ -3,6 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import { useAIStream, type AIStreamStore } from '@/composables/useAIStream'
 import type {
   AIError,
@@ -139,6 +140,8 @@ describe('useAIStream', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // sendMessage 内部会调用 useMCPStore()，需要激活 Pinia
+    setActivePinia(createPinia())
     bundle = createMockStore()
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       cb(0)

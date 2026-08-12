@@ -92,8 +92,36 @@ describe('loadFromSession', () => {
     expect(store2.messages).toHaveLength(1)
     expect(store2.messages[0].content).toBe('你好')
     expect(store2.hasMermaidPrompt).toBe(true)
-    expect(store2.thinkingContent).toBe('推理中')
     expect(tags).toEqual([])
+  })
+
+  it('无 assistant 消息时 store 级 thinkingContent 迁移无处安放被清空', () => {
+    const store = createStore()
+    store.addMessage(SAMPLE_MSG)
+    store.thinkingContent = '推理中'
+    store.saveToSession(SESSION_A)
+
+    const store2 = createStore()
+    store2.loadFromSession(SESSION_A)
+
+    // 向后兼容迁移：thinkingContent 需迁移到 assistant 消息，仅 user 消息时无处安放 → 清空
+    expect(store2.thinkingContent).toBe('')
+    expect(store2.messages[0].thinkingContent).toBeUndefined()
+  })
+
+  it('store 级 thinkingContent 迁移到最后一条 assistant 消息', () => {
+    const store = createStore()
+    store.addMessage(SAMPLE_MSG)
+    store.addMessage({ role: 'assistant', content: '回复' })
+    store.thinkingContent = '深度思考中'
+    store.saveToSession(SESSION_A)
+
+    const store2 = createStore()
+    store2.loadFromSession(SESSION_A)
+
+    expect(store2.thinkingContent).toBe('')
+    expect(store2.messages[1].role).toBe('assistant')
+    expect(store2.messages[1].thinkingContent).toBe('深度思考中')
   })
 
   it('版本号不匹配时清除数据并返回空数组', () => {
