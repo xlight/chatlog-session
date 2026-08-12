@@ -17,6 +17,7 @@ import type {
   KeywordResult,
 } from '@/types/ai/agent'
 import { DEFAULT_MCP_TOOL_PERMISSION } from '@/types/ai/mcp'
+import { OBSERVER_ANALYZE_TEMPLATE_ID } from '@/stores/ai/prompt'
 
 const DEFAULT_CONFIG: AgentConfig = {
   enabled: false,
@@ -41,7 +42,7 @@ const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
     observerMaxContextMessages: 20,
     keywordEnabled: false,
     keywordMatchPatterns: [],
-    promptTemplateId: 'builtin-reply',
+    promptTemplateId: OBSERVER_ANALYZE_TEMPLATE_ID,
     maxAutoReplies: 0,
     cooldownMs: 600000,
     mcpTools: { ...DEFAULT_MCP_TOOL_PERMISSION },

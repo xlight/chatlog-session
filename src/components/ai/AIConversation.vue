@@ -20,6 +20,7 @@ const {
   contextTags,
   feeding,
   feedSessionContext,
+  feedCachedContext,
   removeContextTag,
   clearContextTags,
   restoreTags,
@@ -52,12 +53,13 @@ const { displayName: sessionDisplayName } = useSessionDisplayName({
 watch(
   () => sessionStore.currentSessionId,
   (newId, oldId) => {
-    if (oldId) conversation.saveToSession(oldId)
+    if (oldId) conversation.saveToSession(oldId, contextTags.value)
     conversation.clearConversation()
     clearContextTags()
     if (newId) {
       const tags = conversation.loadFromSession(newId)
       if (tags.length > 0) restoreTags(tags)
+      maybeAutoFeed()
     }
   }
 )
@@ -67,8 +69,34 @@ onMounted(() => {
   if (sid) {
     const tags = conversation.loadFromSession(sid)
     if (tags.length > 0) restoreTags(tags)
+    maybeAutoFeed()
   }
 })
+
+/**
+ * 空对话自动投喂：进入会话且对话为空且无已恢复上下文标签时，
+ * 从消息缓存投喂最近 200 条（不足全部）作为 system 上下文。
+ * 仅 AI 面板生效；用户清空上下文后再次进入可重新触发。
+ */
+function maybeAutoFeed() {
+  const sid = sessionStore.currentSessionId
+  if (!sid) return
+  if (conversation.hasMessages) return
+  if (contextTags.value.length > 0) return
+  const systemContent = feedCachedContext(sid, 200)
+  if (!systemContent) return
+
+  const session = currentSession.value
+  const displayName =
+    sessionDisplayName.value || session?.talkerName || session?.talker || '未知会话'
+  const systemMsg = {
+    role: 'system' as const,
+    content: `以下是会话「${displayName}」(${session?.talker}) 的最近聊天记录作为上下文：\n\n${systemContent}`,
+  }
+  const existingSystem = conversation.messages.filter((m) => m.role === 'system')
+  const nonSystem = conversation.messages.filter((m) => m.role !== 'system')
+  conversation.messages = [...existingSystem, systemMsg, ...nonSystem]
+}
 
 // 虚拟滚动
 const parentRef = ref<HTMLElement | null>(null)

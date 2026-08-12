@@ -4,8 +4,6 @@ import { useSessionStore } from '@/stores/session'
 import { triggerSessionAnalysis } from '@/composables/triggerSessionAnalysis'
 import type { Message } from '@/types/message'
 
-const MAX_CONTEXT_MESSAGES = 50
-
 class AnalysisQueue {
   private queue: string[] = []
   private running = new Set<string>()
@@ -43,10 +41,9 @@ class AnalysisQueue {
         console.log('[Observer:bg] skip: isAnalyzing', { sid })
         return
       }
-      const lastAnalysisMs = state.lastAnalysisTime > 1e12 ? state.lastAnalysisTime : state.lastAnalysisTime * 1000
-      const elapsed = Date.now() - lastAnalysisMs
-      if (elapsed < config.observer.intervalSeconds * 1000) {
-        console.log('[Observer:bg] skip: cooldown', { sid, elapsedSec: Math.floor(elapsed / 1000), intervalSec: config.observer.intervalSeconds })
+      // 冷却检查：基于 lastAnalysisAt（分析完成时刻），与增量游标语义分离
+      if (state.lastAnalysisAt && Date.now() - state.lastAnalysisAt < config.observer.intervalSeconds * 1000) {
+        console.log('[Observer:bg] skip: cooldown', { sid, elapsedSec: Math.floor((Date.now() - state.lastAnalysisAt) / 1000), intervalSec: config.observer.intervalSeconds })
         return
       }
 
@@ -92,10 +89,13 @@ class AnalysisQueue {
 }
 
 async function getContextMessagesForSession(sid: string): Promise<Message[]> {
+  const agentStore = useAIAgentStore()
+  const config = agentStore.getEffectiveConfig(sid)
   const cacheStore = useMessageCacheStore()
   const cached = cacheStore.get(sid)
   if (!cached || cached.length === 0) return [] // 无缓存直接跳过，避免触发 limit 50 的空请求
-  return cached.slice(-MAX_CONTEXT_MESSAGES)
+  const limit = config.observer.maxContextMessages > 0 ? config.observer.maxContextMessages : 50
+  return cached.slice(-limit)
 }
 
 export function useBackgroundObserver() {

@@ -208,14 +208,14 @@ graph TD
 
   // ==================== Persistence ====================
 
-  function saveToSession(sessionId: string): void {
+  function saveToSession(sessionId: string, contextTags: ContextTag[] = []): void {
     const data: SavedConversationData = {
       version: SAVE_VERSION,
       messages: messages.value.slice(0, MAX_SAVED_MESSAGES),
       hasMermaidPrompt: hasMermaidPrompt.value,
       thinkingContent: thinkingContent.value,
       thinkingVisible: thinkingVisible.value,
-      contextTags: [],
+      contextTags,
     }
     try {
       sessionStorage.setItem(storageKey(sessionId), JSON.stringify(data))

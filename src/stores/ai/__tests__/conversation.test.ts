@@ -162,15 +162,35 @@ describe('上下文切换流程', () => {
   it('切换后恢复时保留 contextTags', () => {
     const store = createStore()
     store.addMessage(SAMPLE_MSG)
-    // 模拟 contextTags 数据（通过 saveToSession 的序列化含 contextTags: []）
-    store.saveToSession(SESSION_A)
+    const tags = [
+      {
+        id: 'ctx-1',
+        sessionId: SESSION_A,
+        sessionName: '测试会话',
+        messageCount: 10,
+        timeRange: '10:00 ~ 11:00',
+        fedAt: Date.now(),
+      },
+    ]
+    store.saveToSession(SESSION_A, tags)
 
     // 切到 B 再切回 A
     store.clearConversation()
-    const tags = store.loadFromSession(SESSION_A)
+    const restored = store.loadFromSession(SESSION_A)
 
     expect(store.messages).toHaveLength(1)
     expect(store.messages[0].content).toBe('你好')
-    expect(tags).toEqual([])
+    expect(restored).toEqual(tags)
+  })
+
+  it('不传 contextTags 时恢复为空数组（兼容旧调用）', () => {
+    const store = createStore()
+    store.addMessage(SAMPLE_MSG)
+    store.saveToSession(SESSION_A)
+
+    store.clearConversation()
+    const restored = store.loadFromSession(SESSION_A)
+
+    expect(restored).toEqual([])
   })
 })

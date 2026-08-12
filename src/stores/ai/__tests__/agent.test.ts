@@ -237,7 +237,7 @@ describe('persistedConfig defaults', () => {
     expect(store.persistedConfig.defaults.observerAutoReply).toBe(false)
     expect(store.persistedConfig.defaults.keywordEnabled).toBe(false)
     expect(store.persistedConfig.defaults.keywordMatchPatterns).toEqual([])
-    expect(store.persistedConfig.defaults.promptTemplateId).toBe('builtin-reply')
+    expect(store.persistedConfig.defaults.promptTemplateId).toBe('observer-analyze')
     expect(store.persistedConfig.defaults.maxAutoReplies).toBe(0)
     expect(store.persistedConfig.defaults.cooldownMs).toBe(600000)
   })

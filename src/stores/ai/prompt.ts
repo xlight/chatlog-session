@@ -8,6 +8,11 @@ import type { PromptTemplate, PromptVariable } from '@/types/ai'
 const STORAGE_KEY_OVERRIDES = 'chatlog_prompt_overrides'
 const STORAGE_KEY_CUSTOM = 'chatlog_custom_prompts'
 
+// ==================== 内置分析模板 ID ====================
+
+/** Observer 分析调用默认使用的内置分析角色模板 ID */
+export const OBSERVER_ANALYZE_TEMPLATE_ID = 'observer-analyze'
+
 // ==================== 内置 Prompt 模板（只读） ====================
 
 const builtinPrompts: PromptTemplate[] = [
@@ -148,6 +153,18 @@ const builtinPrompts: PromptTemplate[] = [
       '请对以下消息做深入分析，包括：1）发送者可能的意图；2）情感倾向；3）潜在含义或潜台词；4）建议的应对方式。\n\n消息：\n{content}',
     variables: [{ name: 'content', description: '消息内容', source: 'auto' }],
     tags: ['分析', '右键'],
+  },
+  {
+    id: OBSERVER_ANALYZE_TEMPLATE_ID,
+    name: '旁观分析角色',
+    description: 'Observer 旁观分析的默认角色模板（system 角色，仅支持 {sessionName} 变量）',
+    category: 'builtin',
+    content:
+      '你是一个聊天分析助手，帮助用户理解群聊或私聊内容，提取关键信息并提供回复建议。输出使用中文。',
+    variables: [
+      { name: 'sessionName', description: '会话名称', source: 'auto', defaultValue: '当前会话' },
+    ],
+    tags: ['分析', 'Observer'],
   },
 ]
 

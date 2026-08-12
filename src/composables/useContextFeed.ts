@@ -3,6 +3,8 @@ import type { ContextTag } from '@/types/ai'
 import type { Session } from '@/types'
 import type { Message } from '@/types/message'
 import { useChatMessagesStore } from '@/stores/chatMessages'
+import { useMessageCacheStore } from '@/stores/messageCache'
+import { useSessionStore } from '@/stores/session'
 import { getMessageSummary } from '@/components/chat/message-types/config'
 
 export type FeedTimeRange = { seconds: number; label: string } | { type: 'today'; label: string } | { type: 'all'; label: string }
@@ -142,6 +144,43 @@ export function useContextFeed() {
     contextTags.value = contextTags.value.filter((t) => t.id !== id)
   }
 
+  /**
+   * 从消息缓存投喂：不依赖会话窗口是否已打开加载（自动投喂用）
+   * 取该会话缓存最近 limit 条（不足全部），返回格式化文本
+   */
+  function feedCachedContext(sessionId: string, limit = 200): string {
+    feeding.value = true
+
+    const cacheStore = useMessageCacheStore()
+    const sessionStore = useSessionStore()
+    const cached = cacheStore.get(sessionId)
+
+    if (!cached || cached.length === 0) {
+      feeding.value = false
+      return ''
+    }
+
+    const filtered = cached.slice(-limit)
+    const session = sessionStore.sessions.find((s) => s.id === sessionId)
+    const firstTime = formatTime(filtered[0].time, filtered[0].createTime)
+    const lastTime = formatTime(
+      filtered[filtered.length - 1].time,
+      filtered[filtered.length - 1].createTime
+    )
+    const tag: ContextTag = {
+      id: `ctx-${Date.now()}`,
+      sessionId,
+      sessionName: session?.name || session?.talkerName || '未知会话',
+      messageCount: filtered.length,
+      timeRange: `${firstTime} ~ ${lastTime}`,
+      fedAt: Date.now(),
+    }
+    contextTags.value.push(tag)
+
+    feeding.value = false
+    return filtered.map(formatMessage).join('\n')
+  }
+
   function clearContextTags() {
     contextTags.value = []
   }
@@ -155,6 +194,7 @@ export function useContextFeed() {
     feeding,
     contextSummary,
     feedSessionContext,
+    feedCachedContext,
     removeContextTag,
     clearContextTags,
     restoreTags,
