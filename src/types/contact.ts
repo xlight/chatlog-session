@@ -133,3 +133,60 @@ export interface BackendContact {
    */
   verifyFlag?: number
 }
+
+/**
+ * 公众号画像（对齐后端 model.OfficialAccount，snake_case；
+ * 区别于 getOfficialAccounts 返回的 Contact 子集——前者是画像维度，后者是列表筛选）
+ */
+export interface OfficialAccountProfile {
+  /** 公众号 userName（gh_ 开头） */
+  userName: string
+  /** 品牌图标 URL */
+  brandIconUrl: string
+  /** 品牌标记 */
+  brandFlag: number
+  /** 品牌信息 */
+  brandInfo: string
+  /** 注册主体 */
+  company: string
+  /** 外部信息 */
+  externalInfo: string
+  /** 类目 */
+  category: string
+  /** 关联小程序 */
+  miniPrograms: string[]
+}
+
+/**
+ * 群公告（对齐后端 model.ChatroomAnnouncement，snake_case）
+ */
+export interface ChatroomAnnouncement {
+  /** 群 ID（int64，前端 number 有精度边界，微信群 ID 在安全范围） */
+  roomId: number
+  /** 发布者 userName */
+  userName: string
+  /** 公告内容 */
+  announcement: string
+  /** 编辑者 */
+  editor: string
+  /** 发布时间（Unix 秒） */
+  publishTime: number
+  /** XML 原始公告 */
+  xmlAnnouncement: string
+}
+
+/** 公众号画像查询参数 */
+export interface OfficialAccountProfilesParams {
+  /** 关键词模糊匹配 */
+  keyword?: string
+  limit?: number
+  offset?: number
+}
+
+/** 群公告查询参数 */
+export interface ChatroomAnnouncementsParams {
+  /** 内容关键词模糊匹配 */
+  content?: string
+  limit?: number
+  offset?: number
+}

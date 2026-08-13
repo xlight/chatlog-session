@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { favoriteAPI } from '@/api/favorite'
+import { FAVORITE_TYPE_MAP } from '@/types/social'
 
 vi.mock('@/utils/request', () => ({
   request: {
@@ -51,6 +52,54 @@ describe('FavoriteAPI - 对齐与 tag 前端过滤', () => {
       { localId: 0, serverId: 0, name: '工作' },
       { localId: 0, serverId: 0, name: '重要' },
     ])
+  })
+
+  it('请求携带 content/from_usr 参数（keyword 已移除）', async () => {
+    mockGet.mockResolvedValueOnce({ items: [backendFavorite()], total: 1 })
+
+    await favoriteAPI.getFavorites({ content: '示例', fromUsr: 'wxid_a' })
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/favorite', {
+      content: '示例',
+      from_usr: 'wxid_a',
+    })
+  })
+
+  it('transform parsed（title/desc/link/cdnDataUrl）+ contentType 保留后端原值', async () => {
+    mockGet.mockResolvedValueOnce({
+      items: [
+        backendFavorite({
+          content_type: 'link',
+          parsed: {
+            desc: '示例描述',
+            link: 'https://example.com',
+            title: '示例标题',
+            cdn_data_url: 'https://example.com/data',
+          },
+        }),
+      ],
+      total: 1,
+    })
+
+    const response = await favoriteAPI.getFavorites()
+
+    const item = response.items[0]
+    expect(item.contentType).toBe('link')
+    expect(item.parsed).toEqual({
+      desc: '示例描述',
+      link: 'https://example.com',
+      title: '示例标题',
+      cdnDataUrl: 'https://example.com/data',
+    })
+  })
+
+  it('FAVORITE_TYPE_MAP 与后端 type 枚举语义对齐（14 文件/15 笔记/16 视频/18 笔记/19 小程序卡片）', () => {
+    expect(FAVORITE_TYPE_MAP[6]).toBeUndefined()
+    expect(FAVORITE_TYPE_MAP[14]).toBe('文件')
+    expect(FAVORITE_TYPE_MAP[15]).toBe('笔记')
+    expect(FAVORITE_TYPE_MAP[16]).toBe('视频')
+    expect(FAVORITE_TYPE_MAP[18]).toBe('笔记')
+    expect(FAVORITE_TYPE_MAP[19]).toBe('小程序卡片')
   })
 
   it('请求不再携带 tag 参数（后端忽略），tag 过滤拉大 limit 后前端过滤', async () => {

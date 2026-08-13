@@ -88,8 +88,11 @@ const ActiveComponent = computed(() => {
 
     <!-- 主内容区 -->
     <main class="social-view__content">
+      <!-- KeepAlive 缓存 Tab 组件，切换保留筛选/页码状态（微信数据静态，无需强制重建刷新） -->
       <Transition name="tab-fade" mode="out-in">
-        <component :is="ActiveComponent" :key="activeTab" />
+        <KeepAlive>
+          <component :is="ActiveComponent" :key="activeTab" />
+        </KeepAlive>
       </Transition>
     </main>
 

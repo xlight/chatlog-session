@@ -6,6 +6,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useMomentsStore } from '@/stores/moments'
+import type { Moment } from '@/types/social'
 import Loading from '@/components/common/Loading.vue'
 import Empty from '@/components/common/Empty.vue'
 import Error from '@/components/common/Error.vue'
@@ -18,6 +19,9 @@ const initialLoading = ref(true)
 
 // 用户名过滤
 const usernameFilter = ref('')
+
+// 内容关键词过滤（后端 content 参数）
+const contentFilter = ref('')
 
 // 展开的评论列表
 const expandedMoments = ref<Set<number>>(new Set())
@@ -62,10 +66,22 @@ function isExpanded(tid: number): boolean {
   return expandedMoments.value.has(tid)
 }
 
+/** 判断 URL 是否可被浏览器直接加载（http/https；本地路径降级） */
+function isHttpUrl(url?: string): boolean {
+  return !!url && /^https?:\/\//i.test(url)
+}
+
+/** 视频/未知类型占位描述 */
+function getMomentFallback(moment: Moment): string {
+  if (moment.contentType === 'video') return '视频动态（暂不支持播放）'
+  return '该动态内容暂不支持预览'
+}
+
 async function handleSearch() {
   currentPage.value = 1
   await momentsStore.fetch({
     username: usernameFilter.value || undefined,
+    content: contentFilter.value || undefined,
     limit: pageSize.value,
     offset: 0,
   })
@@ -115,6 +131,22 @@ onMounted(async () => {
         </el-input>
       </div>
 
+      <div class="filter-group">
+        <span class="filter-label">内容</span>
+        <el-input
+          v-model="contentFilter"
+          size="small"
+          placeholder="搜索动态内容…"
+          clearable
+          style="width: 200px"
+          @keyup.enter="handleSearch"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+      </div>
+
       <el-button type="primary" size="small" :loading="momentsStore.loading" @click="handleSearch">
         <el-icon class="el-icon--left"><Search /></el-icon>
         查询
@@ -151,12 +183,16 @@ onMounted(async () => {
             </div>
             <div class="moment-card__author">
               <span class="author-name">{{ moment.nickname || moment.username }}</span>
+              <el-tag v-if="moment.isTop" size="small" type="warning" effect="plain" class="top-tag">
+                置顶
+              </el-tag>
               <span class="author-time">{{ formatRelativeTime(moment.createTime) }}</span>
             </div>
           </div>
 
           <!-- 内容 -->
           <div class="moment-card__body">
+            <!-- 文本 -->
             <template v-if="moment.contentType === 'text' && moment.content">
               <p
                 class="moment-text"
@@ -173,10 +209,53 @@ onMounted(async () => {
                 {{ isExpanded(moment.tid) ? '收起' : '展开全文' }}
               </span>
             </template>
+
+            <!-- 链接卡片（标题 + 分享来源） -->
+            <template v-else-if="moment.contentType === 'link'">
+              <a
+                v-if="isHttpUrl(moment.url)"
+                class="moment-link-card"
+                :href="moment.url"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span class="link-title">{{ moment.title || '链接' }}</span>
+                <span v-if="moment.sourceNickName" class="link-source">
+                  分享自 {{ moment.sourceNickName }}
+                </span>
+              </a>
+              <div v-else class="moment-link-card">
+                <span class="link-title">{{ moment.title || '链接' }}</span>
+                <span v-if="moment.sourceNickName" class="link-source">
+                  分享自 {{ moment.sourceNickName }}
+                </span>
+              </div>
+            </template>
+
+            <!-- 图片缩略图网格（URL 不可达时降级文字） -->
+            <template v-else-if="moment.contentType === 'image'">
+              <div v-if="moment.mediaList && moment.mediaList.length > 0" class="moment-images">
+                <template v-for="(media, idx) in moment.mediaList" :key="idx">
+                  <img
+                    v-if="isHttpUrl(media.thumb || media.hdThumb || media.url)"
+                    class="moment-image"
+                    :src="media.thumb || media.hdThumb || media.url"
+                    :alt="moment.content || '朋友圈图片'"
+                    loading="lazy"
+                  />
+                </template>
+              </div>
+              <div v-else class="moment-protobuf">
+                <el-icon size="16"><Picture /></el-icon>
+                <span>图片动态（{{ moment.mediaList?.length ?? '?' }} 张，暂无法预览）</span>
+              </div>
+            </template>
+
+            <!-- 视频/未知类型占位 -->
             <template v-else>
               <div class="moment-protobuf">
                 <el-icon size="16"><WarningFilled /></el-icon>
-                <span>该动态内容暂不支持预览</span>
+                <span>{{ getMomentFallback(moment) }}</span>
               </div>
             </template>
           </div>
@@ -185,7 +264,7 @@ onMounted(async () => {
           <div v-if="moment.likes.length > 0 || moment.comments.length > 0" class="moment-card__interactions">
             <!-- 点赞列表 -->
             <div v-if="moment.likes.length > 0" class="interaction-likes">
-              <el-icon size="14" class="like-icon"><ThumbsUp /></el-icon>
+              <el-icon size="14" class="like-icon"><Goods /></el-icon>
               <span
                 v-for="(like, idx) in moment.likes"
                 :key="idx"
@@ -331,6 +410,11 @@ onMounted(async () => {
         color: var(--el-text-color-primary);
       }
 
+      .top-tag {
+        align-self: flex-start;
+        margin: 2px 0;
+      }
+
       .author-time {
         font-size: 12px;
         color: var(--el-text-color-secondary);
@@ -372,6 +456,52 @@ onMounted(async () => {
         border-radius: 6px;
         font-size: 13px;
         color: var(--el-text-color-secondary);
+      }
+
+      .moment-link-card {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px 12px;
+        border: 1px solid var(--el-border-color-lighter);
+        border-radius: 6px;
+        text-decoration: none;
+        transition: border-color 0.2s;
+
+        &:hover {
+          border-color: var(--el-color-primary);
+        }
+
+        .link-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--el-text-color-primary);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .link-source {
+          font-size: 12px;
+          color: var(--el-text-color-secondary);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+
+      .moment-images {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 6px;
+
+        .moment-image {
+          width: 100%;
+          aspect-ratio: 1;
+          object-fit: cover;
+          border-radius: 6px;
+          background-color: var(--el-fill-color-light);
+        }
       }
     }
 

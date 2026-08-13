@@ -58,6 +58,9 @@ class RedPacketAPI {
     if (params?.direction && params.direction !== 'all') {
       queryParams.direction = params.direction
     }
+    if (params?.talker) {
+      queryParams.talker = params.talker
+    }
     if (params?.limit) {
       queryParams.limit = params.limit
     }

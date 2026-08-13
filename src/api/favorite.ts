@@ -4,7 +4,7 @@
  */
 
 import { request } from '@/utils/request'
-import type { Favorite, FavoriteResponse, FavoriteParams, FavoriteTag } from '@/types/social'
+import type { Favorite, FavoriteParsed, FavoriteResponse, FavoriteParams, FavoriteTag } from '@/types/social'
 
 /**
  * tag 过滤时的大 limit（后端 /favorite limit<=0 会重置为默认 20，无法全量拉取）
@@ -28,7 +28,30 @@ interface BackendFavorite {
   upload_status: number
   from_usr: string
   real_chat_name: string
+  parsed?: BackendFavoriteParsed
   tags?: string[]
+}
+
+/**
+ * 后端收藏解析内容（swagger model.FavoriteParsed，snake_case）
+ */
+interface BackendFavoriteParsed {
+  desc?: string
+  link?: string
+  title?: string
+  cdn_data_url?: string
+}
+
+/**
+ * 转换后端收藏解析内容（snake_case → camelCase）
+ */
+function transformFavoriteParsed(backend: BackendFavoriteParsed): FavoriteParsed {
+  return {
+    desc: backend.desc,
+    link: backend.link,
+    title: backend.title,
+    cdnDataUrl: backend.cdn_data_url,
+  }
 }
 
 /**
@@ -54,7 +77,9 @@ function transformFavorite(backend: BackendFavorite): Favorite {
     updateTime: backend.update_time,
     syncStatus: backend.sync_status,
     content: backend.content,
-    contentType: backend.content_type === 'text' ? 'text' : 'protobuf',
+    // contentType 保留后端原值（text/link/image/video/note/unknown），不再一锅归 protobuf
+    contentType: (backend.content_type as Favorite['contentType']) || 'unknown',
+    parsed: backend.parsed ? transformFavoriteParsed(backend.parsed) : undefined,
     // 后端 tags 为 string[]（无 id），localId/serverId 置 0 占位
     tags: (backend.tags || []).map((name): FavoriteTag => ({ localId: 0, serverId: 0, name })),
   }
@@ -75,8 +100,11 @@ class FavoriteAPI {
     if (params?.type) {
       queryParams.type = params.type
     }
-    if (params?.keyword) {
-      queryParams.keyword = params.keyword
+    if (params?.content) {
+      queryParams.content = params.content
+    }
+    if (params?.fromUsr) {
+      queryParams.from_usr = params.fromUsr
     }
     if (params?.limit) {
       queryParams.limit = params.limit
@@ -98,7 +126,8 @@ class FavoriteAPI {
     // tag 前端过滤：拉取大 limit 后按标签过滤，再截取当前页
     const all = await request.get<FavoriteResponse>(this.basePath, {
       type: params.type,
-      keyword: params.keyword,
+      content: params.content,
+      from_usr: params.fromUsr,
       limit: MAX_FETCH_LIMIT,
       offset: 0,
     })

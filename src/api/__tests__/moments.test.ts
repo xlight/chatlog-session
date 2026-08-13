@@ -44,7 +44,7 @@ describe('MomentsAPI - 数据层对齐', () => {
     expect(moment.likes).toEqual([])
   })
 
-  it('likes/comments 有值时转换；非 text 内容归 protobuf（不预览）', async () => {
+  it('likes/comments 有值时转换；contentType 保留后端原值（image 不再归 protobuf）', async () => {
     mockGet.mockResolvedValueOnce({
       items: [
         backendMoment({
@@ -66,7 +66,7 @@ describe('MomentsAPI - 数据层对齐', () => {
     const response = await momentsAPI.getMoments({ limit: 20 })
 
     const moment = response.items[0]
-    expect(moment.contentType).toBe('protobuf')
+    expect(moment.contentType).toBe('image')
     expect(moment.comments).toEqual([
       {
         fromUsername: 'wxid_b',
@@ -76,5 +76,45 @@ describe('MomentsAPI - 数据层对齐', () => {
       },
     ])
     expect(moment.likes).toEqual([{ fromUsername: 'wxid_c', fromNickname: '联系人C' }])
+  })
+
+  it('透传 content 参数（正文关键词过滤）', async () => {
+    mockGet.mockResolvedValueOnce({ items: [backendMoment()], total: 1 })
+
+    await momentsAPI.getMoments({ content: '天气', limit: 20 })
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/moment', { content: '天气', limit: 20 })
+  })
+
+  it('transform 消费 media_list/title/url/source_nick_name/is_top/location', async () => {
+    mockGet.mockResolvedValueOnce({
+      items: [
+        backendMoment({
+          content_type: 'image',
+          title: '示例标题',
+          url: 'https://example.com/article',
+          source_nick_name: '分享者',
+          is_top: true,
+          location: { lat: 39.9, lng: 116.4, poi_name: '示例地点', poi_address: '北京市' },
+          media_list: [
+            { type: 1, thumb: 'https://example.com/thumb.jpg', hd_thumb: 'https://example.com/hd.jpg', url: 'https://example.com/img.jpg', description: '图1' },
+          ],
+        }),
+      ],
+      total: 1,
+    })
+
+    const response = await momentsAPI.getMoments({ limit: 20 })
+
+    const moment = response.items[0]
+    expect(moment.contentType).toBe('image')
+    expect(moment.title).toBe('示例标题')
+    expect(moment.url).toBe('https://example.com/article')
+    expect(moment.sourceNickName).toBe('分享者')
+    expect(moment.isTop).toBe(true)
+    expect(moment.location).toEqual({ lat: 39.9, lng: 116.4, poiName: '示例地点', poiAddress: '北京市' })
+    expect(moment.mediaList).toEqual([
+      { type: 1, thumb: 'https://example.com/thumb.jpg', hdThumb: 'https://example.com/hd.jpg', url: 'https://example.com/img.jpg', description: '图1' },
+    ])
   })
 })

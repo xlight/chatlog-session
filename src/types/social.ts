@@ -59,6 +59,10 @@ export interface TransferParams {
   /** 方向：sent=发出/received=收到（后端枚举，swagger Enums(sent, received)） */
   direction?: 'all' | 'sent' | 'received'
   year?: number
+  /** 会话标识模糊匹配（对齐后端 /transfer talker 参数） */
+  talker?: string
+  /** 时间范围（begin_transfer_time，原样透传，如 2026-01-01~2026-01-31 / last-7d / all） */
+  time?: string
   limit?: number
   offset?: number
 }
@@ -112,6 +116,8 @@ export interface RedPacketResponse {
 export interface RedPacketParams {
   /** 方向：sent=发出/received=收到（后端枚举，swagger Enums(sent, received)） */
   direction?: 'all' | 'sent' | 'received'
+  /** 会话标识模糊匹配（对齐后端 /redpacket talker 参数） */
+  talker?: string
   limit?: number
   offset?: number
 }
@@ -128,6 +134,18 @@ export interface FavoriteTag {
   name: string
   /** 标签下收藏数量 */
   count?: number
+}
+
+/** 收藏解析内容（对齐后端 model.FavoriteParsed，favitem XML 解析结果） */
+export interface FavoriteParsed {
+  /** 描述 */
+  desc?: string
+  /** 链接 */
+  link?: string
+  /** 标题 */
+  title?: string
+  /** CDN 数据 URL（图片等） */
+  cdnDataUrl?: string
 }
 
 /** 收藏条目 */
@@ -148,10 +166,12 @@ export interface Favorite {
   syncStatus: number
   /** 内容（text-decodable 时返回） */
   content?: string
-  /** 内容类型 */
-  contentType: 'text' | 'protobuf'
+  /** 内容类型（后端 content_type：text/link/image/video/note/unknown） */
+  contentType: 'text' | 'link' | 'image' | 'video' | 'note' | 'unknown'
   /** 内容大小（protobuf 时返回） */
   contentSize?: number
+  /** 解析内容（链接标题/描述/图片等，后端 parsed 字段） */
+  parsed?: FavoriteParsed
   /** 关联标签 */
   tags: FavoriteTag[]
 }
@@ -167,22 +187,26 @@ export interface FavoriteResponse {
 export interface FavoriteParams {
   tag?: string
   type?: number
-  keyword?: string
+  /** 内容关键词模糊匹配（对齐后端 /favorite content 参数） */
+  content?: string
+  /** 来源用户 wxid 模糊匹配（对齐后端 /favorite from_usr 参数） */
+  fromUsr?: string
   limit?: number
   offset?: number
 }
 
-/** 收藏类型映射 */
+/** 收藏类型映射（对齐后端 type 枚举：1文本/2图片/3语音/4视频/5链接/14文件/15笔记/16视频/18笔记/19小程序卡片） */
 export const FAVORITE_TYPE_MAP: Record<number, string> = {
   1: '文本',
   2: '图片',
   3: '语音',
   4: '视频',
   5: '链接',
-  6: '文件',
-  14: '位置',
-  15: '音乐',
-  16: '聊天记录',
+  14: '文件',
+  15: '笔记',
+  16: '视频',
+  18: '笔记',
+  19: '小程序卡片',
 }
 
 // ==================== 朋友圈 ====================
@@ -207,6 +231,28 @@ export interface MomentLike {
   fromNickname: string
 }
 
+/** 朋友圈媒体项（对齐后端 model.MediaItem） */
+export interface MomentMedia {
+  /** 媒体类型 */
+  type?: number
+  /** 缩略图 URL */
+  thumb?: string
+  /** 高清缩略图 URL */
+  hdThumb?: string
+  /** 媒体 URL */
+  url?: string
+  /** 描述 */
+  description?: string
+}
+
+/** 朋友圈位置（对齐后端 model.MomentLocation） */
+export interface MomentLocation {
+  lat: number
+  lng: number
+  poiName?: string
+  poiAddress?: string
+}
+
 /** 朋友圈动态（对齐后端 model.ParsedMoment；likes/comments 后端 omitempty 缺失时为空数组） */
 export interface Moment {
   /** 时间线 ID */
@@ -217,10 +263,22 @@ export interface Moment {
   nickname: string
   /** 创建时间（Unix 时间戳） */
   createTime: number
-  /** 内容类型（后端 text/image/link/video/unknown，前端仅 text 可预览） */
-  contentType: 'text' | 'protobuf'
+  /** 内容类型（后端 text/image/link/video/unknown） */
+  contentType: 'text' | 'image' | 'link' | 'video' | 'unknown'
   /** 文本内容 */
   content?: string
+  /** 链接标题（link 类型） */
+  title?: string
+  /** 链接 URL（link 类型） */
+  url?: string
+  /** 分享来源昵称 */
+  sourceNickName?: string
+  /** 是否置顶 */
+  isTop?: boolean
+  /** 位置 */
+  location?: MomentLocation
+  /** 媒体列表（image 类型） */
+  mediaList?: MomentMedia[]
   /** 评论列表 */
   comments: MomentComment[]
   /** 点赞列表 */
@@ -236,6 +294,8 @@ export interface MomentsResponse {
 /** 朋友圈查询参数 */
 export interface MomentsParams {
   username?: string
+  /** 正文内容关键词模糊匹配（对齐后端 /moment content 参数） */
+  content?: string
   limit?: number
   offset?: number
 }

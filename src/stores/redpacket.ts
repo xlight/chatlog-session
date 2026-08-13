@@ -76,6 +76,13 @@ export const useRedPacketStore = defineStore('redpacket', () => {
   }
 
   /**
+   * 设置会话过滤（后端 talker 参数，传 undefined 清空恢复全部）
+   */
+  function setTalker(talker?: string) {
+    currentParams.value.talker = talker || undefined
+  }
+
+  /**
    * 设置分页
    */
   function setPage(limit: number, offset: number) {
@@ -95,6 +102,6 @@ export const useRedPacketStore = defineStore('redpacket', () => {
   return {
     items, total, loading, error, currentParams,
     hasMore,
-    fetch, setDirection, setPage, $reset,
+    fetch, setDirection, setTalker, setPage, $reset,
   }
 })

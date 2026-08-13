@@ -83,6 +83,13 @@ export const useTransferStore = defineStore('transfer', () => {
   }
 
   /**
+   * 设置会话过滤（后端 talker 参数，传 undefined 清空恢复全部）
+   */
+  function setTalker(talker?: string) {
+    currentParams.value.talker = talker || undefined
+  }
+
+  /**
    * 设置分页
    */
   function setPage(limit: number, offset: number) {
@@ -102,6 +109,6 @@ export const useTransferStore = defineStore('transfer', () => {
   return {
     items, total, loading, error, currentParams,
     hasMore,
-    fetch, setDirection, setYear, setPage, $reset,
+    fetch, setDirection, setYear, setTalker, setPage, $reset,
   }
 })

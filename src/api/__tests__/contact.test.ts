@@ -110,4 +110,85 @@ describe('ContactAPI - API 客户端对齐', () => {
 
     expect(members).toEqual([])
   })
+
+  it('getOfficialAccountProfiles 走画像端点，显式 limit 50 并 transform snake_case', async () => {
+    mockGet.mockResolvedValueOnce({
+      items: [
+        {
+          user_name: 'gh_xxx',
+          brand_icon_url: 'https://example.com/icon.jpg',
+          brand_flag: 1,
+          brand_info: '认证信息',
+          company: '示例公司',
+          external_info: '外部信息',
+          category: '科技',
+          mini_programs: ['wxapp_1', 'wxapp_2'],
+        },
+      ],
+      total: 1,
+    })
+
+    const profiles = await contactAPI.getOfficialAccountProfiles()
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/contact/official-accounts', { limit: 50 })
+    expect(profiles[0]).toEqual({
+      userName: 'gh_xxx',
+      brandIconUrl: 'https://example.com/icon.jpg',
+      brandFlag: 1,
+      brandInfo: '认证信息',
+      company: '示例公司',
+      externalInfo: '外部信息',
+      category: '科技',
+      miniPrograms: ['wxapp_1', 'wxapp_2'],
+    })
+  })
+
+  it('getOfficialAccountProfiles 透传 keyword 参数', async () => {
+    mockGet.mockResolvedValueOnce({ items: [], total: 0 })
+
+    await contactAPI.getOfficialAccountProfiles({ keyword: '示例', limit: 20 })
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/contact/official-accounts', {
+      keyword: '示例',
+      limit: 20,
+    })
+  })
+
+  it('getAnnouncements 走公告端点，显式 limit 50 并 transform snake_case', async () => {
+    mockGet.mockResolvedValueOnce({
+      items: [
+        {
+          room_id: 1000001,
+          user_name: 'room@chatroom',
+          announcement: '群公告内容',
+          editor: 'wxid_a',
+          publish_time: 1723075200,
+          xml_announcement: '<xml>群公告</xml>',
+        },
+      ],
+    })
+
+    const announcements = await contactAPI.getAnnouncements()
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/contact/announcements', { limit: 50 })
+    expect(announcements[0]).toEqual({
+      roomId: 1000001,
+      userName: 'room@chatroom',
+      announcement: '群公告内容',
+      editor: 'wxid_a',
+      publishTime: 1723075200,
+      xmlAnnouncement: '<xml>群公告</xml>',
+    })
+  })
+
+  it('getAnnouncements 透传 content 参数', async () => {
+    mockGet.mockResolvedValueOnce({ items: [] })
+
+    await contactAPI.getAnnouncements({ content: '公告', limit: 20 })
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/contact/announcements', {
+      content: '公告',
+      limit: 20,
+    })
+  })
 })

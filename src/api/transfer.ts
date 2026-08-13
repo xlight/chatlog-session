@@ -67,6 +67,13 @@ class TransferAPI {
     if (params?.year) {
       queryParams.year = params.year
     }
+    if (params?.talker) {
+      queryParams.talker = params.talker
+    }
+    // time 原样透传（后端 TimeRangeOf 解析），与 year 并存两者都传（后端 time 优先）
+    if (params?.time) {
+      queryParams.time = params.time
+    }
     if (params?.limit) {
       queryParams.limit = params.limit
     }

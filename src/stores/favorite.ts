@@ -100,10 +100,17 @@ export const useFavoriteStore = defineStore('favorite', () => {
   }
 
   /**
-   * 设置关键词搜索
+   * 设置内容关键词搜索（后端 content 参数）
    */
-  function setKeyword(keyword?: string) {
-    currentParams.value.keyword = keyword || undefined
+  function setContent(content?: string) {
+    currentParams.value.content = content || undefined
+  }
+
+  /**
+   * 设置来源用户筛选（后端 from_usr 参数，传 undefined 清空恢复全部）
+   */
+  function setFromUser(fromUsr?: string) {
+    currentParams.value.fromUsr = fromUsr || undefined
   }
 
   /**
@@ -127,6 +134,6 @@ export const useFavoriteStore = defineStore('favorite', () => {
   return {
     items, total, tags, loading, error, currentParams,
     hasMore,
-    fetch, fetchTags, setTag, setType, setKeyword, setPage, $reset,
+    fetch, fetchTags, setTag, setType, setContent, setFromUser, setPage, $reset,
   }
 })

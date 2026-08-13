@@ -24,12 +24,33 @@ interface BackendMomentLike {
   from_nickname?: string
 }
 
+interface BackendMomentMedia {
+  type?: number
+  thumb?: string
+  hd_thumb?: string
+  url?: string
+  description?: string
+}
+
+interface BackendMomentLocation {
+  lat: number
+  lng: number
+  poi_name?: string
+  poi_address?: string
+}
+
 interface BackendMoment {
   tid: number
   user_name: string
   nickname?: string
   content_type: string
   text_content?: string
+  title?: string
+  url?: string
+  source_nick_name?: string
+  is_top?: boolean
+  location?: BackendMomentLocation
+  media_list?: BackendMomentMedia[]
   create_time?: number
   comments?: BackendMomentComment[]
   likes?: BackendMomentLike[]
@@ -37,7 +58,7 @@ interface BackendMoment {
 
 /**
  * 转换后端朋友圈动态到前端格式（snake_case → camelCase；
- * 非 text 内容归 protobuf（前端不预览）；likes/comments 兜底空数组防渲染崩溃）
+ * contentType 保留后端原值（text/image/link/video/unknown）；likes/comments 兜底空数组防渲染崩溃）
  */
 function transformMoment(backend: BackendMoment): Moment {
   return {
@@ -45,8 +66,27 @@ function transformMoment(backend: BackendMoment): Moment {
     username: backend.user_name,
     nickname: backend.nickname ?? '',
     createTime: backend.create_time ?? 0,
-    contentType: backend.content_type === 'text' ? 'text' : 'protobuf',
+    contentType: (backend.content_type as Moment['contentType']) || 'unknown',
     content: backend.text_content ?? '',
+    title: backend.title,
+    url: backend.url,
+    sourceNickName: backend.source_nick_name,
+    isTop: backend.is_top,
+    location: backend.location
+      ? {
+          lat: backend.location.lat,
+          lng: backend.location.lng,
+          poiName: backend.location.poi_name,
+          poiAddress: backend.location.poi_address,
+        }
+      : undefined,
+    mediaList: (backend.media_list ?? []).map(media => ({
+      type: media.type,
+      thumb: media.thumb,
+      hdThumb: media.hd_thumb,
+      url: media.url,
+      description: media.description,
+    })),
     comments: (backend.comments ?? []).map(comment => ({
       fromUsername: comment.from_username,
       fromNickname: comment.from_nickname ?? '',
@@ -73,6 +113,9 @@ class MomentsAPI {
     const queryParams: Record<string, unknown> = {}
     if (params?.username) {
       queryParams.username = params.username
+    }
+    if (params?.content) {
+      queryParams.content = params.content
     }
     if (params?.limit) {
       queryParams.limit = params.limit

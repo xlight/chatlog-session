@@ -15,11 +15,14 @@ import { redPacketAPI } from './redpacket'
 import { favoriteAPI } from './favorite'
 import { momentsAPI } from './moments'
 import { searchAPI } from './search'
+import { emoticonAPI } from './emoticon'
+import { diaryAPI } from './diary'
+import { insightAPI } from './insight'
 
 /**
  * 导出所有 API
  */
-export { chatlogAPI, sessionAPI, contactAPI, mediaAPI, chatroomAPI, dashboardAPI, sendmsgAPI, transferAPI, redPacketAPI, favoriteAPI, momentsAPI, searchAPI }
+export { chatlogAPI, sessionAPI, contactAPI, mediaAPI, chatroomAPI, dashboardAPI, sendmsgAPI, transferAPI, redPacketAPI, favoriteAPI, momentsAPI, searchAPI, emoticonAPI, diaryAPI, insightAPI }
 export { BaseAPI } from './base'
 
 /**
@@ -38,6 +41,9 @@ export default {
   favorite: favoriteAPI,
   moments: momentsAPI,
   search: searchAPI,
+  emoticon: emoticonAPI,
+  diary: diaryAPI,
+  insight: insightAPI,
 }
 
 /**

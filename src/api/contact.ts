@@ -6,7 +6,8 @@
 import { request } from '@/utils/request'
 import { BaseAPI } from './base'
 import { chatroomAPI } from './chatroom'
-import type { Contact, BackendContact } from '@/types/contact'
+import type { Contact, BackendContact, OfficialAccountProfile, ChatroomAnnouncement } from '@/types/contact'
+import type { OfficialAccountProfilesParams, ChatroomAnnouncementsParams } from '@/types/contact'
 import { ContactType } from '@/types/contact'
 import type { ContactParams } from '@/types/api'
 
@@ -295,6 +296,87 @@ class ContactAPI extends BaseAPI<BackendContact, Contact> {
 
     // 其他字符归类到 #
     return '#'
+  }
+
+  /**
+   * 获取公众号画像列表
+   * GET /api/v1/contact/official-accounts（画像：注册主体/认证/类目/小程序）
+   * 显式传 limit 默认 50 对齐后端；区别于 getOfficialAccounts（联系人列表公众号子集）
+   *
+   * @param params 查询参数（keyword/limit/offset）
+   * @returns 公众号画像列表
+   */
+  async getOfficialAccountProfiles(
+    params?: OfficialAccountProfilesParams,
+  ): Promise<OfficialAccountProfile[]> {
+    const queryParams: Record<string, unknown> = {}
+    if (params?.keyword) {
+      queryParams.keyword = params.keyword
+    }
+    queryParams.limit = params?.limit ?? 50
+    if (params?.offset) {
+      queryParams.offset = params.offset
+    }
+    const response = await request.get<{
+      items: Array<{
+        user_name: string
+        brand_icon_url: string
+        brand_flag: number
+        brand_info: string
+        company: string
+        external_info: string
+        category: string
+        mini_programs: string[]
+      }>
+      total: number
+    }>('/api/v1/contact/official-accounts', queryParams)
+    return (response.items || []).map(item => ({
+      userName: item.user_name,
+      brandIconUrl: item.brand_icon_url,
+      brandFlag: item.brand_flag,
+      brandInfo: item.brand_info,
+      company: item.company,
+      externalInfo: item.external_info,
+      category: item.category,
+      miniPrograms: item.mini_programs || [],
+    }))
+  }
+
+  /**
+   * 获取群公告列表
+   * GET /api/v1/contact/announcements（content 内容模糊匹配）
+   * 显式传 limit 默认 50 对齐后端
+   *
+   * @param params 查询参数（content/limit/offset）
+   * @returns 群公告列表
+   */
+  async getAnnouncements(params?: ChatroomAnnouncementsParams): Promise<ChatroomAnnouncement[]> {
+    const queryParams: Record<string, unknown> = {}
+    if (params?.content) {
+      queryParams.content = params.content
+    }
+    queryParams.limit = params?.limit ?? 50
+    if (params?.offset) {
+      queryParams.offset = params.offset
+    }
+    const response = await request.get<{
+      items: Array<{
+        room_id: number
+        user_name: string
+        announcement: string
+        editor: string
+        publish_time: number
+        xml_announcement: string
+      }>
+    }>('/api/v1/contact/announcements', queryParams)
+    return (response.items || []).map(item => ({
+      roomId: item.room_id,
+      userName: item.user_name,
+      announcement: item.announcement,
+      editor: item.editor,
+      publishTime: item.publish_time,
+      xmlAnnouncement: item.xml_announcement,
+    }))
   }
 }
 

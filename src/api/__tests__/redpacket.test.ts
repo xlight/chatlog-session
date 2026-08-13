@@ -63,4 +63,15 @@ describe('RedPacketAPI - 数据层对齐', () => {
     expect(response.items[0].blessing).toBe('')
     expect(response.items[0].isSender).toBe(false)
   })
+
+  it('透传 talker 参数（会话过滤）', async () => {
+    mockGet.mockResolvedValueOnce({ items: [backendRedPacket()], total: 1 })
+
+    await redPacketAPI.getRedPackets({ talker: 'room@chatroom', limit: 20 })
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/redpacket', {
+      talker: 'room@chatroom',
+      limit: 20,
+    })
+  })
 })

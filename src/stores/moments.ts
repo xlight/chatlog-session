@@ -75,6 +75,13 @@ export const useMomentsStore = defineStore('moments', () => {
   }
 
   /**
+   * 设置内容关键词过滤（后端 content 参数，传 undefined 清空恢复全部）
+   */
+  function setContent(content?: string) {
+    currentParams.value.content = content || undefined
+  }
+
+  /**
    * 设置分页
    */
   function setPage(limit: number, offset: number) {
@@ -94,6 +101,6 @@ export const useMomentsStore = defineStore('moments', () => {
   return {
     items, total, loading, error, currentParams,
     hasMore,
-    fetch, setUsername, setPage, $reset,
+    fetch, setUsername, setContent, setPage, $reset,
   }
 })

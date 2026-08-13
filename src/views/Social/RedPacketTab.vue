@@ -24,6 +24,17 @@ const directionOptions = [
 ]
 
 const selectedDirection = ref('all')
+
+// 会话过滤（后端 talker 参数，选项来自当前列表的会话名，支持自由输入）
+const selectedTalker = ref('')
+const talkerOptions = computed(() => {
+  const names = new Set<string>()
+  redPacketStore.items.forEach(item => {
+    if (item.sessionName) names.add(item.sessionName)
+  })
+  return [...names]
+})
+
 const currentPage = ref(1)
 const pageSize = ref(20)
 const initialLoading = ref(true)
@@ -83,9 +94,21 @@ async function handleSearch() {
   currentPage.value = 1
   await redPacketStore.fetch({
     direction: selectedDirection.value as 'all' | 'sent' | 'received',
+    talker: selectedTalker.value || undefined,
     limit: pageSize.value,
     offset: 0,
   })
+}
+
+// 是否有生效的筛选条件（对齐 favorite 的清除筛选模式）
+const hasActiveFilters = computed(() => {
+  return selectedDirection.value !== 'all' || selectedTalker.value !== ''
+})
+
+function handleClearFilters() {
+  selectedDirection.value = 'all'
+  selectedTalker.value = ''
+  handleSearch()
 }
 
 async function handlePageChange(page: number) {
@@ -132,6 +155,35 @@ onMounted(async () => {
           />
         </el-select>
       </div>
+
+      <div class="filter-group">
+        <span class="filter-label">会话</span>
+        <el-select
+          v-model="selectedTalker"
+          style="width: 180px"
+          size="small"
+          clearable
+          filterable
+          allow-create
+          placeholder="全部会话"
+          @change="handleSearch"
+        >
+          <el-option
+            v-for="name in talkerOptions"
+            :key="name"
+            :label="name"
+            :value="name"
+          />
+        </el-select>
+      </div>
+
+      <el-button
+        v-if="hasActiveFilters"
+        size="small"
+        @click="handleClearFilters"
+      >
+        清除筛选
+      </el-button>
 
       <el-button type="primary" size="small" :loading="redPacketStore.loading" @click="handleSearch">
         <el-icon class="el-icon--left"><Search /></el-icon>

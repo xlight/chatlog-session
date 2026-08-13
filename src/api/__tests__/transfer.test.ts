@@ -73,4 +73,24 @@ describe('TransferAPI - 数据层对齐', () => {
 
     expect(response.items[0].amount).toBe(0)
   })
+
+  it('透传 talker/time 参数（time 原样传递，与 year 并存两者都传）', async () => {
+    mockGet.mockResolvedValueOnce({ items: [backendTransfer()], total: 1 })
+
+    await transferAPI.getTransfers({
+      talker: 'wxid_b',
+      time: '2026-01-01~2026-01-31',
+      year: 2026,
+      limit: 20,
+    })
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/transfer', {
+      direction: undefined,
+      year: 2026,
+      talker: 'wxid_b',
+      time: '2026-01-01~2026-01-31',
+      limit: 20,
+      offset: undefined,
+    })
+  })
 })
