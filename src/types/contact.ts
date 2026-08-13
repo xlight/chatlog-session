@@ -128,4 +128,8 @@ export interface BackendContact {
   bigHeadImgUrl?: string
   smallHeadImgUrl?: string
   headImgMd5?: string
+  /**
+   * 认证标记（swagger model.Contact）：0=个人、8/24=公众号、29=服务号、其余大值=公众号认证
+   */
+  verifyFlag?: number
 }

@@ -5,7 +5,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { transferAPI } from '@/api/transfer'
-import type { Transfer, TransferStats, TransferParams } from '@/types/social'
+import type { Transfer, TransferParams } from '@/types/social'
 import { useAppStore } from './app'
 
 export const useTransferStore = defineStore('transfer', () => {
@@ -18,9 +18,6 @@ export const useTransferStore = defineStore('transfer', () => {
 
   /** 总数 */
   const total = ref(0)
-
-  /** 统计 */
-  const stats = ref<TransferStats>({ sentCount: 0, receivedCount: 0 })
 
   /** 加载状态 */
   const loading = ref(false)
@@ -40,19 +37,6 @@ export const useTransferStore = defineStore('transfer', () => {
   /** 是否有更多数据 */
   const hasMore = computed(() => items.value.length < total.value)
 
-  /** 格式化后的金额（元） */
-  const sentAmountTotal = computed(() => {
-    return items.value
-      .filter(t => t.isSender)
-      .reduce((sum, t) => sum + t.amount, 0) / 100
-  })
-
-  const receivedAmountTotal = computed(() => {
-    return items.value
-      .filter(t => !t.isSender)
-      .reduce((sum, t) => sum + t.amount, 0) / 100
-  })
-
   // ==================== Actions ====================
 
   /**
@@ -70,7 +54,6 @@ export const useTransferStore = defineStore('transfer', () => {
       const response = await transferAPI.getTransfers(currentParams.value)
       items.value = response.items
       total.value = response.total
-      stats.value = response.stats
 
       if (appStore.isDebug) {
         console.log(`📦 转账: 获取 ${response.items.length}/${response.total} 条`)
@@ -88,7 +71,7 @@ export const useTransferStore = defineStore('transfer', () => {
   /**
    * 设置方向过滤
    */
-  function setDirection(direction: 'all' | 'out' | 'in') {
+  function setDirection(direction: 'all' | 'sent' | 'received') {
     currentParams.value.direction = direction
   }
 
@@ -111,15 +94,14 @@ export const useTransferStore = defineStore('transfer', () => {
   function $reset() {
     items.value = []
     total.value = 0
-    stats.value = { sentCount: 0, receivedCount: 0 }
     loading.value = false
     error.value = null
     currentParams.value = { direction: 'all', limit: 20, offset: 0 }
   }
 
   return {
-    items, total, stats, loading, error, currentParams,
-    hasMore, sentAmountTotal, receivedAmountTotal,
+    items, total, loading, error, currentParams,
+    hasMore,
     fetch, setDirection, setYear, setPage, $reset,
   }
 })

@@ -5,6 +5,7 @@
 
 import { request } from '@/utils/request'
 import { BaseAPI } from './base'
+import { chatroomAPI } from './chatroom'
 import type { Contact, BackendContact } from '@/types/contact'
 import { ContactType } from '@/types/contact'
 import type { ContactParams } from '@/types/api'
@@ -24,14 +25,16 @@ function getAvatarUrl(username?: string): string {
  * 转换后端联系人数据到前端格式
  */
 function transformContact(backendContact: BackendContact): Contact {
-  // 判断联系人类型
+  // 判断联系人类型：@chatroom 优先，其次基于后端 verifyFlag，缺失回落前缀推断
   let type: ContactType
   if (backendContact.userName.endsWith('@chatroom')) {
     type = ContactType.Chatroom
+  } else if (backendContact.verifyFlag === 8 || backendContact.verifyFlag === 24) {
+    type = ContactType.Official
+  } else if (backendContact.verifyFlag === 29) {
+    type = ContactType.Official
   } else if (backendContact.userName.startsWith('gh_')) {
     type = ContactType.Official
-  } else if (backendContact.userName.endsWith('@openim')) {
-    type = ContactType.Friend
   } else {
     type = ContactType.Friend
   }
@@ -79,43 +82,43 @@ class ContactAPI extends BaseAPI<BackendContact, Contact> {
 
   /**
    * 获取联系人详情
-   * GET /api/v1/contact/:wxid
+   * 后端无 /api/v1/contact/:wxid 路由（404），改用 keyword 精确搜索（后端 `=` 匹配）+ userName 匹配
    *
    * @param wxid 联系人微信 ID
-   * @returns 联系人详情
+   * @returns 联系人详情，未命中返回 null
    */
-  async getContactDetail(wxid: string): Promise<Contact> {
-    const response = await request.get<BackendContact>(`/api/v1/contact/${encodeURIComponent(wxid)}`)
-    return transformContact(response)
+  async getContactDetail(wxid: string): Promise<Contact | null> {
+    const contacts = await this.getContacts({ keyword: wxid, limit: 0 })
+    return contacts.find(c => c.wxid === wxid) || null
   }
 
   /**
-   * 获取群聊列表（前端过滤）
+   * 获取群聊列表（前端过滤，全量拉取）
    *
    * @returns 群聊列表
    */
   async getChatrooms(): Promise<Contact[]> {
-    const all = await this.getContacts()
+    const all = await this.getContacts({ limit: 0 })
     return all.filter(c => c.type === ContactType.Chatroom)
   }
 
   /**
-   * 获取好友列表（前端过滤）
+   * 获取好友列表（前端过滤，全量拉取）
    *
    * @returns 好友列表
    */
   async getFriends(): Promise<Contact[]> {
-    const all = await this.getContacts()
+    const all = await this.getContacts({ limit: 0 })
     return all.filter(c => c.type === ContactType.Friend)
   }
 
   /**
-   * 获取公众号列表（前端过滤）
+   * 获取公众号列表（前端过滤，全量拉取）
    *
    * @returns 公众号列表
    */
   async getOfficialAccounts(): Promise<Contact[]> {
-    const all = await this.getContacts()
+    const all = await this.getContacts({ limit: 0 })
     return all.filter(c => c.type === ContactType.Official)
   }
 
@@ -131,12 +134,12 @@ class ContactAPI extends BaseAPI<BackendContact, Contact> {
   }
 
   /**
-   * 获取所有联系人（不分类型）
+   * 获取所有联系人（不分类型，全量拉取 limit=0）
    *
    * @returns 所有联系人
    */
   getAllContacts(): Promise<Contact[]> {
-    return this.getContacts()
+    return this.getContacts({ limit: 0 })
   }
 
   /**
@@ -170,24 +173,24 @@ class ContactAPI extends BaseAPI<BackendContact, Contact> {
   }
 
   /**
-   * 获取星标联系人
+   * 获取星标联系人（全量拉取后过滤）
    *
    * @returns 星标联系人列表
    */
   async getStarredContacts(): Promise<Contact[]> {
-    const contacts = await this.getContacts()
+    const contacts = await this.getContacts({ limit: 0 })
     return contacts.filter(contact => contact.isStarred)
   }
 
   /**
-   * 获取最近联系人
+   * 获取最近联系人（全量拉取后按最后交互时间排序）
    * （根据最后交互时间排序）
    *
    * @param limit 返回数量
    * @returns 最近联系人列表
    */
   async getRecentContacts(limit = 20): Promise<Contact[]> {
-    const contacts = await this.getContacts()
+    const contacts = await this.getContacts({ limit: 0 })
     return contacts
       .sort((a, b) => {
         const timeA = a.lastContactTime || 0
@@ -199,23 +202,25 @@ class ContactAPI extends BaseAPI<BackendContact, Contact> {
 
   /**
    * 获取群聊成员
+   * 后端 contact 无 memberList 字段，改从 chatroomAPI.getChatroomDetail（users[]）获取
    *
    * @param chatroomId 群聊 ID
    * @returns 群成员列表
    */
   async getChatroomMembers(chatroomId: string): Promise<Contact[]> {
-    const chatroom = await this.getContactDetail(chatroomId)
-    if (!chatroom.memberList) {
+    const chatroom = await chatroomAPI.getChatroomDetail(chatroomId)
+    if (!chatroom) {
       return []
     }
 
-    // 批量获取成员详情
-    const memberPromises = chatroom.memberList.map(wxid =>
-      this.getContactDetail(wxid).catch(() => null)
-    )
-    const members = await request.all<Contact>(memberPromises)
-
-    return members.filter((m): m is Contact => m !== null)
+    return chatroom.members.map(member => ({
+      wxid: member.wxid,
+      nickname: member.nickname,
+      remark: '',
+      alias: '',
+      avatar: member.avatar,
+      type: ContactType.Friend,
+    }))
   }
 
   /**

@@ -351,6 +351,11 @@ export const useSessionStore = defineStore('session', () => {
     try {
       const session = await sessionAPI.getSessionDetail(talker)
 
+      // API 未命中（keyword 搜索无结果）时返回 null
+      if (!session) {
+        return null
+      }
+
       // 注入本地置顶状态
       if (localPinnedSessions.value.has(session.talker)) {
         session.isLocalPinned = true

@@ -4,12 +4,19 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { contactAPI, chatlogAPI } from '@/api'
-import type { Contact, Message, SearchParams } from '@/types'
+import { contactAPI, searchAPI } from '@/api'
+import type { Contact, Message } from '@/types'
+import type { SearchHit, SearchIndexStatus } from '@/types/search'
 import { useAppStore } from './app'
 
 export type SearchType = 'chatroom' | 'contact' | 'message'
-export type SearchScope = 'session'
+
+/**
+ * 搜索范围：
+ * - 'session'：会话内搜索（talker 必填），映射后端 scope=messages
+ * - 'all'：全局搜索（无需 talker），映射后端 scope=all
+ */
+export type SearchScope = 'session' | 'all'
 
 export interface SearchOptions {
   keyword: string
@@ -47,7 +54,7 @@ export const useSearchStore = defineStore('search', () => {
   const searchType = ref<SearchType>('chatroom')
 
   /**
-   * 搜索范围（已废弃，talker 为必填项）
+   * 搜索范围（session=会话内必选 talker；all=全局无需 talker）
    */
   const searchScope = ref<SearchScope>('session')
 
@@ -72,9 +79,19 @@ export const useSearchStore = defineStore('search', () => {
   const contactResults = ref<Contact[]>([])
 
   /**
-   * 消息搜索结果
+   * 消息搜索结果（从全文搜索 hits 提取）
    */
   const messageResults = ref<Message[]>([])
+
+  /**
+   * 全文搜索完整命中（含 snippet/score，顺序保持后端相关度排序）
+   */
+  const searchHits = ref<SearchHit[]>([])
+
+  /**
+   * 全文索引状态（ready/in_progress/progress/last_error）
+   */
+  const indexStatus = ref<SearchIndexStatus | null>(null)
 
   /**
    * 加载状态
@@ -241,22 +258,24 @@ export const useSearchStore = defineStore('search', () => {
   }
 
   /**
-   * 搜索聊天记录
-   * GET /api/v1/chatlog?time=2020-01-01~2025-09-09&talker=xxx&sender=xxx&keyword=xxx&limit=500&offset=0&format=json
-   * 注意：time 和 talker 参数是必填项
+   * 搜索聊天记录（全文索引搜索）
+   * GET /api/v1/search?q=xxx&scope=messages|all&talker=xxx&start=...&end=...
+   * scope='session' 时 talker 必填；scope='all' 时为无 talker 全局搜索
    */
   async function searchMessages(options: Omit<SearchOptions, 'type'>, appendMode = false) {
-    // talker 是必填项，如果没有指定则不执行搜索
-    if (!options.talker) {
+    // scope='session'（会话内）时 talker 是必填项
+    if (options.scope === 'session' && !options.talker) {
       if (!appendMode) {
         messageResults.value = []
+        searchHits.value = []
       }
       return []
     }
 
-    if (!options.keyword.trim() && !options.timeRange) {
+    if (!options.keyword.trim()) {
       if (!appendMode) {
         messageResults.value = []
+        searchHits.value = []
       }
       return []
     }
@@ -264,63 +283,66 @@ export const useSearchStore = defineStore('search', () => {
     try {
       messageLoading.value = true
 
-      // 时间范围是必填项，如果未指定则默认最近一年
+      // 时间范围默认最近一年
       let timeRange = options.timeRange
       if (!timeRange || !timeRange[0] || !timeRange[1]) {
         const endDate = new Date()
         const startDate = new Date()
-        startDate.setFullYear(endDate.getFullYear() - 1) // 默认最近一年
+        startDate.setFullYear(endDate.getFullYear() - 1)
         timeRange = [startDate, endDate]
       }
 
       const startDate = timeRange[0].toISOString().split('T')[0]
       const endDate = timeRange[1].toISOString().split('T')[0]
 
-      const params: SearchParams = {
-        keyword: options.keyword.trim(),
-        time: `${startDate}~${endDate}`, // 必填参数
-        talker: options.talker, // 必填参数
+      const response = await searchAPI.search({
+        q: options.keyword.trim(),
+        scope: options.scope === 'all' ? 'all' : 'messages',
+        talker: options.scope === 'all' ? undefined : options.talker,
+        sender: options.sender,
+        start: startDate,
+        end: endDate,
         limit: options.limit || pageSize.value,
         offset: options.offset || 0,
-      }
+      })
 
-      // 指定发送者
-      if (options.sender) {
-        params.sender = options.sender
-      }
+      indexStatus.value = response.index_status
+      const hits = response.hits || []
 
-      const result = await chatlogAPI.searchMessages(params)
-      
       if (appendMode) {
-        // 追加模式：去重后追加到现有结果
-        const existingIds = new Set(messageResults.value.map(m => m.id))
-        const uniqueNewMessages = (result || []).filter(m => !existingIds.has(m.id))
-        messageResults.value.push(...uniqueNewMessages)
-        hasMore.value = uniqueNewMessages.length >= (options.limit || pageSize.value)
-        
+        // 追加模式：按消息 id 去重后追加
+        const existingIds = new Set(searchHits.value.map(h => h.message.id))
+        const uniqueNewHits = hits.filter(h => !existingIds.has(h.message.id))
+        searchHits.value.push(...uniqueNewHits)
+        messageResults.value = searchHits.value.map(h => h.message)
+        hasMore.value = response.offset + response.hits.length < response.total
+
         if (appStore.isDebug) {
           console.log('🔍 Message search (append) completed', {
             keyword: options.keyword,
             offset: options.offset,
-            newCount: uniqueNewMessages.length,
-            totalCount: messageResults.value.length,
+            newCount: uniqueNewHits.length,
+            totalCount: searchHits.value.length,
           })
         }
-        
-        return uniqueNewMessages
+
+        return uniqueNewHits.map(h => h.message)
       } else {
-        // 替换模式：直接替换结果
-        messageResults.value = result || []
-        totalCount.value = messageResults.value.length
-        hasMore.value = messageResults.value.length >= (options.limit || pageSize.value)
+        // 替换模式
+        searchHits.value = hits
+        messageResults.value = hits.map(h => h.message)
+        totalCount.value = response.total
+        hasMore.value = response.offset + response.hits.length < response.total
 
         if (appStore.isDebug) {
           console.log('🔍 Message search completed', {
             keyword: options.keyword,
             talker: options.talker,
+            scope: options.scope,
             timeRange: options.timeRange,
             count: messageResults.value.length,
             total: totalCount.value,
+            indexReady: indexStatus.value?.ready,
           })
         }
 
@@ -360,12 +382,11 @@ export const useSearchStore = defineStore('search', () => {
       } else if (options.type === 'contact') {
         await searchContacts(options.keyword)
       } else if (options.type === 'message') {
-        // 聊天记录搜索需要指定 talker
-        if (options.talker) {
-          await searchMessages(options)
+        // 会话内搜索（scope=session）必须指定 talker；全局搜索（scope=all）无需
+        if (options.scope === 'session' && !options.talker) {
+          error.value = new Error('会话内搜索必须选择会话（可切换为全局搜索）')
         } else {
-          // 如果是单独搜索消息但没有指定 talker，抛出错误
-          error.value = new Error('聊天记录搜索必须选择会话')
+          await searchMessages(options)
         }
       }
 
@@ -389,14 +410,14 @@ export const useSearchStore = defineStore('search', () => {
   }
 
   /**
-   * 加载更多消息（分页）
+   * 加载更多消息（分页，offset 基于 searchHits 数量）
    */
   async function loadMoreMessages() {
     if (!hasMore.value || messageLoading.value) {
       return
     }
 
-    const nextOffset = messageResults.value.length
+    const nextOffset = searchHits.value.length
 
     try {
       const options: SearchOptions = {
@@ -426,6 +447,8 @@ export const useSearchStore = defineStore('search', () => {
     chatroomResults.value = []
     contactResults.value = []
     messageResults.value = []
+    searchHits.value = []
+    indexStatus.value = null
     error.value = null
     currentPage.value = 1
     totalCount.value = 0
@@ -481,6 +504,8 @@ export const useSearchStore = defineStore('search', () => {
     chatroomResults,
     contactResults,
     messageResults,
+    searchHits,
+    indexStatus,
     loading,
     chatroomLoading,
     contactLoading,

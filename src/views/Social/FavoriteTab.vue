@@ -100,6 +100,8 @@ const hasActiveFilters = computed(() => {
 
 onMounted(async () => {
   initialLoading.value = true
+  // 标签列表独立端点（后端 /favorite 响应无 tags）
+  favoriteStore.fetchTags()
   await favoriteStore.fetch({ limit: pageSize.value, offset: 0 })
   initialLoading.value = false
 })

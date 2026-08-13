@@ -1,21 +1,26 @@
 /**
  * 红包记录 Tab
- * 展示微信红包收发记录，支持方向筛选和统计
+ * 展示微信红包收发记录，支持方向筛选（后端无金额/时间字段）
  */
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRedPacketStore } from '@/stores/redpacket'
+import { useAppStore } from '@/stores/app'
+import { useRouter } from 'vue-router'
 import Loading from '@/components/common/Loading.vue'
 import Empty from '@/components/common/Empty.vue'
 import Error from '@/components/common/Error.vue'
+import type { RedPacket } from '@/types/social'
 
 const redPacketStore = useRedPacketStore()
+const appStore = useAppStore()
+const router = useRouter()
 
 const directionOptions = [
   { value: 'all', label: '全部' },
-  { value: 'out', label: '发出' },
-  { value: 'in', label: '收到' },
+  { value: 'sent', label: '发出' },
+  { value: 'received', label: '收到' },
 ]
 
 const selectedDirection = ref('all')
@@ -23,21 +28,7 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 const initialLoading = ref(true)
 
-function formatAmount(amount: number): string {
-  return (amount / 100).toFixed(2)
-}
-
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp * 1000)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}`
-}
-
-// 红包类型描述
+// 红包类型描述（hb_type：0=普通红包，1=拼手气红包，2=专属红包）
 function getHbTypeDesc(type: number): string {
   const map: Record<number, string> = {
     0: '普通红包',
@@ -55,25 +46,7 @@ function getHbTypeTag(type: number): 'info' | 'warning' | 'danger' | 'success' {
   return 'info'
 }
 
-// 状态描述
-function getStatusDesc(status: number): string {
-  const map: Record<number, string> = {
-    0: '待领取',
-    1: '已领取',
-    2: '已过期',
-    3: '已退款',
-  }
-  return map[status] ?? `未知(${status})`
-}
-
-function getStatusType(status: number): 'warning' | 'success' | 'info' | 'danger' {
-  if (status === 0) return 'warning'
-  if (status === 1) return 'success'
-  if (status === 2) return 'info'
-  if (status === 3) return 'danger'
-  return 'info'
-}
-
+// 领取状态描述（receive_status）
 function getReceiveStatusDesc(status: number): string {
   const map: Record<number, string> = {
     0: '未领取',
@@ -83,10 +56,33 @@ function getReceiveStatusDesc(status: number): string {
   return map[status] ?? `未知(${status})`
 }
 
+function getReceiveStatusType(status: number): 'warning' | 'success' | 'info' | 'danger' {
+  if (status === 0) return 'warning'
+  if (status === 1) return 'success'
+  if (status === 2) return 'info'
+  return 'info'
+}
+
+// 当前筛选方向（'all' 时列表为混合方向，无法区分发出/收到，显示中性标签）
+const currentDirection = computed(() => redPacketStore.currentParams.direction)
+
+// 对方 wxid（sent=接收方所在会话，received=发送方）
+function counterparty(item: RedPacket): string {
+  return item.senderUserName || item.sessionName
+}
+
+// 点击会话名跳转
+function goToSession(sessionName: string) {
+  if (sessionName) {
+    appStore.setActiveNav('chat')
+    router.push({ name: 'Chat', query: { talker: sessionName } })
+  }
+}
+
 async function handleSearch() {
   currentPage.value = 1
   await redPacketStore.fetch({
-    direction: selectedDirection.value as 'all' | 'out' | 'in',
+    direction: selectedDirection.value as 'all' | 'sent' | 'received',
     limit: pageSize.value,
     offset: 0,
   })
@@ -143,31 +139,6 @@ onMounted(async () => {
       </el-button>
     </div>
 
-    <!-- 统计卡片 -->
-    <div v-if="redPacketStore.stats.sentCount > 0 || redPacketStore.stats.receivedCount > 0" class="stats-cards">
-      <el-card shadow="hover" class="stat-card">
-        <div class="stat-card__header">
-          <el-icon class="stat-icon sent"><Top /></el-icon>
-          <span>发出</span>
-        </div>
-        <div class="stat-card__value">{{ redPacketStore.stats.sentCount }} 个</div>
-        <div v-if="redPacketStore.sentAmountTotal > 0" class="stat-card__sub">
-          合计 ¥{{ redPacketStore.sentAmountTotal.toFixed(2) }}
-        </div>
-      </el-card>
-
-      <el-card shadow="hover" class="stat-card">
-        <div class="stat-card__header">
-          <el-icon class="stat-icon received"><Bottom /></el-icon>
-          <span>收到</span>
-        </div>
-        <div class="stat-card__value">{{ redPacketStore.stats.receivedCount }} 个</div>
-        <div v-if="redPacketStore.receivedAmountTotal > 0" class="stat-card__sub">
-          合计 ¥{{ redPacketStore.receivedAmountTotal.toFixed(2) }}
-        </div>
-      </el-card>
-    </div>
-
     <!-- 加载状态 -->
     <Loading v-if="initialLoading && redPacketStore.loading" />
 
@@ -186,47 +157,51 @@ onMounted(async () => {
       <TransitionGroup name="list-fade">
         <el-card
           v-for="item in redPacketStore.items"
-          :key="item.nativeUrl"
+          :key="item.nativeUrl || item.messageServerId"
           shadow="hover"
           class="data-card"
         >
           <div class="data-card__main">
             <div class="data-card__left">
               <el-tag
-                :type="item.isSender ? 'danger' : 'success'"
+                :type="currentDirection === 'sent' ? 'danger' : 'success'"
                 size="small"
                 effect="plain"
               >
-                {{ item.isSender ? '发出' : '收到' }}
+                {{
+                  currentDirection === 'sent' ? '发出'
+                    : currentDirection === 'received' ? '收到' : '红包'
+                }}
               </el-tag>
               <div class="data-card__info">
                 <div class="data-card__row">
-                  <el-tag :type="getHbTypeTag(item.type)" size="small" effect="light">
-                    {{ getHbTypeDesc(item.type) }}
+                  <el-tag :type="getHbTypeTag(item.hbType)" size="small" effect="light">
+                    {{ getHbTypeDesc(item.hbType) }}
+                  </el-tag>
+                  <el-tag v-if="item.totalNum > 0" type="info" size="small" effect="light">
+                    {{ item.totalNum }} 份
                   </el-tag>
                 </div>
+                <div class="data-card__session">
+                  <span class="label">发送者</span>
+                  <span
+                    class="value clickable"
+                    @click="goToSession(item.sessionName)"
+                  >
+                    {{ counterparty(item) }}
+                  </span>
+                </div>
                 <div class="data-card__row">
-                  <span v-if="item.wish" class="data-card__wish">
-                    💬 {{ item.wish }}
+                  <span v-if="item.blessing" class="data-card__wish">
+                    💬 {{ item.blessing }}
                   </span>
                 </div>
               </div>
             </div>
             <div class="data-card__right">
-              <div class="data-card__amount">
-                ¥{{ formatAmount(item.amount) }}
-              </div>
-              <div class="data-card__time">
-                {{ formatTime(item.time) }}
-              </div>
-              <div class="data-card__status">
-                <el-tag :type="getStatusType(item.status)" size="small" effect="light">
-                  {{ getStatusDesc(item.status) }}
-                </el-tag>
-                <el-tag v-if="item.receiveId" type="info" size="small" effect="light">
-                  {{ getReceiveStatusDesc(item.status) }}
-                </el-tag>
-              </div>
+              <el-tag :type="getReceiveStatusType(item.receiveStatus)" size="small" effect="light">
+                {{ getReceiveStatusDesc(item.receiveStatus) }}
+              </el-tag>
             </div>
           </div>
         </el-card>
@@ -302,56 +277,6 @@ onMounted(async () => {
     }
   }
 
-  .stats-cards {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
-    flex-shrink: 0;
-
-    .stat-card {
-      flex: 1;
-      min-width: 180px;
-
-      :deep(.el-card__body) {
-        padding: 16px;
-      }
-
-      &__header {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 13px;
-        color: var(--el-text-color-secondary);
-        margin-bottom: 8px;
-
-        .stat-icon {
-          font-size: 18px;
-
-          &.sent {
-            color: var(--el-color-danger);
-          }
-
-          &.received {
-            color: var(--el-color-success);
-          }
-        }
-      }
-
-      &__value {
-        font-size: 22px;
-        font-weight: 700;
-        color: var(--el-text-color-primary);
-        margin-bottom: 4px;
-      }
-
-      &__sub {
-        font-size: 13px;
-        color: var(--el-color-primary);
-        font-weight: 500;
-      }
-    }
-  }
-
   .data-list {
     flex: 1;
     overflow-y: auto;
@@ -401,6 +326,35 @@ onMounted(async () => {
       gap: 6px;
     }
 
+    &__session {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .label {
+        font-size: 12px;
+        color: var(--el-text-color-secondary);
+        flex-shrink: 0;
+      }
+
+      .value {
+        font-size: 13px;
+        color: var(--el-text-color-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        &.clickable {
+          color: var(--el-color-primary);
+          cursor: pointer;
+
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+    }
+
     &__wish {
       font-size: 13px;
       color: var(--el-text-color-regular);
@@ -415,22 +369,6 @@ onMounted(async () => {
       align-items: flex-end;
       gap: 4px;
       flex-shrink: 0;
-    }
-
-    &__amount {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--el-color-danger);
-    }
-
-    &__time {
-      font-size: 12px;
-      color: var(--el-text-color-secondary);
-    }
-
-    &__status {
-      display: flex;
-      gap: 4px;
     }
   }
 

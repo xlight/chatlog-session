@@ -11,7 +11,7 @@ import type { ChatlogParams, SearchParams } from '@/types/api'
 /**
  * 将后端返回的消息数据转换为前端使用的 Message 格式
  */
-function transformMessage(response: MessageResponse): Message {
+export function transformMessage(response: MessageResponse): Message {
   // 将 ISO 8601 时间字符串转换为 Unix 时间戳（秒）
   const createTime = Math.floor(new Date(response.time).getTime() / 1000)
 
@@ -388,19 +388,20 @@ class ChatlogAPI extends BaseAPI<MessageResponse, Message> {
 
   /**
    * 按消息类型搜索
+   * 后端 /chatlog 无 type 参数（忽略）：拉取后按结果 type 前端过滤
    *
    * @param type 消息类型
    * @param talker 会话 ID（可选）
    * @param limit 返回数量
    * @returns 搜索结果
    */
-  searchByType(type: number, talker?: string, limit = 50): Promise<Message[]> {
-    return this.searchMessages({
+  async searchByType(type: number, talker?: string, limit = 50): Promise<Message[]> {
+    const messages = await this.searchMessages({
       keyword: '',
-      type,
       talker,
       limit,
     })
+    return messages.filter(m => m.type === type)
   }
 
   /**

@@ -5,35 +5,41 @@
 
 // ==================== 转账记录 ====================
 
-/** 转账记录 */
+/** 转账记录（对齐后端 model.Transfer，字段为 snake_case 转换后） */
 export interface Transfer {
-  /** 转账 URL（唯一标识） */
-  nativeUrl: string
-  /** 消息 ID */
-  msgId: string
-  /** 发送方 ID */
-  sendId: string
-  /** 接收方 ID */
-  receiveId: string
-  /** 状态 */
-  status: number
-  /** 是否本人发出 */
-  isSender: number
-  /** 是否群聊 */
-  isChatRoom: number
-  /** 金额（分） */
+  /** 转账唯一 ID */
+  transferId: string
+  /** 交易 ID */
+  transcationId: string
+  /** 消息服务 ID */
+  messageServerId: number
+  /** 第二消息服务 ID */
+  secondMessageServerId: number
+  /** 会话名（wxid/群 ID） */
+  sessionName: string
+  /** 支付子类型 */
+  paySubType: number
+  /** 收款方 wxid */
+  payReceiver: string
+  /** 付款方 wxid */
+  payPayer: string
+  /** 转账发起时间（Unix 秒） */
+  beginTransferTime: number
+  /** 最后修改时间（Unix 秒） */
+  lastModifiedTime: number
+  /** 失效时间（Unix 秒） */
+  invalidTime: number
+  /** 最后更新时间（Unix 秒） */
+  lastUpdateTime: number
+  /** 延迟确认标记：0=即时到账，1=延迟到账 */
+  delayConfirmFlag: number
+  /** 金额（元），自消息 XML <feedesc> 解析，失败为 0 */
   amount: number
-  /** 币种 */
-  currency: string
-  /** 转账时间（Unix 时间戳） */
-  transferTime: number
-  /** 描述 */
-  desc: string
-  /** 类型 */
-  type: number
+  /** 是否本人发出（direction=sent/received 时由后端方向推导；all 时为 false） */
+  isSender: boolean
 }
 
-/** 转账统计 */
+/** 转账统计（后端未提供 stats 字段，前端不再消费） */
 export interface TransferStats {
   /** 发出笔数 */
   sentCount: number
@@ -41,16 +47,17 @@ export interface TransferStats {
   receivedCount: number
 }
 
-/** 转账列表响应 */
+/** 转账列表响应（后端不返回 stats，保留字段声明仅供兼容） */
 export interface TransferResponse {
   total: number
   items: Transfer[]
-  stats: TransferStats
+  stats?: TransferStats
 }
 
 /** 转账查询参数 */
 export interface TransferParams {
-  direction?: 'all' | 'out' | 'in'
+  /** 方向：sent=发出/received=收到（后端枚举，swagger Enums(sent, received)） */
+  direction?: 'all' | 'sent' | 'received'
   year?: number
   limit?: number
   offset?: number
@@ -58,33 +65,35 @@ export interface TransferParams {
 
 // ==================== 红包记录 ====================
 
-/** 红包记录 */
+/** 红包记录（对齐后端 model.RedPacket；后端无金额字段） */
 export interface RedPacket {
+  /** 消息服务 ID */
+  messageServerId: number
+  /** 会话名（wxid/群 ID） */
+  sessionName: string
+  /** 发送方 wxid */
+  senderUserName: string
   /** 红包 URL */
   nativeUrl: string
-  /** 消息 ID */
-  msgId: string
   /** 发送 ID */
   sendId: string
-  /** 接收 ID */
-  receiveId: string
-  /** 状态 */
-  status: number
-  /** 是否本人发出 */
-  isSender: number
-  /** 是否群聊 */
-  isChatRoom: number
-  /** 金额（分） */
-  amount: number
-  /** 类型 */
-  type: number
-  /** 祝福语 */
-  wish: string
-  /** 时间（Unix 时间戳） */
-  time: number
+  /** 场景 ID */
+  sceneId: number
+  /** 红包状态 */
+  hbStatus: number
+  /** 红包类型 */
+  hbType: number
+  /** 领取状态 */
+  receiveStatus: number
+  /** 份数（native_url total_num 解析，失败为 0） */
+  totalNum: number
+  /** 祝福语（消息 XML 解析，本地不可得时为空） */
+  blessing: string
+  /** 是否本人发出（direction=sent/received 时由后端方向推导；all 时为 false） */
+  isSender: boolean
 }
 
-/** 红包统计 */
+/** 红包统计（后端未提供 stats 字段，前端不再消费） */
 export interface RedPacketStats {
   /** 发出个数 */
   sentCount: number
@@ -92,16 +101,17 @@ export interface RedPacketStats {
   receivedCount: number
 }
 
-/** 红包列表响应 */
+/** 红包列表响应（后端不返回 stats，保留字段声明仅供兼容） */
 export interface RedPacketResponse {
   total: number
   items: RedPacket[]
-  stats: RedPacketStats
+  stats?: RedPacketStats
 }
 
 /** 红包查询参数 */
 export interface RedPacketParams {
-  direction?: 'all' | 'out' | 'in'
+  /** 方向：sent=发出/received=收到（后端枚举，swagger Enums(sent, received)） */
+  direction?: 'all' | 'sent' | 'received'
   limit?: number
   offset?: number
 }
@@ -197,7 +207,7 @@ export interface MomentLike {
   fromNickname: string
 }
 
-/** 朋友圈动态 */
+/** 朋友圈动态（对齐后端 model.ParsedMoment；likes/comments 后端 omitempty 缺失时为空数组） */
 export interface Moment {
   /** 时间线 ID */
   tid: number
@@ -207,12 +217,10 @@ export interface Moment {
   nickname: string
   /** 创建时间（Unix 时间戳） */
   createTime: number
-  /** 类型 */
-  type: number
-  /** 内容 */
-  content?: string
-  /** 内容类型 */
+  /** 内容类型（后端 text/image/link/video/unknown，前端仅 text 可预览） */
   contentType: 'text' | 'protobuf'
+  /** 文本内容 */
+  content?: string
   /** 评论列表 */
   comments: MomentComment[]
   /** 点赞列表 */

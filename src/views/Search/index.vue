@@ -5,7 +5,7 @@ import { useSessionStore } from '@/stores/session'
 import { useDisplayName } from '@/composables/useDisplayName'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowRight } from '@element-plus/icons-vue'
+import { ArrowRight, Loading as LoadingIcon, WarningFilled } from '@element-plus/icons-vue'
 import Avatar from '@/components/common/Avatar.vue'
 import SearchBar from '@/components/common/SearchBar.vue'
 import Loading from '@/components/common/Loading.vue'
@@ -14,6 +14,7 @@ import MessageBubble from '@/components/chat/MessageBubble.vue'
 import SessionOption from '@/components/search/SessionOption.vue'
 import type { SearchType } from '@/stores/search'
 import type { Message, Contact, Session } from '@/types'
+import type { SearchHit } from '@/types/search'
 
 const searchStore = useSearchStore()
 const sessionStore = useSessionStore()
@@ -24,6 +25,7 @@ const route = useRoute()
 // 状态
 const searchText = ref('')
 const searchType = ref<SearchType>('chatroom')
+const searchScope = ref<'session' | 'all'>('session')
 const selectedSessionId = ref<string>('')
 
 // 初始化默认时间范围（最近一年）
@@ -35,6 +37,33 @@ const getDefaultDateRange = (): [Date, Date] => {
 }
 
 const dateRange = ref<[Date, Date] | null>(getDefaultDateRange())
+
+// HTML 转义（snippet 高亮防 XSS：先转义再替换 <mark>）
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * 高亮 snippet 中的关键词（转义后分割替换 <mark>，仅允许自身生成的 <mark> 标签）
+ */
+function highlightSnippet(snippet: string, keyword: string): string {
+  const escaped = escapeHtml(snippet)
+  const kw = escapeHtml(keyword.trim())
+  if (!kw) return escaped
+  return escaped.split(kw).join(`<mark>${kw}</mark>`)
+}
+
+/**
+ * 根据消息 id 查找对应命中（含 snippet/score）
+ */
+function hitOf(message: Message): SearchHit | undefined {
+  return searchStore.searchHits.find(h => h.message.id === message.id)
+}
 
 // 计算属性
 const results = computed(() => searchStore.filteredResults)
@@ -72,14 +101,14 @@ const handleSessionFilter = (query: string) => {
 
 // 执行搜索
 const performSearch = async () => {
-  if (!searchText.value.trim() && !dateRange.value) {
+  if (!searchText.value.trim()) {
     searchStore.clearResults()
     return
   }
 
-  // 如果是聊天记录搜索，必须选择会话
-  if (searchType.value === 'message' && !selectedSessionId.value) {
-    ElMessage.warning('请先选择要搜索的会话')
+  // 会话内搜索必须选择会话；全局搜索无需
+  if (searchType.value === 'message' && searchScope.value === 'session' && !selectedSessionId.value) {
+    ElMessage.warning('请先选择要搜索的会话，或切换为"全部会话"')
     return
   }
 
@@ -87,7 +116,7 @@ const performSearch = async () => {
     await searchStore.performSearch({
       keyword: searchText.value,
       type: searchType.value,
-      scope: 'session',
+      scope: searchScope.value,
       talker: selectedSessionId.value,
       timeRange: dateRange.value,
     })
@@ -256,6 +285,14 @@ onMounted(async () => {
           </div>
 
           <div v-if="searchType === 'message'" class="option-row">
+            <label>搜索范围:</label>
+            <el-radio-group v-model="searchScope" size="small">
+              <el-radio-button value="session">指定会话</el-radio-button>
+              <el-radio-button value="all">全部会话</el-radio-button>
+            </el-radio-group>
+          </div>
+
+          <div v-if="searchType === 'message' && searchScope === 'session'" class="option-row">
             <label>选择会话:</label>
             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
               <el-select
@@ -278,7 +315,7 @@ onMounted(async () => {
               </el-option>
               </el-select>
               <span v-if="searchType === 'message'" style="font-size: 12px; color: var(--el-color-warning);">
-                * 聊天记录搜索必须选择会话
+                * 指定会话搜索必须选择会话
               </span>
             </div>
           </div>
@@ -330,6 +367,22 @@ onMounted(async () => {
 
         <!-- 搜索结果 -->
         <div v-else class="search-results">
+          <!-- 索引状态提示条 -->
+          <div
+            v-if="searchType === 'message' && searchStore.indexStatus && !searchStore.indexStatus.ready && searchStore.indexStatus.in_progress"
+            class="index-status-banner"
+          >
+            <el-icon class="banner-icon"><LoadingIcon /></el-icon>
+            正在建立索引（{{ Math.round(searchStore.indexStatus.progress * 100) }}%），搜索结果可能不完整
+          </div>
+          <div
+            v-else-if="searchType === 'message' && searchStore.indexStatus && searchStore.indexStatus.last_error"
+            class="index-status-banner is-error"
+          >
+            <el-icon class="banner-icon"><WarningFilled /></el-icon>
+            索引构建失败：{{ searchStore.indexStatus.last_error }}
+          </div>
+
           <!-- 统计信息 -->
           <div class="result-stats">
             <el-tag type="info" size="large">
@@ -452,7 +505,14 @@ onMounted(async () => {
                   </div>
 
                   <div class="message-content">
+                    <!-- 有 snippet 时展示高亮摘要（转义后 <mark> 高亮，防 XSS） -->
+                    <div
+                      v-if="hitOf(message)?.snippet"
+                      class="snippet-text"
+                      v-html="highlightSnippet(hitOf(message)!.snippet, searchText)"
+                    ></div>
                     <MessageBubble
+                      v-else
                       :message="message"
                       :is-send="message.isSend"
                       :show-avatar="false"
@@ -555,6 +615,28 @@ onMounted(async () => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+
+  .index-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 24px;
+    font-size: 13px;
+    color: var(--el-color-warning);
+    background-color: var(--el-color-warning-light-9);
+    border-bottom: 1px solid var(--el-color-warning-light-5);
+    flex-shrink: 0;
+
+    &.is-error {
+      color: var(--el-color-danger);
+      background-color: var(--el-color-danger-light-9);
+      border-bottom-color: var(--el-color-danger-light-5);
+    }
+
+    .banner-icon {
+      flex-shrink: 0;
+    }
+  }
 
   .result-stats {
     padding: 16px 24px;
@@ -682,6 +764,20 @@ onMounted(async () => {
       }
 
       .message-content {
+        .snippet-text {
+          font-size: 14px;
+          line-height: 1.6;
+          color: var(--el-text-color-regular);
+          word-break: break-all;
+
+          :deep(mark) {
+            background-color: var(--el-color-warning-light-5);
+            color: var(--el-color-warning-dark-2);
+            border-radius: 2px;
+            padding: 0 1px;
+          }
+        }
+
         .search-bubble {
           :deep(.message-bubble) {
             max-width: 100%;

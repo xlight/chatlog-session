@@ -56,10 +56,11 @@ export const useFavoriteStore = defineStore('favorite', () => {
       const response = await favoriteAPI.getFavorites(currentParams.value)
       items.value = response.items
       total.value = response.total
-      tags.value = response.tags
+      // 后端 /favorite 响应无 tags 字段（独立端点 /favorite/tag），兜底空数组
+      tags.value = response.tags ?? []
 
       if (appStore.isDebug) {
-        console.log(`⭐ 收藏: 获取 ${response.items.length}/${response.total} 条, ${response.tags.length} 个标签`)
+        console.log(`⭐ 收藏: 获取 ${response.items.length}/${response.total} 条, ${tags.value.length} 个标签`)
       }
     } catch (err) {
       error.value = err instanceof Error ? err : new Error(String(err))
@@ -68,6 +69,19 @@ export const useFavoriteStore = defineStore('favorite', () => {
       }
     } finally {
       loading.value = false
+    }
+  }
+
+  /**
+   * 获取收藏标签列表（GET /api/v1/favorite/tag）
+   */
+  async function fetchTags() {
+    try {
+      tags.value = await favoriteAPI.getTags()
+    } catch (err) {
+      if (appStore.isDebug) {
+        console.log('❌ 收藏标签请求失败:', err)
+      }
     }
   }
 
@@ -113,6 +127,6 @@ export const useFavoriteStore = defineStore('favorite', () => {
   return {
     items, total, tags, loading, error, currentParams,
     hasMore,
-    fetch, setTag, setType, setKeyword, setPage, $reset,
+    fetch, fetchTags, setTag, setType, setKeyword, setPage, $reset,
   }
 })

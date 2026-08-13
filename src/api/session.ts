@@ -60,7 +60,7 @@ function transformSession(apiData: SessionApiResponse): Session {
     lastTime: apiData.nTime,
     lastMessageType: 1,
     unreadCount: apiData.nUnReadCount || 0,
-    // isPinned/isMinimized/avatar 由 contact 数据补充，session API 不返回
+    // isPinned/isMinimized 后端 session 不返回，由 store 层 enrichSessionsFromContacts 从 contact 数据合并（stores/session.ts:109）
     isPinned: false,
     isMinimized: false,
     isChatRoom: isChatRoom,
@@ -116,13 +116,14 @@ class SessionAPI extends BaseAPI<SessionApiResponse, Session> {
 
   /**
    * 获取会话详情
-   * GET /api/v1/session/:talker
+   * 后端无 /api/v1/session/:talker 路由（404），改用 keyword 精确搜索（后端 `=` 匹配）+ userName 匹配
    *
    * @param talker 会话 ID
-   * @returns 会话详情
+   * @returns 会话详情，未命中返回 null
    */
-  async getSessionDetail(talker: string): Promise<Session> {
-    return this.getDetail(talker)
+  async getSessionDetail(talker: string): Promise<Session | null> {
+    const { items } = await this.getSessions({ keyword: talker, limit: 0 })
+    return items.find(s => s.talker === talker) || null
   }
 
   /**
@@ -139,17 +140,19 @@ class SessionAPI extends BaseAPI<SessionApiResponse, Session> {
 
   /**
    * 按类型获取会话
+   * 后端 /session 无 type 参数（忽略）：拉全量后按 transform 的 type 前端过滤
    *
    * @param type 会话类型（private: 私聊, group: 群聊, official: 公众号, unknown: 其他）
-   * @param limit 返回数量
+   * @param limit 返回数量（0 表示不限制）
    * @returns 会话列表
    */
   async getSessionsByType(
     type: 'private' | 'group' | 'official' | 'unknown',
     limit = 50
   ): Promise<Session[]> {
-    const { items } = await this.getSessions({ type, limit })
-    return items
+    const { items } = await this.getSessions({ limit: 0 })
+    const filtered = items.filter(s => s.type === type)
+    return limit > 0 ? filtered.slice(0, limit) : filtered
   }
 
   /**
@@ -173,12 +176,12 @@ class SessionAPI extends BaseAPI<SessionApiResponse, Session> {
   }
 
   /**
-   * 获取置顶会话
+   * 获取置顶会话（全量拉取后过滤 isPinned）
    *
    * @returns 置顶会话列表
    */
   async getPinnedSessions(): Promise<Session[]> {
-    const { items } = await this.getSessions({ limit: 100 })
+    const { items } = await this.getSessions({ limit: 0 })
     return items.filter(session => session.isPinned)
   }
 
@@ -199,13 +202,13 @@ class SessionAPI extends BaseAPI<SessionApiResponse, Session> {
   }
 
   /**
-   * 搜索会话
+   * 搜索会话（全量拉取后前端过滤）
    *
    * @param keyword 搜索关键词（会话名称或备注）
    * @returns 搜索结果
    */
   async searchSessions(keyword: string): Promise<Session[]> {
-    const { items } = await this.getSessions({ limit: 1000 })
+    const { items } = await this.getSessions({ limit: 0 })
     const lowerKeyword = keyword.toLowerCase()
 
     return items.filter(session => {
@@ -216,12 +219,12 @@ class SessionAPI extends BaseAPI<SessionApiResponse, Session> {
   }
 
   /**
-   * 获取未读会话
+   * 获取未读会话（全量拉取后过滤）
    *
    * @returns 有未读消息的会话列表
    */
   async getUnreadSessions(): Promise<Session[]> {
-    const { items } = await this.getSessions({ limit: 100 })
+    const { items } = await this.getSessions({ limit: 0 })
     return items.filter(session => (session.unreadCount || 0) > 0)
   }
 
@@ -237,7 +240,7 @@ class SessionAPI extends BaseAPI<SessionApiResponse, Session> {
     unread: number
     pinned: number
   }> {
-    const { items, total } = await this.getSessions({ limit: 1000 })
+    const { items, total } = await this.getSessions({ limit: 0 })
 
     return {
       total: total,
@@ -249,14 +252,15 @@ class SessionAPI extends BaseAPI<SessionApiResponse, Session> {
   }
 
   /**
-   * 批量获取会话详情
+   * 批量获取会话详情（单个未命中过滤，不阻断整体）
    *
    * @param talkers 会话 ID 列表
    * @returns 会话详情列表
    */
   async getBatchSessionDetails(talkers: string[]): Promise<Session[]> {
-    const promises = talkers.map(talker => this.getSessionDetail(talker))
-    return request.all<Session>(promises)
+    const promises = talkers.map(talker => this.getSessionDetail(talker).catch(() => null))
+    const sessions = await request.all<Session | null>(promises)
+    return sessions.filter((s): s is Session => s !== null)
   }
 }
 

@@ -1,16 +1,70 @@
 /**
  * 朋友圈 API
- * GET /api/v1/moments
+ * GET /api/v1/moment（后端路由为单数，route.go:92）
  */
 
 import { request } from '@/utils/request'
-import type { MomentsResponse, MomentsParams } from '@/types/social'
+import type { Moment, MomentsResponse, MomentsParams } from '@/types/social'
+
+/**
+ * 后端原始朋友圈动态（swagger model.ParsedMoment，snake_case；
+ * comments/likes 为 omitempty，无互动时 JSON 缺失）
+ */
+interface BackendMomentComment {
+  from_username: string
+  from_nickname?: string
+  to_username?: string
+  to_nickname?: string
+  content?: string
+  create_time?: number
+}
+
+interface BackendMomentLike {
+  from_username: string
+  from_nickname?: string
+}
+
+interface BackendMoment {
+  tid: number
+  user_name: string
+  nickname?: string
+  content_type: string
+  text_content?: string
+  create_time?: number
+  comments?: BackendMomentComment[]
+  likes?: BackendMomentLike[]
+}
+
+/**
+ * 转换后端朋友圈动态到前端格式（snake_case → camelCase；
+ * 非 text 内容归 protobuf（前端不预览）；likes/comments 兜底空数组防渲染崩溃）
+ */
+function transformMoment(backend: BackendMoment): Moment {
+  return {
+    tid: backend.tid,
+    username: backend.user_name,
+    nickname: backend.nickname ?? '',
+    createTime: backend.create_time ?? 0,
+    contentType: backend.content_type === 'text' ? 'text' : 'protobuf',
+    content: backend.text_content ?? '',
+    comments: (backend.comments ?? []).map(comment => ({
+      fromUsername: comment.from_username,
+      fromNickname: comment.from_nickname ?? '',
+      content: comment.content ?? '',
+      createTime: comment.create_time ?? 0,
+    })),
+    likes: (backend.likes ?? []).map(like => ({
+      fromUsername: like.from_username,
+      fromNickname: like.from_nickname ?? '',
+    })),
+  }
+}
 
 /**
  * 朋友圈 API 单例
  */
 class MomentsAPI {
-  private basePath = '/api/v1/moments'
+  private basePath = '/api/v1/moment'
 
   /**
    * 获取朋友圈时间线
@@ -26,7 +80,15 @@ class MomentsAPI {
     if (params?.offset) {
       queryParams.offset = params.offset
     }
-    return request.get<MomentsResponse>(this.basePath, queryParams)
+    const response = await request.get<{
+      items: BackendMoment[]
+      total: number
+    }>(this.basePath, queryParams)
+
+    return {
+      items: (response.items || []).map(transformMoment),
+      total: response.total,
+    }
   }
 }
 

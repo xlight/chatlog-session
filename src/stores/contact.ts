@@ -231,8 +231,8 @@ export const useContactStore = defineStore('contact', () => {
           console.log('📦 从缓存加载联系人', { count: cached.length })
         }
       } else {
-        // 从 API 加载
-        const result = await contactAPI.getContacts(keyword ? { keyword } : undefined)
+        // 从 API 加载（全量 limit=0：isPinned 合并依赖完整联系人列表，200 截断会导致置顶/折叠标记丢失）
+        const result = await contactAPI.getContacts(keyword ? { keyword } : { limit: 0 })
         contacts.value = result
         totalContacts.value = result.length
 
@@ -571,8 +571,18 @@ export const useContactStore = defineStore('contact', () => {
         triggerRef(contacts)
       }
 
-      // 从 API 获取最新数据
+      // 从 API 获取最新数据（keyword 精确搜索；未命中返回 null）
       const contact = await contactAPI.getContactDetail(wxid)
+
+      // API 未命中：回落到缓存
+      if (!contact) {
+        const cached = await db.getContact(wxid).catch(() => null)
+        if (cached) {
+          console.warn('⚠️ API 未命中，使用缓存数据:', wxid)
+          return cached
+        }
+        return null
+      }
 
       // 更新或添加到列表
       const index = contacts.value.findIndex(c => c.wxid === wxid)

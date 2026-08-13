@@ -11,6 +11,7 @@ import { useRouter } from 'vue-router'
 import Loading from '@/components/common/Loading.vue'
 import Empty from '@/components/common/Empty.vue'
 import Error from '@/components/common/Error.vue'
+import type { Transfer } from '@/types/social'
 
 const transferStore = useTransferStore()
 const appStore = useAppStore()
@@ -19,8 +20,8 @@ const router = useRouter()
 // 方向选项
 const directionOptions = [
   { value: 'all', label: '全部' },
-  { value: 'out', label: '发出' },
-  { value: 'in', label: '收到' },
+  { value: 'sent', label: '发出' },
+  { value: 'received', label: '收到' },
 ]
 
 // 方向选择
@@ -35,13 +36,14 @@ const pageSize = ref(20)
 // 是否首次加载
 const initialLoading = ref(true)
 
-// 格式化金额（分为单位 → 元）
+// 格式化金额（元，后端 feedesc 解析）
 function formatAmount(amount: number): string {
-  return (amount / 100).toFixed(2)
+  return amount.toFixed(2)
 }
 
 // 格式化时间
 function formatTime(timestamp: number): string {
+  if (!timestamp) return '—'
   const date = new Date(timestamp * 1000)
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -64,30 +66,29 @@ const yearOptions = computed(() => {
   return years
 })
 
-// 状态描述
-function getStatusDesc(status: number): string {
-  const map: Record<number, string> = {
-    0: '待处理',
-    1: '已完成',
-    2: '已退款',
-    3: '已过期',
-  }
-  return map[status] ?? `未知(${status})`
+// 到账状态描述（delay_confirm_flag：0=即时到账，1=延迟到账）
+function getStatusDesc(flag: number): string {
+  return flag === 1 ? '延迟到账' : '即时到账'
 }
 
 // 状态标签类型
-function getStatusType(status: number): 'success' | 'warning' | 'info' | 'danger' {
-  if (status === 1) return 'success'
-  if (status === 2) return 'danger'
-  if (status === 3) return 'info'
-  return 'warning'
+function getStatusType(flag: number): 'success' | 'warning' | 'info' | 'danger' {
+  return flag === 1 ? 'warning' : 'success'
+}
+
+// 当前筛选方向（'all' 时列表为混合方向，无法区分发出/收到，显示中性标签）
+const currentDirection = computed(() => transferStore.currentParams.direction)
+
+// 对方 wxid（sent=收款方，received=付款方，all=收款方）
+function counterparty(item: Transfer): string {
+  return item.payReceiver || item.payPayer
 }
 
 // 查询
 async function handleSearch() {
   currentPage.value = 1
   await transferStore.fetch({
-    direction: selectedDirection.value as 'all' | 'out' | 'in',
+    direction: selectedDirection.value as 'all' | 'sent' | 'received',
     year: selectedYear.value ? Number(selectedYear.value) : undefined,
     limit: pageSize.value,
     offset: 0,
@@ -109,7 +110,6 @@ function goToSession(sessionName: string) {
     router.push({ name: 'Chat', query: { talker: sessionName } })
   }
 }
-
 onMounted(async () => {
   initialLoading.value = true
   await transferStore.fetch({ limit: pageSize.value, offset: 0 })
@@ -177,31 +177,6 @@ onMounted(async () => {
       </el-button>
     </div>
 
-    <!-- 统计卡片 -->
-    <div v-if="transferStore.stats.sentCount > 0 || transferStore.stats.receivedCount > 0" class="stats-cards">
-      <el-card shadow="hover" class="stat-card">
-        <div class="stat-card__header">
-          <el-icon class="stat-icon sent"><Top /></el-icon>
-          <span>发出</span>
-        </div>
-        <div class="stat-card__value">{{ transferStore.stats.sentCount }} 笔</div>
-        <div v-if="transferStore.sentAmountTotal > 0" class="stat-card__sub">
-          合计 ¥{{ transferStore.sentAmountTotal.toFixed(2) }}
-        </div>
-      </el-card>
-
-      <el-card shadow="hover" class="stat-card">
-        <div class="stat-card__header">
-          <el-icon class="stat-icon received"><Bottom /></el-icon>
-          <span>收到</span>
-        </div>
-        <div class="stat-card__value">{{ transferStore.stats.receivedCount }} 笔</div>
-        <div v-if="transferStore.receivedAmountTotal > 0" class="stat-card__sub">
-          合计 ¥{{ transferStore.receivedAmountTotal.toFixed(2) }}
-        </div>
-      </el-card>
-    </div>
-
     <!-- 加载状态 -->
     <Loading v-if="initialLoading && transferStore.loading" />
 
@@ -220,44 +195,49 @@ onMounted(async () => {
       <TransitionGroup name="list-fade">
         <el-card
           v-for="item in transferStore.items"
-          :key="item.nativeUrl"
+          :key="item.transferId || item.messageServerId"
           shadow="hover"
           class="data-card"
         >
           <div class="data-card__main">
             <div class="data-card__left">
               <el-tag
-                :type="item.isSender ? 'danger' : 'success'"
+                :type="currentDirection === 'sent' ? 'danger' : 'success'"
                 size="small"
                 effect="plain"
               >
-                {{ item.isSender ? '发出' : '收到' }}
+                {{
+                  currentDirection === 'sent' ? '发出'
+                    : currentDirection === 'received' ? '收到' : '转账'
+                }}
               </el-tag>
               <div class="data-card__info">
                 <div class="data-card__session">
                   <span class="label">对方</span>
                   <span
                     class="value clickable"
-                    @click="goToSession(item.receiveId || item.sendId)"
+                    @click="goToSession(item.sessionName)"
                   >
-                    {{ item.receiveId || item.sendId }}
+                    {{ counterparty(item) }}
                   </span>
                 </div>
-                <div v-if="item.desc" class="data-card__desc">
-                  <span class="label">备注</span>
-                  <span class="value">{{ item.desc }}</span>
+                <div class="data-card__desc">
+                  <span class="label">付款方</span>
+                  <span class="value">{{ item.payPayer }}</span>
+                  <span class="label">收款方</span>
+                  <span class="value">{{ item.payReceiver }}</span>
                 </div>
               </div>
             </div>
             <div class="data-card__right">
-              <div class="data-card__amount" :class="item.isSender ? 'is-sent' : 'is-received'">
-                {{ item.isSender ? '-' : '+' }}¥{{ formatAmount(item.amount) }}
+              <div class="data-card__amount" :class="currentDirection === 'sent' ? 'is-sent' : 'is-received'">
+                {{ currentDirection === 'sent' ? '-' : '+' }}¥{{ formatAmount(item.amount) }}
               </div>
               <div class="data-card__time">
-                {{ formatTime(item.transferTime) }}
+                {{ formatTime(item.beginTransferTime) }}
               </div>
-              <el-tag :type="getStatusType(item.status)" size="small" effect="light">
-                {{ getStatusDesc(item.status) }}
+              <el-tag :type="getStatusType(item.delayConfirmFlag)" size="small" effect="light">
+                {{ getStatusDesc(item.delayConfirmFlag) }}
               </el-tag>
             </div>
           </div>
@@ -331,56 +311,6 @@ onMounted(async () => {
         font-size: 13px;
         color: var(--el-text-color-secondary);
         white-space: nowrap;
-      }
-    }
-  }
-
-  .stats-cards {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
-    flex-shrink: 0;
-
-    .stat-card {
-      flex: 1;
-      min-width: 180px;
-
-      :deep(.el-card__body) {
-        padding: 16px;
-      }
-
-      &__header {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 13px;
-        color: var(--el-text-color-secondary);
-        margin-bottom: 8px;
-
-        .stat-icon {
-          font-size: 18px;
-
-          &.sent {
-            color: var(--el-color-danger);
-          }
-
-          &.received {
-            color: var(--el-color-success);
-          }
-        }
-      }
-
-      &__value {
-        font-size: 22px;
-        font-weight: 700;
-        color: var(--el-text-color-primary);
-        margin-bottom: 4px;
-      }
-
-      &__sub {
-        font-size: 13px;
-        color: var(--el-color-primary);
-        font-weight: 500;
       }
     }
   }

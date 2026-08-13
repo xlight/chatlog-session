@@ -52,6 +52,7 @@ export interface SessionParams {
   limit?: number
   offset?: number
   type?: string
+  keyword?: string
 }
 
 /**
