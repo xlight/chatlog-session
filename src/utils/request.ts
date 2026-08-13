@@ -324,14 +324,14 @@ class Request {
    * GET 请求
    */
   get<T = any>(url: string, params?: any, config?: AxiosRequestConfig): Promise<T> {
-    return service.get(url, { params, ...config })
+    return service.get(url, { params, ...config }) as Promise<T>
   }
 
   /**
    * POST 请求
    */
   post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    return service.post(url, data, config)
+    return service.post(url, data, config) as Promise<T>
   }
 
   /**
