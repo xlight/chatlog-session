@@ -18,7 +18,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "@microsoft/clarity": "^1.0.2",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@tanstack/vue-virtual": "^3.13.29",
     "@vueuse/core": "^14.3.0",
     "axios": "^1.18.0",
@@ -28,7 +28,7 @@
     "github-markdown-css": "^5.9.0",
     "highlight.js": "^11.11.1",
     "marked": "^18.0.4",
-    "mermaid": "^11.15.0",
+    "mermaid": "^11.16.1",
     "openai": "^6.42.0",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",

@@ -14,6 +14,7 @@ Vue 3 + TypeScript + Vite 前端应用，用于通过 Chatlog API 查看微信�
 ## Build Commands
 
 ```bash
+nvm use 22        # 使用 nvm 的 node
 pnpm dev          # 开发服务器 (端口 5173，代理后端 127.0.0.1:5030)
 pnpm build        # 生产构建 (vue-tsc 类型检查 + vite build)
 pnpm preview      # 预览生产构建
