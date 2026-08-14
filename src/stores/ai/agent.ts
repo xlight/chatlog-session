@@ -102,6 +102,8 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
   const observerResults = ref<Map<string, ObserverResult[]>>(new Map())
   const observerStreaming = ref<Map<string, StreamingObserverResult | null>>(new Map())
   const keywordResults = ref<Map<string, KeywordResult[]>>(new Map())
+  /** 进行中的分析流 AbortController 注册表（sessionId → controller），供全局总闸中止 */
+  const analysisAborts = new Map<string, AbortController>()
 
   // --- 不变 state ---
   const drafts = ref<AgentDraft[]>([])
@@ -396,6 +398,24 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     observerStreaming.value = newMap
   }
 
+  /** 注册会话的分析流 AbortController（总闸关闭时中止） */
+  function registerAnalysisAbort(sessionId: string, controller: AbortController): void {
+    analysisAborts.set(sessionId, controller)
+  }
+
+  /** 注销会话的分析流 AbortController */
+  function unregisterAnalysisAbort(sessionId: string): void {
+    analysisAborts.delete(sessionId)
+  }
+
+  /** 中止所有进行中的分析流（ai.enabled 总闸关闭时调用） */
+  function abortAllAnalyses(): void {
+    for (const controller of analysisAborts.values()) {
+      controller.abort()
+    }
+    analysisAborts.clear()
+  }
+
   // ==================== Keyword Actions ====================
 
   /** 添加关键词匹配结果 */
@@ -598,6 +618,9 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     clearObserverResults,
     updateStreamingState,
     clearStreamingState,
+    registerAnalysisAbort,
+    unregisterAnalysisAbort,
+    abortAllAnalyses,
 
     // Keyword Actions
     addKeywordResult,

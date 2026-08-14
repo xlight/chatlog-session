@@ -260,6 +260,29 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   /**
+   * 启用/禁用 AI（全局总闸）。启用需隐私确认：enabled=true 且
+   * privacyAcknowledged 已为 true 或 opts.acknowledged 为 true 时才写入；
+   * 否则不写入（UI 开关回弹）。纯数据 action，不包含弹窗。
+   */
+  function setAiEnabled(enabled: boolean, opts?: { acknowledged?: boolean }): void {
+    if (!enabled) {
+      ai.value.enabled = false
+      return
+    }
+    if (ai.value.privacyAcknowledged || opts?.acknowledged) {
+      ai.value.enabled = true
+      ai.value.privacyAcknowledged = true
+    }
+  }
+
+  /**
+   * 重置隐私确认状态，使下次启用 AI 时重新弹出隐私提示
+   */
+  function resetPrivacyAcknowledgment(): void {
+    ai.value.privacyAcknowledged = false
+  }
+
+  /**
    * 同步 enableDebug 到 api 和 advanced
    */
   function syncEnableDebug(value: boolean) {
@@ -290,6 +313,8 @@ export const useSettingsStore = defineStore('settings', () => {
     migrateFromLegacyStorage,
     resetSettings,
     syncEnableDebug,
+    setAiEnabled,
+    resetPrivacyAcknowledgment,
     $reset,
   }
 }, {

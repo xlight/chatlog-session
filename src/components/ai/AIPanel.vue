@@ -157,7 +157,7 @@ function handleClose() {
 }
 
 function goToSettings() {
-  router.push('/settings?tab=ai')
+  router.push({ path: '/agent/console', query: { tab: 'config' } })
 }
 
 // ==================== MCP Auto-Connect ====================
@@ -335,7 +335,7 @@ onMounted(() => {
             </el-icon>
           </template>
           <el-button type="primary" @click="goToSettings">
-            前往设置
+            前往 Agent 配置
           </el-button>
         </el-empty>
       </div>

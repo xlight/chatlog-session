@@ -224,8 +224,8 @@ const CurrentViewComponent = computed(() => {
       </keep-alive>
     </main>
 
-    <!-- 移动端底部标签栏 -->
-    <MobileTabBar v-if="appStore.isMobile" />
+    <!-- 移动端底部标签栏（agent 内嵌视图时隐藏，由 AgentConsole 自持底部 Tab） -->
+    <MobileTabBar v-if="appStore.isMobile && currentView !== 'agent'" />
   </div>
 </template>
 

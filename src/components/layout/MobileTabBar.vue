@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useSessionStore } from '@/stores/session'
 import { useContactStore } from '@/stores/contact'
+import { useSettingsStore } from '@/stores/settings'
 
 const appStore = useAppStore()
 const sessionStore = useSessionStore()
 const contactStore = useContactStore()
+const settingsStore = useSettingsStore()
 
 // 标签项类型定义
 interface TabItem {
@@ -16,38 +19,50 @@ interface TabItem {
 }
 
 // 标签项配置
-const tabs: TabItem[] = [
-  {
-    key: 'chat',
-    label: '聊天',
-    icon: 'ChatLineSquare',
-    badge: () => sessionStore.totalUnreadCount
-  },
-  {
-    key: 'contact',
-    label: '联系人',
-    icon: 'User',
-    badge: () => contactStore.isBackgroundLoading ? '...' : null
-  },
-  {
-    key: 'search',
-    label: '搜索',
-    icon: 'Search',
-    badge: null
-  },
-  {
-    key: 'social',
-    label: '社交',
-    icon: 'Collection',
-    badge: null
-  },
-  {
+const tabs = computed<TabItem[]>(() => {
+  const items: TabItem[] = [
+    {
+      key: 'chat',
+      label: '聊天',
+      icon: 'ChatLineSquare',
+      badge: () => sessionStore.totalUnreadCount
+    },
+    {
+      key: 'contact',
+      label: '联系人',
+      icon: 'User',
+      badge: () => contactStore.isBackgroundLoading ? '...' : null
+    },
+    {
+      key: 'search',
+      label: '搜索',
+      icon: 'Search',
+      badge: null
+    },
+    {
+      key: 'social',
+      label: '社交',
+      icon: 'Collection',
+      badge: null
+    }
+  ]
+  // Agent 入口受「显示 Agent 入口」开关控制
+  if (settingsStore.ai.showConsoleInSidebar) {
+    items.push({
+      key: 'agent',
+      label: 'Agent',
+      icon: 'Cpu',
+      badge: null
+    })
+  }
+  items.push({
     key: 'settings',
     label: '设置',
     icon: 'Setting',
     badge: null
-  }
-]
+  })
+  return items
+})
 
 // 处理标签点击
 const handleTabClick = (key: string) => {
@@ -68,8 +83,7 @@ const isActive = (key: string) => {
       class="tabbar-item"
       :class="{ active: isActive(tab.key) }"
       @click="handleTabClick(tab.key)"
-    >
-      <div class="tabbar-item__icon">
+    >      <div class="tabbar-item__icon">
         <el-icon :size="24">
           <component :is="tab.icon" />
         </el-icon>

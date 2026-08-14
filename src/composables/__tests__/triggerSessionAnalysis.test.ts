@@ -21,6 +21,7 @@ import { sendmsgAPI } from '@/api/sendmsg'
 import { useAIAgentStore } from '@/stores/ai/agent'
 import { useAIPromptStore } from '@/stores/ai/prompt'
 import { useSessionStore } from '@/stores/session'
+import { useSettingsStore } from '@/stores/settings'
 import { triggerSessionAnalysis } from '@/composables/triggerSessionAnalysis'
 import { getContextMessages } from '@/utils/getContextMessages'
 import type { Session } from '@/types/session'
@@ -56,6 +57,8 @@ function freshStore() {
   const pinia = createPinia()
   setActivePinia(pinia)
   const store = useAIAgentStore(pinia)
+  // 开启全局总闸（默认 ai.enabled=false，测试聚焦 Observer 行为本身）
+  useSettingsStore(pinia).setAiEnabled(true, { acknowledged: true })
   return store
 }
 
@@ -546,5 +549,25 @@ describe('triggerSessionAnalysis 回复语义与增量（fix-ai-observer）', ()
     expect(systemContent).toContain('测试群')
     expect(systemContent).not.toContain('{sessionName}')
     expect(systemContent).toContain('{content}') // 未支持变量按字面保留
+  })
+
+  it('全局总闸关闭（ai.enabled=false）时不执行分析', async () => {
+    const store = freshStore()
+    store.setSessionConfig('s1', {
+      observer: { enabled: true, autoReply: true, intervalSeconds: 0, minNewMessages: 0, autoReplyCount: 1, maxContextMessages: 20 },
+      sendPermission: 'auto',
+    })
+    // 关闭全局总闸
+    useSettingsStore().setAiEnabled(false)
+
+    ;(getContextMessages as ReturnType<typeof vi.fn>).mockResolvedValue([
+      makeMessage({ id: 1, createTime: 1000, isSelf: false }),
+    ])
+
+    await triggerSessionAnalysis('s1', { skipAccumulatedCheck: true })
+
+    // 不调用 chatStream、不产生草稿/发送
+    expect(chatStream as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
+    expect(store.drafts).toHaveLength(0)
   })
 })

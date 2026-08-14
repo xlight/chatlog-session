@@ -199,7 +199,7 @@ const sessionTags = computed(() => {
     <div class="console-chat__main">
       <div v-if="!isAiReady" class="console-chat__empty">
         <el-empty description="AI 服务未配置">
-          <el-button type="primary" @click="appStore.setActiveNav('settings')">
+          <el-button type="primary" @click="consoleStore.switchTab('config')">
             前往设置
           </el-button>
         </el-empty>

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useAIConsoleStore } from '@/stores/ai/console'
 import {
+  ArrowLeft,
   ChatLineRound,
   DataLine,
   List,
@@ -17,6 +19,8 @@ import ConsoleConfig from './ConsoleConfig.vue'
 
 const appStore = useAppStore()
 const consoleStore = useAIConsoleStore()
+const route = useRoute()
+const router = useRouter()
 
 interface TabDef {
   key: 'chat' | 'overview' | 'log' | 'sessions' | 'config'
@@ -31,6 +35,8 @@ const tabs: TabDef[] = [
   { key: 'sessions', label: '监听会话', icon: Monitor },
   { key: 'config', label: '配置', icon: Setting },
 ]
+
+const VALID_TABS: TabDef['key'][] = ['chat', 'overview', 'log', 'sessions', 'config']
 
 const activeTab = computed(() => consoleStore.activeTab)
 const isMobile = computed(() => appStore.isMobile)
@@ -53,6 +59,24 @@ const ActiveComponent = computed(() => {
       return ConsoleConfig
     default:
       return ConsoleChat
+  }
+})
+
+/** 移动端返回：优先回导航栈，无栈时回聊天视图 */
+function handleMobileBack() {
+  if (appStore.canNavigateBack()) {
+    appStore.navigateBack()
+  } else {
+    appStore.switchMobileView('chat')
+  }
+}
+
+/** 消费外部跳转 query（AIPanel「前往 Agent 配置」→ /agent/console?tab=config） */
+onMounted(() => {
+  const tab = route.query.tab
+  if (typeof tab === 'string' && VALID_TABS.includes(tab as TabDef['key'])) {
+    consoleStore.switchTab(tab as TabDef['key'])
+    router.replace({ query: {} })
   }
 })
 
@@ -89,6 +113,12 @@ onUnmounted(() => {
     </main>
 
     <nav v-if="isMobile" class="agent-console__bottom-tabs">
+      <div class="bottom-tab bottom-tab--back" @click="handleMobileBack">
+        <el-icon size="20">
+          <ArrowLeft />
+        </el-icon>
+        <span class="bottom-tab__label">返回</span>
+      </div>
       <div
         v-for="tab in tabs"
         :key="tab.key"

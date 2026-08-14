@@ -1,6 +1,7 @@
 import { useAIAgentStore } from '@/stores/ai/agent'
 import { useAIPromptStore } from '@/stores/ai/prompt'
 import { OBSERVER_ANALYZE_TEMPLATE_ID } from '@/stores/ai/prompt'
+import { useSettingsStore } from '@/stores/settings'
 import { agentSendQueue } from '@/composables/useSendQueue'
 import { useSessionStore } from '@/stores/session'
 import { chatStream } from '@/api/llm'
@@ -173,6 +174,7 @@ async function generateAndSendReply(
   result: ObserverResult,
   config: SessionAgentConfig,
   agentStore: ReturnType<typeof useAIAgentStore>,
+  signal?: AbortSignal,
 ): Promise<void> {
   console.log('[Observer:reply] enter generateAndSendReply', { currentSid, sendPermission: config.sendPermission, suggestionsCount: result.suggestions.length })
   if (config.sendPermission === 'forbidden') return
@@ -223,7 +225,7 @@ async function generateAndSendReply(
 
     let replyContent = ''
     try {
-      for await (const chunk of chatStream({ messages: llmMessages, model: config.model })) {
+      for await (const chunk of chatStream({ messages: llmMessages, model: config.model, signal })) {
         replyContent += chunk.choices?.[0]?.delta?.content || ''
       }
     } catch {
@@ -290,6 +292,14 @@ export async function triggerSessionAnalysis(
   options?: TriggerSessionAnalysisOptions,
 ): Promise<void> {
   const agentStore = useAIAgentStore()
+  const settingsStore = useSettingsStore()
+
+  // 全局总闸：ai.enabled 关闭时暂停所有 Agent 行为（消息触发路径）
+  if (!settingsStore.ai.enabled) {
+    console.log('[Observer:trigger] skip: ai disabled (master switch)', { sessionId })
+    return
+  }
+
   const config = agentStore.getEffectiveConfig(sessionId)
 
   if (!config.observer.enabled) {
@@ -321,6 +331,10 @@ export async function triggerSessionAnalysis(
 
   agentStore.updateObserverState(sessionId, { isAnalyzing: true, error: undefined })
   agentStore.clearStreamingState(sessionId)
+
+  // 分析流 AbortController：注册到 agentStore，供 ai.enabled 总闸关闭时中止
+  const abortController = new AbortController()
+  agentStore.registerAnalysisAbort(sessionId, abortController)
 
   try {
     const allMessages = options?.contextMessages
@@ -366,7 +380,7 @@ export async function triggerSessionAnalysis(
     const onStream = options?.onStream
     onStream?.({ streamingStatus: 'streaming', streamingSummary: '', streamingKeyPoints: [], streamingSuggestions: [] })
 
-    for await (const chunk of chatStream({ messages: llmMessages, model: config.model })) {
+    for await (const chunk of chatStream({ messages: llmMessages, model: config.model, signal: abortController.signal })) {
       const delta = chunk.choices?.[0]?.delta?.content || ''
       if (!delta) continue
       content += delta
@@ -423,7 +437,7 @@ export async function triggerSessionAnalysis(
 
     // 回复入口：sendPermission !== 'forbidden'（observer.autoReply 仅控制直接发送 vs 草稿）
     if (config.sendPermission !== 'forbidden' && result.suggestions.length > 0 && hasNewNonSelfMessage) {
-      await generateAndSendReply(sessionId, incrementalMessages, result, config, agentStore)
+      await generateAndSendReply(sessionId, incrementalMessages, result, config, agentStore, abortController.signal)
     } else {
       console.log('[Observer:trigger] reply skipped', {
         sessionId,
@@ -438,5 +452,7 @@ export async function triggerSessionAnalysis(
     })
     options?.onStream?.({ streamingStatus: 'error' })
     agentStore.clearStreamingState(sessionId)
+  } finally {
+    agentStore.unregisterAnalysisAbort(sessionId)
   }
 }

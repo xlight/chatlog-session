@@ -84,6 +84,18 @@ describe('useSettingsStore', () => {
         sendShortcut: 'enter',
       })
     })
+
+    it('ai 默认值', () => {
+      expect(store.ai).toEqual({
+        llmBaseUrl: 'https://api.deepseek.com/v1',
+        llmApiKey: '',
+        llmDefaultModel: 'deepseek-chat',
+        enabled: false,
+        privacyAcknowledged: false,
+        showConsoleInSidebar: true,
+        mcpServers: [],
+      })
+    })
   })
 
   // ==================== Actions ====================
@@ -133,6 +145,51 @@ describe('useSettingsStore', () => {
       store.syncEnableDebug(false)
       expect(store.api.enableDebug).toBe(false)
       expect(store.advanced.enableDebug).toBe(false)
+    })
+  })
+
+  describe('setAiEnabled', () => {
+    it('enabled=false 直接写入', () => {
+      store.ai.enabled = true
+      store.setAiEnabled(false)
+      expect(store.ai.enabled).toBe(false)
+    })
+
+    it('enabled=true 且已确认（acknowledged）时写入 enabled + privacyAcknowledged', () => {
+      store.setAiEnabled(true, { acknowledged: true })
+      expect(store.ai.enabled).toBe(true)
+      expect(store.ai.privacyAcknowledged).toBe(true)
+    })
+
+    it('enabled=true 且 privacyAcknowledged 已为 true 时写入', () => {
+      store.ai.privacyAcknowledged = true
+      store.setAiEnabled(true)
+      expect(store.ai.enabled).toBe(true)
+      expect(store.ai.privacyAcknowledged).toBe(true)
+    })
+
+    it('enabled=true 但未确认时不写入（UI 开关回弹）', () => {
+      store.setAiEnabled(true)
+      expect(store.ai.enabled).toBe(false)
+      expect(store.ai.privacyAcknowledged).toBe(false)
+    })
+  })
+
+  describe('resetPrivacyAcknowledgment', () => {
+    it('重置 privacyAcknowledged 为 false（供重新确认入口）', () => {
+      store.setAiEnabled(true, { acknowledged: true })
+      expect(store.ai.privacyAcknowledged).toBe(true)
+      store.resetPrivacyAcknowledgment()
+      expect(store.ai.privacyAcknowledged).toBe(false)
+    })
+
+    it('重置后重新启用需再次确认（未确认不写入）', () => {
+      store.setAiEnabled(true, { acknowledged: true })
+      store.setAiEnabled(false)
+      store.resetPrivacyAcknowledgment()
+      store.setAiEnabled(true)
+      expect(store.ai.enabled).toBe(false)
+      expect(store.ai.privacyAcknowledged).toBe(false)
     })
   })
 

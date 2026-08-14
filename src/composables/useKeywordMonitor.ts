@@ -1,5 +1,6 @@
 import { ref, watch, type Ref } from 'vue'
 import { useAIAgentStore } from '@/stores/ai/agent'
+import { useSettingsStore } from '@/stores/settings'
 import { agentSendQueue } from '@/composables/useSendQueue'
 import { useSessionStore } from '@/stores/session'
 import { useChatMessagesStore } from '@/stores/chatMessages'
@@ -208,6 +209,10 @@ ${contextText}
   }
 
   function onNewMessages(): void {
+    // 全局总闸：ai.enabled 关闭时暂停关键词监测
+    const settingsStore = useSettingsStore()
+    if (!settingsStore.ai.enabled) return
+
     const patterns = getMatchPatterns()
     if (patterns.length === 0) return
 

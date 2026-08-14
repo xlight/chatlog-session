@@ -1,6 +1,7 @@
 import { useAIAgentStore } from '@/stores/ai/agent'
 import { useMessageCacheStore } from '@/stores/messageCache'
 import { useSessionStore } from '@/stores/session'
+import { useSettingsStore } from '@/stores/settings'
 import { triggerSessionAnalysis } from '@/composables/triggerSessionAnalysis'
 import type { Message } from '@/types/message'
 
@@ -30,7 +31,13 @@ class AnalysisQueue {
 
   private async execute(sid: string): Promise<void> {
     const agentStore = useAIAgentStore()
+    const settingsStore = useSettingsStore()
     try {
+      // 全局总闸：ai.enabled 关闭时暂停所有 Agent 后台行为
+      if (!settingsStore.ai.enabled) {
+        console.log('[Observer:bg] skip: ai disabled (master switch)', { sid })
+        return
+      }
       const config = agentStore.getEffectiveConfig(sid)
       if (!config.observer.enabled) {
         console.log('[Observer:bg] skip: observer not enabled', { sid })

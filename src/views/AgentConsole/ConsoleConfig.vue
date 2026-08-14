@@ -6,19 +6,23 @@ import { useSettingsStore } from '@/stores/settings'
 import { useAIAgentStore } from '@/stores/ai/agent'
 import { useSessionStore } from '@/stores/session'
 import { ElMessage } from 'element-plus'
-import { Connection, Refresh, Edit, Delete } from '@element-plus/icons-vue'
-import { listModels, testConnection } from '@/api/llm'
+import { Refresh, Edit, Delete } from '@element-plus/icons-vue'
+import { listModels } from '@/api/llm'
 import type { ModelInfo } from '@/types/ai'
 import type { AgentLevelPreset, SessionAgentConfig } from '@/types/ai/agent'
 import { deriveLevelPreset } from '@/stores/ai/agent'
 import { useDisplayName } from '@/composables/useDisplayName'
+import { useAiEnable } from '@/composables/useAiEnable'
+import { useAIActivityLogStore } from '@/stores/ai/activityLog'
 import SessionAgentConfigDialog from '@/components/chat/SessionAgentConfigDialog.vue'
+import ConsoleLLMSettings from './ConsoleLLMSettings.vue'
+import MCPSettings from '@/views/Settings/MCPSettings.vue'
 
 const settingsStore = useSettingsStore()
 const agentStore = useAIAgentStore()
 const sessionStore = useSessionStore()
+const { enableAi, disableAi } = useAiEnable()
 
-const isLoading = ref(false)
 const modelOptions = ref<ModelInfo[]>([])
 const loadingModels = ref(false)
 
@@ -56,6 +60,10 @@ const presetDescriptions: Record<AgentLevelPreset, string> = {
   Custom: '手动配置所有选项',
 }
 
+/** L4 警示：AI 以人类名义直接发言（辅助而不僭越） */
+const L4_WARNING = '开启后 AI 将以你的名义在群中自动发言'
+const isL4Selected = computed(() => defaultPreset.value === 'L4')
+
 function handleDefaultPresetChange(preset: AgentLevelPreset) {
   agentStore.updateDefaultLevelPreset(preset)
 }
@@ -65,40 +73,43 @@ onMounted(async () => {
 })
 
 async function loadModels() {
+  // 未配置 AI（总闸关闭或无 API Key）时不发起请求、不弹错误（对齐 AIPanel 静默模式）
+  if (!settingsStore.ai.enabled || !settingsStore.ai.llmApiKey) {
+    modelOptions.value = []
+    return
+  }
   loadingModels.value = true
   try {
     modelOptions.value = await listModels()
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : '加载模型列表失败'
-    ElMessage.error(`加载模型失败：${msg}`)
+  } catch {
+    // Silently fail - models list is best-effort
     modelOptions.value = []
   } finally {
     loadingModels.value = false
   }
 }
 
-async function handleTestConnection() {
-  isLoading.value = true
-  try {
-    const result = await testConnection()
-    if (result.success) {
-      const latency = result.latencyMs ? `（${result.latencyMs}ms）` : ''
-      ElMessage.success(`连接成功，共 ${result.modelCount} 个模型${latency}`)
-    } else {
-      ElMessage.error(`连接失败：${result.error ?? '未知错误'}`)
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : '未知错误'
-    ElMessage.error(`连接失败：${msg}`)
-  } finally {
-    isLoading.value = false
+/** 启用开关：经 useAiEnable 隐私确认；关闭为全局总闸（中止分析流） */
+async function handleEnabledChange(val: string | number | boolean) {
+  if (Boolean(val)) {
+    const ok = await enableAi()
+    if (!ok) return // 取消确认，开关回弹（受控 :model-value 不更新）
+  } else {
+    disableAi()
   }
 }
 
 /** 已覆盖默认配置的会话列表 */
 const configuredSessions = computed(() => {
   const { getSessionDisplayNameSync } = useDisplayName()
-  const overrides: Array<{ id: string; name: string; preset: AgentLevelPreset; config: SessionAgentConfig }> = []
+  const overrides: Array<{
+    id: string
+    name: string
+    preset: AgentLevelPreset
+    config: SessionAgentConfig
+    analyzeCount: number
+    replyCount: number
+  }> = []
   for (const [sid, config] of Object.entries(agentStore.sessionConfigs)) {
     const session = sessionStore.sessions.find((s) => s.id === sid)
     const metadata = session ? sessionStore.getSessionSearchMetadata(session) : undefined
@@ -107,10 +118,49 @@ const configuredSessions = computed(() => {
       name: session ? getSessionDisplayNameSync(session, metadata) : sid,
       preset: deriveLevelPreset(config),
       config,
+      ...getSessionActivityCounts(sid),
     })
   }
   return overrides
 })
+
+/** 从活动日志按会话聚合分析/回复次数（来自 activityLog store） */
+function getSessionActivityCounts(sessionId: string): { analyzeCount: number; replyCount: number } {
+  const activityLogStore = useAIActivityLogStore()
+  let analyzeCount = 0
+  let replyCount = 0
+  for (const entry of activityLogStore.entries) {
+    if (entry.sessionId !== sessionId) continue
+    if (entry.action === 'ai_analyze') analyzeCount++
+    if (entry.action === 'ai_reply') replyCount++
+  }
+  return { analyzeCount, replyCount }
+}
+
+/** 快捷 L0：禁用会话 AI（写入 L0 语义覆盖） */
+function handleQuickDisable(sessionId: string) {
+  agentStore.setSessionConfig(sessionId, {
+    ...agentStore.getEffectiveConfig(sessionId),
+    sendPermission: 'forbidden',
+    observer: { ...agentStore.getEffectiveConfig(sessionId).observer, enabled: false, autoReply: false },
+    keywordMonitor: { ...agentStore.getEffectiveConfig(sessionId).keywordMonitor, enabled: false },
+  })
+  ElMessage.success('已禁用该会话的 AI')
+}
+
+/** 快捷恢复：清除覆盖回默认 */
+function handleQuickRestore(sessionId: string) {
+  agentStore.clearSessionConfig(sessionId)
+  ElMessage.success('已恢复该会话的默认配置')
+}
+
+function isDisabled(sessionConfig: SessionAgentConfig): boolean {
+  return (
+    sessionConfig.sendPermission === 'forbidden' &&
+    !sessionConfig.observer.enabled &&
+    !sessionConfig.keywordMonitor.enabled
+  )
+}
 
 function openEdit(sessionId: string, name: string) {
   editingSession.value = { id: sessionId, name }
@@ -132,26 +182,35 @@ function handleDeleteConfig(sessionId: string) {
       <template #header>
         <span>全局 AI 设置</span>
       </template>
+
       <el-form label-position="top" class="config-form">
         <el-form-item label="启用 AI">
           <el-switch
-            v-model="settingsStore.ai.enabled"
+            :model-value="settingsStore.ai.enabled"
             active-text="开"
             inactive-text="关"
+            @update:model-value="handleEnabledChange"
           />
           <span class="form-hint">
-            关闭后所有 AI 对话与投喂功能不可用
+            关闭后 AI 面板与所有 Agent 后台行为（分析/自动回复）全部暂停
           </span>
         </el-form-item>
+      </el-form>
 
+      <el-divider content-position="left">连接（LLM）</el-divider>
+      <ConsoleLLMSettings />
+
+      <el-divider content-position="left">显示</el-divider>
+      <el-form label-position="top" class="config-form">
         <el-form-item label="默认模型">
           <div class="model-row">
             <el-select
-              v-model="settingsStore.ai.llmDefaultModel"
+              :model-value="settingsStore.ai.llmDefaultModel"
               placeholder="请选择默认模型"
               :loading="loadingModels"
               class="model-select"
               filterable
+              @update:model-value="(val: string) => (settingsStore.ai.llmDefaultModel = val)"
             >
               <el-option
                 v-for="model in modelOptions"
@@ -170,16 +229,18 @@ function handleDeleteConfig(sessionId: string) {
               刷新
             </el-button>
           </div>
+          <span class="form-hint">全局默认模型，可在 AIPanel 内按会话快捷切换</span>
         </el-form-item>
 
-        <el-form-item label="侧边栏显示">
+        <el-form-item label="显示 Agent 入口">
           <el-switch
-            v-model="settingsStore.ai.showConsoleInSidebar"
+            :model-value="settingsStore.ai.showConsoleInSidebar"
             active-text="显示"
             inactive-text="隐藏"
+            @update:model-value="(val: string | number | boolean) => (settingsStore.ai.showConsoleInSidebar = Boolean(val))"
           />
           <span class="form-hint">
-            控制侧边栏是否出现 AI Console 入口
+            控制桌面侧边栏与移动端底部 Tab 是否出现 Agent 入口
           </span>
         </el-form-item>
 
@@ -192,18 +253,15 @@ function handleDeleteConfig(sessionId: string) {
           />
           <span class="form-hint">全局唤起 AI Console（只读）</span>
         </el-form-item>
-
-        <el-form-item>
-          <el-button
-            type="primary"
-            :icon="Connection"
-            :loading="isLoading"
-            @click="handleTestConnection"
-          >
-            测试连接
-          </el-button>
-        </el-form-item>
       </el-form>
+    </el-card>
+
+    <!-- MCP 服务器管理 -->
+    <el-card class="config-card" shadow="never">
+      <template #header>
+        <span>MCP 服务器管理</span>
+      </template>
+      <MCPSettings />
     </el-card>
 
     <!-- 置顶会话默认配置 -->
@@ -224,9 +282,20 @@ function handleDeleteConfig(sessionId: string) {
               :key="key"
               :label="label"
               :value="key"
-            />
+            >
+              <span>{{ label }}</span>
+              <span v-if="key === 'L4'" style="color: #f56c6c; margin-left: 6px; font-size: 12px">⚠ {{ L4_WARNING }}</span>
+            </el-option>
           </el-select>
           <span v-if="!isDefaultCustom" class="form-hint">{{ presetDescriptions[defaultPreset] }}</span>
+          <el-alert
+            v-if="isL4Selected"
+            type="warning"
+            :closable="false"
+            style="margin-top: 8px"
+          >
+            {{ L4_WARNING }}
+          </el-alert>
         </el-form-item>
 
         <el-form-item label="默认允许的操作">
@@ -479,8 +548,19 @@ function handleDeleteConfig(sessionId: string) {
             </el-tag>
             <span v-if="item.config.observer.enabled" class="feature-tag">旁观</span>
             <span v-if="item.config.keywordMonitor.enabled" class="feature-tag">关键词</span>
+            <span v-if="isDisabled(item.config)" class="feature-tag danger">已禁用</span>
+            <span v-if="item.analyzeCount > 0 || item.replyCount > 0" class="stats-hint">
+              分析 {{ item.analyzeCount }} 次 · 回复 {{ item.replyCount }} 次
+            </span>
+            <span v-else class="stats-hint">暂无活动</span>
           </div>
           <div class="session-actions">
+            <el-switch
+              :model-value="!isDisabled(item.config)"
+              size="small"
+              :title="isDisabled(item.config) ? '恢复该会话 AI' : '一键禁用该会话 AI'"
+              @update:model-value="(val: string | number | boolean) => (Boolean(val) ? handleQuickRestore(item.id) : handleQuickDisable(item.id))"
+            />
             <el-button text size="small" :icon="Edit" @click="openEdit(item.id, item.name)">
               编辑
             </el-button>
@@ -600,6 +680,16 @@ function handleDeleteConfig(sessionId: string) {
     border-radius: 3px;
     background: var(--el-color-primary-light-9);
     color: var(--el-color-primary);
+
+    &.danger {
+      background: var(--el-color-danger-light-9);
+      color: var(--el-color-danger);
+    }
+  }
+
+  .stats-hint {
+    font-size: 11px;
+    color: var(--el-text-color-secondary);
   }
 }
 
