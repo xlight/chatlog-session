@@ -15,7 +15,7 @@ importers:
         specifier: ^1.29.0
         version: 1.30.0(zod@4.4.3)
       '@tanstack/vue-virtual':
-        specifier: ^3.13.29
+        specifier: ^3.13.31
         version: 3.13.36(vue@3.5.42(typescript@6.0.3))
       '@vueuse/core':
         specifier: ^14.3.0
