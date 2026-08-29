@@ -4,6 +4,7 @@ import type { ChatMessage } from '@/types/ai'
 import type { ToolCallRecord } from '@/types/ai/mcp'
 import { renderMarkdown, escapeHtml } from '@/utils/markdown'
 import { useAppStore } from '@/stores/app'
+import hljs from '@/utils/highlight'
 import ToolCallCard from './ToolCallCard.vue'
 
 const props = defineProps<{
@@ -41,12 +42,11 @@ const renderedContent = computed(() => {
 })
 
 // --- 代码块语法高亮 ---
-async function highlightCodeBlocks(container: HTMLElement) {
+function highlightCodeBlocks(container: HTMLElement) {
   const blocks = container.querySelectorAll('pre > code[class^="language-"]')
   if (blocks.length === 0) return
-  const hljs = await import('highlight.js')
   blocks.forEach((block) => {
-    hljs.default.highlightElement(block as HTMLElement)
+    hljs.highlightElement(block as HTMLElement)
   })
 }
 
@@ -69,10 +69,41 @@ function addCopyButtons(container: HTMLElement) {
   })
 }
 
-// --- Mermaid 渲染 ---
+// --- Mermaid 渲染（点击懒加载）---
 let mermaidInstance: typeof import('mermaid') | null = null
 
-async function renderMermaid(container: HTMLElement, isDark: boolean) {
+/**
+ * 为所有 mermaid-code 节点添加占位渲染按钮（不加载 mermaid）
+ * 占位按钮用 data- 属性去重，避免流式期间闪烁
+ */
+function addMermaidPlaceholders(container: HTMLElement) {
+  const nodes = container.querySelectorAll<HTMLElement>('.mermaid-code')
+  nodes.forEach((node) => {
+    // 保存原始代码到 data-mermaid-code（仅首次）
+    if (!node.getAttribute('data-mermaid-code')) {
+      node.setAttribute('data-mermaid-code', node.textContent || '')
+    }
+    // 已有占位按钮则跳过（去重）
+    if (node.nextElementSibling?.classList.contains('mermaid-placeholder')) return
+    // 已渲染（含 svg）则跳过
+    if (node.querySelector('svg')) return
+
+    const placeholder = document.createElement('div')
+    placeholder.className = 'mermaid-placeholder'
+    placeholder.innerHTML = '<button class="mermaid-render-btn">📊 点击渲染图表</button>'
+    const btn = placeholder.querySelector('.mermaid-render-btn')!
+    btn.addEventListener('click', () => {
+      placeholder.remove()
+      renderMermaidNode(node, appStore.isDark)
+    })
+    node.parentNode?.insertBefore(placeholder, node.nextSibling)
+  })
+}
+
+/**
+ * 动态加载 mermaid 并渲染单个节点
+ */
+async function renderMermaidNode(node: HTMLElement, isDark: boolean) {
   if (!mermaidInstance) {
     mermaidInstance = await import('mermaid')
   }
@@ -82,34 +113,22 @@ async function renderMermaid(container: HTMLElement, isDark: boolean) {
     fontFamily: 'inherit',
   })
 
-  const nodes = container.querySelectorAll<HTMLElement>('.mermaid-code')
-  if (nodes.length === 0) return
-
-  // 保存原始代码 + 从 data-mermaid-code 恢复（暗色模式切换时节点内容已是 SVG）
-  const originals = new Map<HTMLElement, string>()
-  nodes.forEach((n) => {
-    const stored = n.getAttribute('data-mermaid-code')
-    if (stored) {
-      n.textContent = stored
-      originals.set(n, stored)
-    } else {
-      originals.set(n, n.textContent || '')
-      n.setAttribute('data-mermaid-code', n.textContent || '')
-    }
-  })
+  // 从 data-mermaid-code 恢复原始代码（暗色模式切换时节点内容已是 SVG）
+  const original = node.getAttribute('data-mermaid-code') || node.textContent || ''
+  node.textContent = original
 
   try {
-    await mermaidInstance.default.run({ nodes: [...nodes] })
-    // 成功：为每个节点添加代码预览切换
-    nodes.forEach((n) => addCodePreviewToggle(n, originals.get(n) || ''))
+    await mermaidInstance.default.run({ nodes: [node] })
+    // 成功：添加代码预览切换工具栏
+    addCodePreviewToggle(node, original)
+    // 通知虚拟滚动重新测量元素高度
+    contentRef.value?.dispatchEvent(new Event('resize'))
   } catch (err) {
     // 失败：恢复原始代码，降级为普通代码块
-    nodes.forEach((n) => {
-      n.textContent = originals.get(n) || ''
-      n.classList.remove('mermaid-code')
-    })
+    node.textContent = original
+    node.classList.remove('mermaid-code')
     // 给降级后的代码块补上复制按钮
-    addCopyButtons(container)
+    if (contentRef.value) addCopyButtons(contentRef.value)
     console.warn('[Mermaid] 渲染失败，降级为代码块:', err)
   }
 }
@@ -167,13 +186,14 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 function schedulePostRender() {
   if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(async () => {
+  debounceTimer = setTimeout(() => {
     const container = contentRef.value
     if (!container) return
-    await highlightCodeBlocks(container)
+    highlightCodeBlocks(container)
     addCopyButtons(container)
+    // Mermaid：仅添加占位按钮，不自动加载 mermaid
     if (container.querySelector('.mermaid-code')) {
-      await renderMermaid(container, appStore.isDark)
+      addMermaidPlaceholders(container)
     }
     // 通知虚拟滚动重新测量元素高度
     container.dispatchEvent(new Event('resize'))
@@ -188,14 +208,22 @@ watch(
   }
 )
 
-// --- 暗色模式切换时重新渲染 Mermaid ---
+// --- 暗色模式切换时重新渲染已加载的 Mermaid ---
 watch(
   () => appStore.isDark,
   async () => {
+    // 守卫：仅已加载过 mermaid 才重新渲染，避免未点击的图表因暗色切换而意外加载
+    if (mermaidInstance === null) return
     const container = contentRef.value
-    if (!container || !container.querySelector('.mermaid-code')) return
-    mermaidInstance = null
-    await renderMermaid(container, appStore.isDark)
+    if (!container) return
+    // 重新渲染所有已渲染（含 svg）的 mermaid-code 节点
+    const renderedNodes = container.querySelectorAll<HTMLElement>('.mermaid-code svg')
+    renderedNodes.forEach((svg) => {
+      const node = svg.parentElement as HTMLElement
+      if (node?.classList.contains('mermaid-code')) {
+        renderMermaidNode(node, appStore.isDark)
+      }
+    })
   }
 )
 
@@ -421,6 +449,28 @@ onBeforeUnmount(() => {
 
       :deep(svg) {
         max-width: 100%;
+      }
+
+      // --- Mermaid 占位渲染按钮 ---
+      :deep(.mermaid-placeholder) {
+        text-align: center;
+        margin: 4px 0 8px;
+      }
+
+      :deep(.mermaid-render-btn) {
+        padding: 6px 16px;
+        font-size: 13px;
+        border: 1px solid var(--el-color-primary-light-5);
+        border-radius: 6px;
+        background-color: var(--el-color-primary-light-9);
+        color: var(--el-color-primary);
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          background-color: var(--el-color-primary-light-7);
+          border-color: var(--el-color-primary-light-3);
+        }
       }
 
       // --- Mermaid 工具栏（画布外面）---

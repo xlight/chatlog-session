@@ -1,10 +1,17 @@
+// 样式兜底：ElMessage/ElMessageBox/ElLoading 服务式调用需手动引入样式
+// 置于最顶部，确保先于 mount 前可能触发的 ElMessage.error 调用有样式
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
+import 'element-plus/es/components/loading/style/css'
+// 暗色模式 CSS 变量（全局变量定义，非组件级样式，移除会导致暗色模式变量丢失）
+import 'element-plus/theme-chalk/dark/css-vars.css'
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
-import ElementPlus, { ElMessage } from 'element-plus'
-import 'element-plus/dist/index.css'
-import 'element-plus/theme-chalk/dark/css-vars.css'
+import { ElMessage } from 'element-plus'
 import 'github-markdown-css/github-markdown.css'
+// 全量注册 Element Plus 图标
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
@@ -26,12 +33,9 @@ app.use(pinia)
 // 注册 Router
 app.use(router)
 
-// 注册 Element Plus
-app.use(ElementPlus)
-
-// 注册 Element Plus 图标
+// 全量注册 Element Plus 图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component)
+  app.component(key, component as any)
 }
 
 // 初始化 IndexedDB
