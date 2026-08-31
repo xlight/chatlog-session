@@ -90,6 +90,45 @@ const getDynamicConfig = (): AxiosRequestConfig => {
 }
 
 /**
+ * 模块级配置缓存
+ * - cachedApiBaseUrl/cachedTimeout: 复用 getDynamicConfig 结果
+ * - cachedEnableDebug/cachedApiRetryCount/cachedApiRetryDelay: 从 getSettings() 初始化
+ *   （getDynamicConfig L80-90 只读 baseURL/timeout，不含这些字段）
+ * 设置变更时通过 invalidateRequestConfig() 失效
+ */
+let cachedApiBaseUrl: string
+let cachedTimeout: number
+let cachedEnableDebug: boolean
+let cachedApiRetryCount: number
+let cachedApiRetryDelay: number
+
+/**
+ * 初始化缓存（模块加载时与 invalidate 时调用）
+ */
+const initRequestConfigCache = (): void => {
+  const dynConfig = getDynamicConfig()
+  cachedApiBaseUrl = dynConfig.baseURL as string
+  cachedTimeout = dynConfig.timeout as number
+
+  // 扩展字段需额外从 getSettings() 读取（getDynamicConfig 不含）
+  const settings = getSettings()
+  cachedEnableDebug = import.meta.env.VITE_ENABLE_DEBUG === 'true' || settings.enableDebug === true
+  cachedApiRetryCount = settings.apiRetryCount ?? 3
+  cachedApiRetryDelay = settings.apiRetryDelay ?? 1000
+}
+
+/**
+ * 失效配置缓存（供 settings 变更时调用）
+ * 重新从 localStorage 解析所有 5 个字段
+ */
+export const invalidateRequestConfig = (): void => {
+  initRequestConfigCache()
+}
+
+// 模块加载时初始化缓存
+initRequestConfigCache()
+
+/**
  * 请求配置
  */
 const config: AxiosRequestConfig = getDynamicConfig()
@@ -98,6 +137,44 @@ const config: AxiosRequestConfig = getDynamicConfig()
  * 创建 axios 实例
  */
 const service: AxiosInstance = axios.create(config)
+
+/**
+ * 监听设置变更事件，失效配置缓存
+ * - chatlog-settings-updated: 同标签页内设置变更（Settings saveSettings 等）
+ * - storage: 跨标签页同步（e.key 为 apiBaseUrl/chatlog-settings 时触发）
+ */
+if (typeof window !== 'undefined') {
+  window.addEventListener('chatlog-settings-updated', () => {
+    invalidateRequestConfig()
+  })
+
+  window.addEventListener('storage', (e: StorageEvent) => {
+    if (e.key === 'apiBaseUrl' || e.key === 'chatlog-settings') {
+      invalidateRequestConfig()
+    }
+  })
+}
+
+/**
+ * 实时数据端点清单（需防缓存，自动注入 _t 时间戳）
+ * 其余 GET 端点默认可缓存
+ */
+const REALTIME_ENDPOINTS = [
+  '/api/v1/chatlog',
+  '/api/v1/session',
+  '/api/v1/contact',
+  '/api/v1/dashboard',
+  '/api/v1/search',
+  '/api/v1/diary',
+]
+
+/**
+ * 判断 URL 是否为实时数据端点
+ */
+const isRealtimeEndpoint = (url: string | undefined): boolean => {
+  if (!url) return false
+  return REALTIME_ENDPOINTS.some(endpoint => url === endpoint || url.startsWith(endpoint + '?') || url.startsWith(endpoint + '/'))
+}
 
 /**
  * 请求拦截器
@@ -115,15 +192,13 @@ service.interceptors.request.use(
       config.metadata.retryCount = 0
     }
     
-    // 动态更新 baseURL 和 timeout
-    const apiBaseUrl = getApiBaseUrl()
-    if (apiBaseUrl) {
-      config.baseURL = apiBaseUrl
+    // 动态更新 baseURL 和 timeout（使用模块级缓存，避免每请求解析 localStorage）
+    if (cachedApiBaseUrl) {
+      config.baseURL = cachedApiBaseUrl
     }
-    
-    const settings = getSettings()
-    if (settings.apiTimeout) {
-      config.timeout = settings.apiTimeout
+
+    if (cachedTimeout) {
+      config.timeout = cachedTimeout
     }
     
     // 添加默认分页参数（如果没有提供）
@@ -136,7 +211,11 @@ service.interceptors.request.use(
         offset: 0,      // 默认值
         ...userParams,  // 用户参数会覆盖默认值
         format: 'json', // 始终添加 format
-        _t: Date.now(), // 始终添加时间戳
+      }
+
+      // 实时数据端点自动注入 _t 时间戳防缓存（补偿移除的全局 _t）
+      if (isRealtimeEndpoint(config.url) && !config.params._t) {
+        config.params._t = Date.now()
       }
     } else {
       // 非 GET 请求也添加 format 参数
@@ -152,9 +231,8 @@ service.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
-    // 开发环境日志或用户开启了 API 调试
-    const enableDebug = import.meta.env.VITE_ENABLE_DEBUG === 'true' || settings.enableDebug
-    if (import.meta.env.DEV && enableDebug) {
+    // 开发环境日志或用户开启了 API 调试（使用缓存）
+    if (import.meta.env.DEV && cachedEnableDebug) {
       console.log('📤 API Request:', config.method?.toUpperCase(), (config.baseURL || '') + (config.url || ''))
       console.log('📤 Request Params:', config.params || config.data)
       console.log('📤 Request Config:', {
@@ -163,11 +241,6 @@ service.interceptors.request.use(
       })
     }
     
-    // 调试：打印最终参数（临时）
-    if (config.method?.toLowerCase() === 'get' && config.url?.includes('/contact')) {
-      console.log('🔍 Final params for', config.url, ':', config.params)
-    }
-
     return config
   },
   (error: AxiosError) => {
@@ -183,10 +256,8 @@ service.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const { data } = response
 
-    // 开发环境日志或用户开启了 API 调试
-    const settings = getSettings()
-    const enableDebug = import.meta.env.VITE_ENABLE_DEBUG === 'true' || settings.enableDebug
-    if (import.meta.env.DEV && enableDebug) {
+    // 开发环境日志或用户开启了 API 调试（使用缓存）
+    if (import.meta.env.DEV && cachedEnableDebug) {
       const duration = response.config.metadata?.startTime 
         ? Date.now() - response.config.metadata.startTime 
         : 0
@@ -227,13 +298,11 @@ service.interceptors.response.use(
     return data as any
   },
   async (error: AxiosError<ApiError>) => {
-    const settings = getSettings()
-    const enableDebug = import.meta.env.VITE_ENABLE_DEBUG === 'true' || settings.enableDebug
     const config = error.config as InternalAxiosRequestConfig
     
-    // 获取重试配置
-    const retryCount = settings.apiRetryCount ?? 3
-    const retryDelay = settings.apiRetryDelay ?? 1000
+    // 获取重试配置（使用缓存）
+    const retryCount = cachedApiRetryCount
+    const retryDelay = cachedApiRetryDelay
     
     // 判断是否应该重试
     const shouldRetry = config && 
@@ -245,7 +314,7 @@ service.interceptors.response.use(
     if (shouldRetry && config.metadata) {
       config.metadata.retryCount = (config.metadata.retryCount || 0) + 1
       
-      if (enableDebug) {
+      if (cachedEnableDebug) {
         console.warn(`🔄 API Retry (${config.metadata.retryCount}/${retryCount}):`, config.url)
       }
       
@@ -257,7 +326,7 @@ service.interceptors.response.use(
     }
     
     // 记录错误日志
-    if (enableDebug) {
+    if (cachedEnableDebug) {
       console.error('❌ API Error:', error.config?.url)
       console.error('❌ Error Details:', {
         status: error.response?.status,

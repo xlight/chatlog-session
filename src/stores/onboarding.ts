@@ -154,6 +154,11 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
     // 3. 更新状态
     completed.value = true
+
+    // 4. 通知 request.ts 等监听方失效配置缓存
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('chatlog-settings-updated'))
+    }
   }
 
   /**
