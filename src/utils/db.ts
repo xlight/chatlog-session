@@ -1,4 +1,5 @@
 import type { Contact, Chatroom } from '@/types'
+import { ContactType } from '@/types/contact'
 import { BaseDatabase, type DBConfig } from './base-db'
 
 const CONTACT_STORE = 'contacts'
@@ -119,29 +120,28 @@ class Database extends BaseDatabase {
     params: Omit<WorkerRequest, 'id' | 'action'> = {},
     onProgress?: (currentChunk: number, totalChunks: number) => void
   ): Promise<void> {
+    const worker = this.worker || this.getWorker()
+    if (!worker) {
+      return Promise.reject(new Error('Worker 不可用'))
+    }
+
+    const id = `req_${++this.requestCounter}`
+    const message: WorkerRequest = { id, action, ...params }
+    const itemCount = params.items?.length || 0
+    const t0 = performance.now()
+    console.log(`⏱️ [sendToWorker] ${action} id=${id}，数据量: ${itemCount}`)
+
     return new Promise((resolve, reject) => {
-      const worker = this.worker || this.getWorker()
-      if (!worker) {
-        reject(new Error('Worker 不可用'))
-        return
-      }
-
-      const id = `req_${++this.requestCounter}`
       this.pendingRequests.set(id, { resolve, reject, onProgress })
-
-      const message: WorkerRequest = { id, action, ...params }
-      const itemCount = params.items?.length || 0
-      const t0 = performance.now()
       worker.postMessage(message)
       const t1 = performance.now()
-      if (itemCount > 0) {
-        console.log(
-          `⏱️ [sendToWorker] postMessage 序列化耗时: ${(t1 - t0).toFixed(1)}ms (${itemCount} 条, action=${action})`
-        )
-      }
+      console.log(`⏱️ [sendToWorker] postMessage 完成，耗时: ${(t1 - t0).toFixed(1)}ms`)
     })
   }
 
+  /**
+   * 通过 Worker 执行写入操作（失败时降级到主线程）
+   */
   private async writeViaWorker(
     action: 'clearAndSaveMany' | 'saveMany' | 'clear',
     storeName: string,
@@ -225,6 +225,9 @@ class Database extends BaseDatabase {
     return await this.get<Contact>(CONTACT_STORE, wxid)
   }
 
+  /**
+   * 分页获取联系人（使用 Dexie getPaginated，total 语义已修正）
+   */
   async getContacts(
     offset: number = 0,
     limit: number = 100
@@ -233,45 +236,12 @@ class Database extends BaseDatabase {
     total: number
     hasMore: boolean
   }> {
-    const db = await this.getDB()
-
-    return new Promise((resolve, reject) => {
-      const result: Contact[] = []
-      const transaction = db.transaction([CONTACT_STORE], 'readonly')
-      const store = transaction.objectStore(CONTACT_STORE)
-
-      let completed = 0
-      const total = offset + limit
-
-      const request = store.openCursor()
-
-      request.onsuccess = () => {
-        const cursor = request.result
-        if (cursor) {
-          if (completed >= offset && completed < total) {
-            result.push(cursor.value)
-          }
-          completed++
-          if (completed < total) {
-            cursor.continue()
-          } else {
-            resolve({
-              contacts: result,
-              total: completed,
-              hasMore: true,
-            })
-          }
-        } else {
-          resolve({
-            contacts: result,
-            total: completed,
-            hasMore: false,
-          })
-        }
-      }
-
-      request.onerror = () => reject(request.error)
-    })
+    const result = await this.getPaginated<Contact>(CONTACT_STORE, offset, limit)
+    return {
+      contacts: result.items,
+      total: result.total,
+      hasMore: result.hasMore,
+    }
   }
 
   async getBatchContacts(wxids: string[]): Promise<Map<string, Contact>> {
@@ -299,27 +269,43 @@ class Database extends BaseDatabase {
     return result
   }
 
-  async getContactsByType(type: number): Promise<Contact[]> {
+  async getContactsByType(type: ContactType): Promise<Contact[]> {
     return await this.getByIndex<Contact>(CONTACT_STORE, 'type', type)
   }
 
+  /**
+   * 搜索联系人（Dexie 索引查询，替代全表扫描）
+   *
+   * 使用 Dexie where('nickname').startsWithIgnoreCase 等 4 个索引并行查询，
+   * 合并去重后返回。空关键词返回全部。
+   */
   async searchContacts(keyword: string): Promise<Contact[]> {
-    const allContacts = await this.getAllContacts()
+    if (!keyword) {
+      return await this.getAllContacts()
+    }
+
+    const table = await this.getTable<Contact>(CONTACT_STORE)
     const lowerKeyword = keyword.toLowerCase()
 
-    return allContacts.filter(contact => {
-      const nickname = (contact.nickname || '').toLowerCase()
-      const remark = (contact.remark || '').toLowerCase()
-      const wxid = (contact.wxid || '').toLowerCase()
-      const alias = (contact.alias || '').toLowerCase()
+    // 4 个字段并行索引查询
+    const [byNickname, byRemark, byWxid, byAlias] = await Promise.all([
+      table.where('nickname').startsWithIgnoreCase(keyword).toArray(),
+      table.where('remark').startsWithIgnoreCase(keyword).toArray(),
+      table.filter(c => (c.wxid || '').toLowerCase().includes(lowerKeyword)).toArray(),
+      table.where('alias').startsWithIgnoreCase(keyword).toArray(),
+    ])
 
-      return (
-        nickname.includes(lowerKeyword) ||
-        remark.includes(lowerKeyword) ||
-        wxid.includes(lowerKeyword) ||
-        alias.includes(lowerKeyword)
-      )
-    })
+    // 合并去重（按 wxid）
+    const seen = new Set<string>()
+    const results: Contact[] = []
+    for (const contact of [...byNickname, ...byRemark, ...byWxid, ...byAlias]) {
+      if (!seen.has(contact.wxid)) {
+        seen.add(contact.wxid)
+        results.push(contact)
+      }
+    }
+
+    return results
   }
 
   async deleteContact(wxid: string): Promise<void> {
@@ -339,10 +325,7 @@ class Database extends BaseDatabase {
       return
     }
 
-    const t0 = performance.now()
-    console.log(`⏱️ [db.clearAndSaveContacts] 开始，数据量: ${contacts.length}`)
     await this.writeViaWorker('clearAndSaveMany', CONTACT_STORE, contacts, onProgress)
-    console.log(`⏱️ [db.clearAndSaveContacts] 完成，耗时: ${(performance.now() - t0).toFixed(1)}ms`)
   }
 
   async getContactCount(): Promise<number> {
@@ -352,23 +335,6 @@ class Database extends BaseDatabase {
   async hasContact(wxid: string): Promise<boolean> {
     const contact = await this.getContact(wxid)
     return contact !== null
-  }
-
-  async getContactDisplayName(wxid: string): Promise<string> {
-    const contact = await this.getContact(wxid)
-    return contact?.remark || contact?.nickname || wxid
-  }
-
-  async getContactDisplayNames(wxids: string[]): Promise<Record<string, string>> {
-    const contacts = await Promise.all(wxids.map(wxid => this.getContact(wxid)))
-
-    const result: Record<string, string> = {}
-    wxids.forEach((wxid, index) => {
-      const contact = contacts[index]
-      result[wxid] = contact?.remark || contact?.nickname || wxid
-    })
-
-    return result
   }
 
   // ==================== 群聊相关方法 ====================
@@ -383,9 +349,10 @@ class Database extends BaseDatabase {
       return
     }
 
-    console.log(`开始批量保存 ${chatrooms.length} 个群聊...`)
+    const t0 = performance.now()
+    console.log(`⏱️ [db.saveChatrooms] 开始，数据量: ${chatrooms.length}`)
     await this.writeViaWorker('saveMany', CHATROOM_STORE, chatrooms)
-    console.log('✅ 批量保存群聊完成')
+    console.log(`⏱️ [db.saveChatrooms] 完成，耗时: ${(performance.now() - t0).toFixed(1)}ms`)
   }
 
   async getChatroom(chatroomId: string): Promise<Chatroom | null> {
@@ -400,45 +367,12 @@ class Database extends BaseDatabase {
     total: number
     hasMore: boolean
   }> {
-    const db = await this.getDB()
-
-    return new Promise((resolve, reject) => {
-      const result: Chatroom[] = []
-      const transaction = db.transaction([CHATROOM_STORE], 'readonly')
-      const store = transaction.objectStore(CHATROOM_STORE)
-
-      let completed = 0
-      const total = offset + limit
-
-      const request = store.openCursor()
-
-      request.onsuccess = () => {
-        const cursor = request.result
-        if (cursor) {
-          if (completed >= offset && completed < total) {
-            result.push(cursor.value)
-          }
-          completed++
-          if (completed < total) {
-            cursor.continue()
-          } else {
-            resolve({
-              chatrooms: result,
-              total: completed,
-              hasMore: true,
-            })
-          }
-        } else {
-          resolve({
-            chatrooms: result,
-            total: completed,
-            hasMore: false,
-          })
-        }
-      }
-
-      request.onerror = () => reject(request.error)
-    })
+    const result = await this.getPaginated<Chatroom>(CHATROOM_STORE, offset, limit)
+    return {
+      chatrooms: result.items,
+      total: result.total,
+      hasMore: result.hasMore,
+    }
   }
 
   async getBatchChatrooms(chatroomIds: string[]): Promise<Map<string, Chatroom>> {
@@ -460,16 +394,32 @@ class Database extends BaseDatabase {
     return await this.getAll<Chatroom>(CHATROOM_STORE)
   }
 
+  /**
+   * 搜索群聊（Dexie 索引查询，替代全表扫描）
+   */
   async searchChatrooms(keyword: string): Promise<Chatroom[]> {
-    const allChatrooms = await this.getAllChatrooms()
+    if (!keyword) {
+      return await this.getAllChatrooms()
+    }
+
+    const table = await this.getTable<Chatroom>(CHATROOM_STORE)
     const lowerKeyword = keyword.toLowerCase()
 
-    return allChatrooms.filter(chatroom => {
-      const name = (chatroom.name || '').toLowerCase()
-      const chatroomId = (chatroom.chatroomId || '').toLowerCase()
+    const [byName, byChatroomId] = await Promise.all([
+      table.where('name').startsWithIgnoreCase(keyword).toArray(),
+      table.filter(c => (c.chatroomId || '').toLowerCase().includes(lowerKeyword)).toArray(),
+    ])
 
-      return name.includes(lowerKeyword) || chatroomId.includes(lowerKeyword)
-    })
+    const seen = new Set<string>()
+    const results: Chatroom[] = []
+    for (const chatroom of [...byName, ...byChatroomId]) {
+      if (!seen.has(chatroom.chatroomId)) {
+        seen.add(chatroom.chatroomId)
+        results.push(chatroom)
+      }
+    }
+
+    return results
   }
 
   async deleteChatroom(chatroomId: string): Promise<void> {

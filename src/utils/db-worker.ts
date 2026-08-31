@@ -1,14 +1,15 @@
 /**
- * IndexedDB Web Worker
+ * IndexedDB Web Worker（Dexie 实现）
  *
  * 在后台线程中执行 IndexedDB 写入操作，避免阻塞主线程导致 UI 卡顿。
- * 主线程通过 postMessage 发送写入命令，Worker 在后台完成后回复结果。
+ * Worker 内直接 new Dexie(name) 使用 Worker 全局 indexedDB（与原 indexedDB.open 模式一致）。
  *
  * 支持的操作：
  * - clearAndSaveMany: 在单事务中清空 + 批量写入
  * - saveMany: 批量写入
  * - clear: 清空对象存储
  */
+import Dexie, { type Dexie as DexieInstance } from 'dexie'
 
 // ==================== 类型定义 ====================
 
@@ -35,7 +36,7 @@ interface WorkerRequest {
   action: 'init' | 'clearAndSaveMany' | 'saveMany' | 'clear'
   dbConfig?: DBConfig
   storeName?: string
-  items?: any[]
+  items?: any[] // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 /** Worker → 主线程的消息 */
@@ -58,204 +59,129 @@ const CHUNK_SIZE = 2000
 
 // ==================== Worker 实现 ====================
 
-let db: IDBDatabase | null = null
+let dexie: DexieInstance | null = null
 
 /**
- * 打开/初始化数据库
+ * 构建 Dexie schema 字符串
  */
-function openDB(config: DBConfig): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(config.name, config.version)
-
-    request.onerror = () => reject(request.error)
-
-    request.onsuccess = () => {
-      db = request.result
-      resolve(db)
+function buildSchema(config: DBConfig): Record<string, string> {
+  const schema: Record<string, string> = {}
+  for (const store of config.stores) {
+    const keyPath = Array.isArray(store.keyPath) ? store.keyPath.join(',') : store.keyPath
+    const indexParts: string[] = []
+    if (store.autoIncrement) {
+      indexParts.push('++')
     }
-
-    request.onupgradeneeded = event => {
-      const database = (event.target as IDBOpenDBRequest).result
-
-      config.stores.forEach(storeConfig => {
-        if (!database.objectStoreNames.contains(storeConfig.name)) {
-          const params: IDBObjectStoreParameters = {
-            keyPath: storeConfig.keyPath,
-          }
-          if (storeConfig.autoIncrement !== undefined) {
-            params.autoIncrement = storeConfig.autoIncrement
-          }
-
-          const store = database.createObjectStore(storeConfig.name, params)
-
-          if (storeConfig.indexes) {
-            storeConfig.indexes.forEach(index => {
-              store.createIndex(index.name, index.keyPath, {
-                unique: index.unique || false,
-              })
-            })
-          }
+    indexParts.push(keyPath)
+    if (store.indexes) {
+      for (const idx of store.indexes) {
+        const idxKeyPath = Array.isArray(idx.keyPath) ? idx.keyPath.join(',') : idx.keyPath
+        const prefix = idx.unique ? '&' : ''
+        if (idx.name === idxKeyPath) {
+          indexParts.push(`${prefix}${idx.name}`)
+        } else {
+          indexParts.push(`${prefix}${idx.name}->${idxKeyPath}`)
         }
-      })
+      }
     }
-  })
+    schema[store.name] = indexParts.join(',')
+  }
+  return schema
+}
+
+/**
+ * 打开/初始化数据库（Dexie）
+ */
+function openDB(config: DBConfig): Promise<DexieInstance> {
+  if (dexie) {
+    return Promise.resolve(dexie)
+  }
+
+  const instance = new Dexie(config.name)
+  instance.version(config.version).stores(buildSchema(config))
+  dexie = instance
+  console.log(`✅ Worker DB [${config.name}] 初始化成功（Dexie）`)
+  return Promise.resolve(dexie)
 }
 
 /**
  * 确保数据库已初始化
  */
-async function ensureDB(config?: DBConfig): Promise<IDBDatabase> {
-  if (db) return db
-  if (!config) throw new Error('Worker: 数据库未初始化且未提供配置')
-  return openDB(config)
+async function ensureDB(dbConfig?: DBConfig): Promise<DexieInstance> {
+  if (dexie) {
+    return dexie
+  }
+  if (!dbConfig) {
+    throw new Error('数据库未初始化，需要 dbConfig')
+  }
+  return await openDB(dbConfig)
 }
 
 /**
- * 在单个事务中写入一批数据
- * 使用 relaxed durability 跳过 fsync，适用于可重建的缓存数据
- */
-function writeChunk(database: IDBDatabase, storeName: string, items: any[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction([storeName], 'readwrite', { durability: 'relaxed' })
-    const store = transaction.objectStore(storeName)
-
-    transaction.oncomplete = () => resolve()
-    transaction.onerror = () => reject(transaction.error)
-    transaction.onabort = () => reject(transaction.error || new Error('Transaction aborted'))
-
-    for (const item of items) {
-      store.put(item)
-    }
-  })
-}
-
-/**
- * 清空并分块批量写入
- *
- * 将大量数据拆分为多个小事务（每个 CHUNK_SIZE 条），
- * 避免单事务提交时刷盘数据量过大导致耗时数十秒。
- * 第一个事务负责 clear + 写入第一块，后续事务只写入。
+ * 清空 + 批量写入（分块）
  */
 async function clearAndSaveMany(
-  database: IDBDatabase,
+  database: DexieInstance,
   storeName: string,
-  items: any[],
-  requestId?: string
+  items: any[], // eslint-disable-line @typescript-eslint/no-explicit-any
+  requestId: string
 ): Promise<void> {
-  const t0 = performance.now()
+  const table = database.table(storeName)
+
+  // 先清空
+  await table.clear()
+
+  // 分块写入
   const totalChunks = Math.ceil(items.length / CHUNK_SIZE)
-  console.log(
-    `⏱️ [Worker clearAndSaveMany] 开始，${items.length} 条到 [${storeName}]，分 ${totalChunks} 块（每块 ${CHUNK_SIZE}）`
-  )
+  for (let i = 0; i < totalChunks; i++) {
+    const chunk = items.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+    await table.bulkPut(chunk)
 
-  // 第一个事务：clear + 写入第一块
-  await new Promise<void>((resolve, reject) => {
-    const firstChunk = items.slice(0, CHUNK_SIZE)
-    const transaction = database.transaction([storeName], 'readwrite', { durability: 'relaxed' })
-    const store = transaction.objectStore(storeName)
-
-    transaction.oncomplete = () => resolve()
-    transaction.onerror = () => reject(transaction.error)
-    transaction.onabort = () => reject(transaction.error || new Error('Transaction aborted'))
-
-    store.clear()
-    for (const item of firstChunk) {
-      store.put(item)
-    }
-  })
-  console.log(
-    `⏱️ [Worker clearAndSaveMany] 块 1/${totalChunks} 完成（含 clear），耗时: ${(performance.now() - t0).toFixed(1)}ms`
-  )
-
-  // 发送第一块的进度报告
-  if (requestId) {
-    self.postMessage({
+    // 报告进度
+    const progress: WorkerResponse = {
       id: requestId,
       success: true,
       type: 'progress',
-      currentChunk: 1,
+      currentChunk: i + 1,
       totalChunks,
-    } satisfies WorkerResponse)
-  }
-
-  // 后续事务：每块 CHUNK_SIZE 条
-  for (let i = 1; i < totalChunks; i++) {
-    const tChunk = performance.now()
-    const chunk = items.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
-    await writeChunk(database, storeName, chunk)
-    console.log(
-      `⏱️ [Worker clearAndSaveMany] 块 ${i + 1}/${totalChunks} 完成（${chunk.length} 条），耗时: ${(performance.now() - tChunk).toFixed(1)}ms`
-    )
-
-    // 发送每块的进度报告
-    if (requestId) {
-      self.postMessage({
-        id: requestId,
-        success: true,
-        type: 'progress',
-        currentChunk: i + 1,
-        totalChunks,
-      } satisfies WorkerResponse)
     }
+    self.postMessage(progress)
   }
-
-  console.log(
-    `⏱️ [Worker clearAndSaveMany] 全部完成，总耗时: ${(performance.now() - t0).toFixed(1)}ms`
-  )
 }
 
 /**
- * 分块批量写入
+ * 批量写入（分块）
  */
 async function saveMany(
-  database: IDBDatabase,
+  database: DexieInstance,
   storeName: string,
-  items: any[],
-  requestId?: string
+  items: any[], // eslint-disable-line @typescript-eslint/no-explicit-any
+  requestId: string
 ): Promise<void> {
-  const t0 = performance.now()
+  const table = database.table(storeName)
   const totalChunks = Math.ceil(items.length / CHUNK_SIZE)
-  console.log(
-    `⏱️ [Worker saveMany] 开始，${items.length} 条到 [${storeName}]，分 ${totalChunks} 块`
-  )
 
   for (let i = 0; i < totalChunks; i++) {
-    const tChunk = performance.now()
     const chunk = items.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
-    await writeChunk(database, storeName, chunk)
-    console.log(
-      `⏱️ [Worker saveMany] 块 ${i + 1}/${totalChunks} 完成（${chunk.length} 条），耗时: ${(performance.now() - tChunk).toFixed(1)}ms`
-    )
+    await table.bulkPut(chunk)
 
-    // 发送每块的进度报告
-    if (requestId) {
-      self.postMessage({
-        id: requestId,
-        success: true,
-        type: 'progress',
-        currentChunk: i + 1,
-        totalChunks,
-      } satisfies WorkerResponse)
+    const progress: WorkerResponse = {
+      id: requestId,
+      success: true,
+      type: 'progress',
+      currentChunk: i + 1,
+      totalChunks,
     }
+    self.postMessage(progress)
   }
-
-  console.log(`⏱️ [Worker saveMany] 全部完成，总耗时: ${(performance.now() - t0).toFixed(1)}ms`)
 }
 
 /**
- * 清空对象存储
+ * 清空 store
  */
-function clear(database: IDBDatabase, storeName: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction([storeName], 'readwrite', { durability: 'relaxed' })
-    const store = transaction.objectStore(storeName)
-
-    transaction.oncomplete = () => resolve()
-    transaction.onerror = () => reject(transaction.error)
-    transaction.onabort = () => reject(transaction.error || new Error('Transaction aborted'))
-
-    store.clear()
-  })
+async function clear(database: DexieInstance, storeName: string): Promise<void> {
+  const table = database.table(storeName)
+  await table.clear()
 }
 
 // ==================== 消息处理 ====================

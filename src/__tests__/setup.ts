@@ -1,4 +1,5 @@
 import { config } from '@vue/test-utils'
+import 'fake-indexeddb/auto'
 
 // 注册 Element Plus 全局组件 stub
 config.global.stubs = {

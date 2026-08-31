@@ -2,6 +2,7 @@
  * 全局键盘快捷键
  */
 import { onMounted, onUnmounted, ref } from 'vue'
+import { useEventListener } from '@vueuse/core'
 import { useAppStore } from '@/stores/app'
 
 /**
@@ -156,14 +157,14 @@ export function useKeyboardShortcuts() {
    */
   onMounted(() => {
     registerDefaultShortcuts()
-    window.addEventListener('keydown', handleKeyDown)
+    // useEventListener 自动在组件卸载时清理
+    useEventListener(window, 'keydown', handleKeyDown)
   })
 
   /**
    * 清理
    */
   onUnmounted(() => {
-    window.removeEventListener('keydown', handleKeyDown)
     shortcuts.clear()
   })
 
