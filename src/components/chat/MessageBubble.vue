@@ -11,7 +11,6 @@ import { request } from '@/utils/request'
 import { useMessageUrl } from './composables/useMessageUrl'
 import { useMessageType } from './composables/useMessageType'
 import { MoreFilled } from '@element-plus/icons-vue'
-import { MESSAGE_COMPONENT_REGISTRY } from './message-types/registry'
 import ForwardedDialog from './message-types/ForwardedDialog.vue'
 import FavoriteDialog from './message-types/FavoriteDialog.vue'
 import MessageQuickActions from './MessageQuickActions.vue'
@@ -197,14 +196,7 @@ const bubbleClass = computed(() => {
 // 动态组件
 const dynamicComponent = computed(() => {
   if (!componentName.value) return null
-  const component = MESSAGE_COMPONENT_REGISTRY[componentName.value]
-
-  if (!component) {
-    console.error(`[MessageBubble] 组件 "${componentName.value}" 未在注册表中找到`)
-    return null
-  }
-
-  return component
+  return componentName.value
 })
 
 // 组件 Props（通过配置映射）

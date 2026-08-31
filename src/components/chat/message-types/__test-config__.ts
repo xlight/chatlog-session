@@ -14,24 +14,22 @@ export function validateComponentRegistry() {
   const warnings: string[] = []
 
   MESSAGE_TYPE_CONFIGS.forEach(config => {
-    const componentName = config.component
-
-    // 检查组件是否在注册表中
-    if (!MESSAGE_COMPONENT_REGISTRY[componentName]) {
+    // config.component 现在是组件引用（Component），验证非空
+    if (!config.component) {
       errors.push(
-        `组件 "${componentName}" 在配置中使用但未在 registry.ts 中注册 (type=${config.type}, subType=${config.subType})`
+        `组件引用为空 (type=${config.type}, subType=${config.subType})`
       )
     }
 
     // 检查必填字段
     if (!config.name) {
-      warnings.push(`配置缺少 name 字段: ${componentName}`)
+      warnings.push(`配置缺少 name 字段: type=${config.type}`)
     }
     if (!config.icon) {
-      warnings.push(`配置缺少 icon 字段: ${componentName}`)
+      warnings.push(`配置缺少 icon 字段: type=${config.type}`)
     }
     if (!config.placeholder) {
-      warnings.push(`配置缺少 placeholder 字段: ${componentName}`)
+      warnings.push(`配置缺少 placeholder 字段: type=${config.type}`)
     }
   })
 

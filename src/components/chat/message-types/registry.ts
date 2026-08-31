@@ -1,63 +1,21 @@
 import { Component } from 'vue'
 
-// 导入所有消息类型组件
-import TextMessage from './TextMessage.vue'
-import ImageMessage from './ImageMessage.vue'
-import VideoMessage from './VideoMessage.vue'
-import VoiceMessage from './VoiceMessage.vue'
-import EmojiMessage from './EmojiMessage.vue'
-import FileMessage from './FileMessage.vue'
-import LinkMessage from './LinkMessage.vue'
-import MiniProgramMessage from './MiniProgramMessage.vue'
-import ShoppingMiniProgramMessage from './ShoppingMiniProgramMessage.vue'
-import ShortVideoMessage from './ShortVideoMessage.vue'
-import PatMessage from './PatMessage.vue'
-import LiveMessage from './LiveMessage.vue'
-import JielongMessage from './JielongMessage.vue'
-import ForwardedMessage from './ForwardedMessage.vue'
-import FavoriteMessage from './FavoriteMessage.vue'
-import RedPacketMessage from './RedPacketMessage.vue'
-import LocationMessage from './LocationMessage.vue'
-import ContactCardMessage from './ContactCardMessage.vue'
-import TransferMessage from './TransferMessage.vue'
-import QQMailMessage from './QQMailMessage.vue'
-import QQMusicMessage from './QQMusicMessage.vue'
-import CardPackageMessage from './CardPackageMessage.vue'
-import VoiceCallMessage from './VoiceCallMessage.vue'
-import EmojiNotDownloadedMessage from './EmojiNotDownloadedMessage.vue'
-import ReferMessage from './ReferMessage.vue'
+// 从 config 派生组件注册表（config 为单一事实源）
+import { MESSAGE_TYPE_CONFIGS } from './config'
 
 /**
  * 消息类型组件注册表
- * 将组件名称映射到实际的 Vue 组件
+ * 由 config 派生：从 MESSAGE_TYPE_CONFIGS 的 component 引用构建 name → Component 映射
+ * @deprecated 直接使用 config.component 获取组件引用替代。此映射表仅保留供 __test-config__.ts 统计使用。
  */
-export const MESSAGE_COMPONENT_REGISTRY: Record<string, Component> = {
-  TextMessage,
-  ImageMessage,
-  VideoMessage,
-  VoiceMessage,
-  EmojiMessage,
-  FileMessage,
-  LinkMessage,
-  MiniProgramMessage,
-  ShoppingMiniProgramMessage,
-  ShortVideoMessage,
-  PatMessage,
-  LiveMessage,
-  JielongMessage,
-  ForwardedMessage,
-  FavoriteMessage,
-  RedPacketMessage,
-  LocationMessage,
-  ContactCardMessage,
-  TransferMessage,
-  QQMailMessage,
-  QQMusicMessage,
-  CardPackageMessage,
-  VoiceCallMessage,
-  EmojiNotDownloadedMessage,
-  ReferMessage,
-}
+export const MESSAGE_COMPONENT_REGISTRY: Record<string, Component> = Object.fromEntries(
+  MESSAGE_TYPE_CONFIGS.map(c => {
+    const component = c.component as unknown as { name?: string } & Component
+    // Vue 组件通常有 name 属性；若无则用 config.name 作为 key
+    const key = component.name || c.name
+    return [key, c.component]
+  })
+)
 
 /**
  * 根据组件名称获取组件

@@ -1,5 +1,33 @@
+import { Component } from 'vue'
 import { MessageType, RichMessageSubType } from '@/types/message'
 import type { Message } from '@/types/message'
+
+// 导入所有消息类型组件
+import TextMessage from './TextMessage.vue'
+import ImageMessage from './ImageMessage.vue'
+import VideoMessage from './VideoMessage.vue'
+import VoiceMessage from './VoiceMessage.vue'
+import EmojiMessage from './EmojiMessage.vue'
+import FileMessage from './FileMessage.vue'
+import LinkMessage from './LinkMessage.vue'
+import MiniProgramMessage from './MiniProgramMessage.vue'
+import ShoppingMiniProgramMessage from './ShoppingMiniProgramMessage.vue'
+import ShortVideoMessage from './ShortVideoMessage.vue'
+import PatMessage from './PatMessage.vue'
+import LiveMessage from './LiveMessage.vue'
+import JielongMessage from './JielongMessage.vue'
+import ForwardedMessage from './ForwardedMessage.vue'
+import FavoriteMessage from './FavoriteMessage.vue'
+import RedPacketMessage from './RedPacketMessage.vue'
+import LocationMessage from './LocationMessage.vue'
+import ContactCardMessage from './ContactCardMessage.vue'
+import TransferMessage from './TransferMessage.vue'
+import QQMailMessage from './QQMailMessage.vue'
+import QQMusicMessage from './QQMusicMessage.vue'
+import CardPackageMessage from './CardPackageMessage.vue'
+import VoiceCallMessage from './VoiceCallMessage.vue'
+import EmojiNotDownloadedMessage from './EmojiNotDownloadedMessage.vue'
+import ReferMessage from './ReferMessage.vue'
 
 /**
  * 消息类型配置接口
@@ -15,7 +43,7 @@ export interface MessageTypeConfig {
   placeholder: string
 
   // 组件配置
-  component: string
+  component: Component
 
   // Props 映射配置
   // message: 消息对象
@@ -42,7 +70,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '文本',
     icon: 'ChatLineSquare',
     placeholder: '',
-    component: 'TextMessage',
+    component: TextMessage,
     priority: 100,
     propsMapper: msg => ({ content: msg.content }),
   },
@@ -52,7 +80,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '图片',
     icon: 'Picture',
     placeholder: '[图片]',
-    component: 'ImageMessage',
+    component: ImageMessage,
     priority: 100,
     estimateHeight: 222,
     propsMapper: (msg, ctx) => ({
@@ -70,7 +98,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '语音',
     icon: 'Microphone',
     placeholder: '[语音]',
-    component: 'VoiceMessage',
+    component: VoiceMessage,
     priority: 100,
     estimateHeight: 36,
     propsMapper: (msg, ctx) => ({
@@ -86,7 +114,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '视频',
     icon: 'VideoCamera',
     placeholder: '[视频]',
-    component: 'VideoMessage',
+    component: VideoMessage,
     priority: 100,
     estimateHeight: 202,
     propsMapper: (msg, ctx) => ({
@@ -107,7 +135,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '表情',
     icon: 'Sunny',
     placeholder: '[表情]',
-    component: 'EmojiMessage',
+    component: EmojiMessage,
     priority: 100,
     estimateHeight: 142,
     propsMapper: (msg, ctx) => ({
@@ -122,7 +150,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '个人名片',
     icon: 'User',
     placeholder: '[个人名片]',
-    component: 'ContactCardMessage',
+    component: ContactCardMessage,
     priority: 100,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -135,7 +163,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '位置',
     icon: 'Location',
     placeholder: '[位置]',
-    component: 'LocationMessage',
+    component: LocationMessage,
     priority: 100,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -152,7 +180,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: 'QQ邮箱消息',
     icon: 'Message',
     placeholder: '[QQ邮箱]',
-    component: 'QQMailMessage',
+    component: QQMailMessage,
     priority: 100,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -165,7 +193,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '语音通话',
     icon: 'Phone',
     placeholder: '[语音通话]',
-    component: 'VoiceCallMessage',
+    component: VoiceCallMessage,
     priority: 100,
     estimateHeight: 24,
     propsMapper: (msg, ctx) => ({
@@ -182,7 +210,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: 'QQ音乐',
     icon: 'Headset',
     placeholder: '[QQ音乐]',
-    component: 'QQMusicMessage',
+    component: QQMusicMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -196,7 +224,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '链接',
     icon: 'Link',
     placeholder: '[链接]',
-    component: 'LinkMessage',
+    component: LinkMessage,
     priority: 90,
     estimateHeight: 80,
     // subType=1 时 contents.title 存放的是 URL，contents.url 为空
@@ -220,7 +248,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '视频链接',
     icon: 'VideoPlay',
     placeholder: '[视频链接]',
-    component: 'LinkMessage',
+    component: LinkMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -236,7 +264,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '链接',
     icon: 'Link',
     placeholder: '[链接]',
-    component: 'LinkMessage',
+    component: LinkMessage,
     priority: 90,
     estimateHeight: 120,
     propsMapper: (_msg, ctx) => ({
@@ -252,7 +280,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '文件',
     icon: 'Document',
     placeholder: '[文件]',
-    component: 'FileMessage',
+    component: FileMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (msg, ctx) => ({
@@ -270,7 +298,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '文件',
     icon: 'Document',
     placeholder: '[文件]',
-    component: 'FileMessage',
+    component: FileMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (msg, ctx) => ({
@@ -288,7 +316,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '表情包(未下载)',
     icon: 'PictureFilled',
     placeholder: '[表情包(未下载)]',
-    component: 'EmojiNotDownloadedMessage',
+    component: EmojiNotDownloadedMessage,
     priority: 90,
     estimateHeight: 120,
     propsMapper: (_msg, ctx) => ({
@@ -302,7 +330,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '微信卡包',
     icon: 'Tickets',
     placeholder: '[微信卡包]',
-    component: 'CardPackageMessage',
+    component: CardPackageMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -316,7 +344,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '聊天记录',
     icon: 'ChatDotSquare',
     placeholder: '[聊天记录]',
-    component: 'ForwardedMessage',
+    component: ForwardedMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -332,7 +360,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '收藏',
     icon: 'Star',
     placeholder: '[收藏]',
-    component: 'FavoriteMessage',
+    component: FavoriteMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -350,7 +378,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '小程序',
     icon: 'Grid',
     placeholder: '[小程序]',
-    component: 'MiniProgramMessage',
+    component: MiniProgramMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -366,7 +394,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '购物小程序',
     icon: 'ShoppingCart',
     placeholder: '[购物小程序]',
-    component: 'ShoppingMiniProgramMessage',
+    component: ShoppingMiniProgramMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -384,7 +412,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '小视频',
     icon: 'VideoCameraFilled',
     placeholder: '[小视频]',
-    component: 'ShortVideoMessage',
+    component: ShortVideoMessage,
     priority: 90,
     estimateHeight: 296,
     propsMapper: (_msg, ctx) => ({
@@ -400,7 +428,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '接龙',
     icon: 'List',
     placeholder: '[接龙]',
-    component: 'JielongMessage',
+    component: JielongMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (msg, ctx) => ({
@@ -416,7 +444,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '拍一拍',
     icon: 'Pointer',
     placeholder: '[拍一拍]',
-    component: 'PatMessage',
+    component: PatMessage,
     priority: 95, // 拍一拍需要特殊渲染，优先级更高
     estimateHeight: 24,
     propsMapper: (msg, ctx) => ({
@@ -431,7 +459,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '直播',
     icon: 'VideoCamera',
     placeholder: '[直播]',
-    component: 'LiveMessage',
+    component: LiveMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -445,7 +473,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '转账',
     icon: 'Wallet',
     placeholder: '[转账]',
-    component: 'TransferMessage',
+    component: TransferMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (msg, ctx) => ({
@@ -460,7 +488,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '红包',
     icon: 'Present',
     placeholder: '[红包]',
-    component: 'RedPacketMessage',
+    component: RedPacketMessage,
     priority: 90,
     estimateHeight: 80,
     propsMapper: (_msg, ctx) => ({
@@ -474,7 +502,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '引用消息',
     icon: 'ChatLineSquare',
     placeholder: '[引用消息]',
-    component: 'ReferMessage',
+    component: ReferMessage,
     priority: 90,
     estimateHeight: 110,
     propsMapper: (msg, ctx) => ({
@@ -490,7 +518,7 @@ export const MESSAGE_TYPE_CONFIGS: MessageTypeConfig[] = [
     name: '富文本消息',
     icon: 'DocumentCopy',
     placeholder: '[富文本消息]',
-    component: 'TextMessage',
+    component: TextMessage,
     priority: 10,
     propsMapper: msg => ({
       content: msg.content || `[富文本消息] subType=${msg.subType}`,
