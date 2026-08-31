@@ -48,6 +48,8 @@ const handleClick = () => {
 </template>
 
 <style lang="scss" scoped>
+@use './_shared.scss' as *;
+
 .message-shopping-miniprogram {
   cursor: pointer;
   user-select: none;
@@ -161,18 +163,11 @@ const handleClick = () => {
   }
 
   .media-placeholder {
-    display: inline-block;
-    padding: 8px 12px;
-    color: var(--el-text-color-secondary);
-    font-size: 14px;
-    font-style: italic;
-    background: var(--el-fill-color-light);
-    border-radius: 4px;
-    border: 1px dashed var(--el-border-color);
 
-    &:hover {
-      background: var(--el-fill-color);
-    }
+
+    @include media-placeholder;
+
+
   }
 }
 

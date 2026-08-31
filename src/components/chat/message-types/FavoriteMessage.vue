@@ -61,6 +61,8 @@ const formattedDesc = computed(() => props.favoriteDesc.replace(/\s+/g, ' ').tri
 </template>
 
 <style lang="scss" scoped>
+@use './_shared.scss' as *;
+
 .message-favorite {
   cursor: pointer;
   max-width: 360px;
@@ -156,14 +158,11 @@ const formattedDesc = computed(() => props.favoriteDesc.replace(/\s+/g, ' ').tri
   }
 
   .media-placeholder {
-    display: inline-block;
-    padding: 8px 12px;
-    color: var(--el-text-color-secondary);
-    font-size: 14px;
-    font-style: italic;
-    background: var(--el-fill-color-light);
-    border-radius: 4px;
-    border: 1px dashed var(--el-border-color);
+
+
+    @include media-placeholder;
+
+
   }
 
   &:hover .arrow-icon {

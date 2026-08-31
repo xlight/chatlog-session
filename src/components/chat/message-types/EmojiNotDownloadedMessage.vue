@@ -22,6 +22,8 @@ defineProps<Props>()
 </template>
 
 <style lang="scss" scoped>
+@use './_shared.scss' as *;
+
 .message-emoji-not-downloaded {
   display: flex;
   align-items: center;
@@ -52,21 +54,11 @@ defineProps<Props>()
   }
 
   .media-placeholder {
-    display: inline-block;
-    padding: 8px 12px;
-    color: var(--el-text-color-secondary);
-    font-size: 14px;
-    font-style: italic;
-    background: var(--el-fill-color-light);
-    border-radius: 4px;
-    border: 1px dashed var(--el-border-color);
-  }
-}
 
-html.dark {
-  .media-placeholder {
-    background: var(--el-fill-color-dark);
-    border-color: var(--el-border-color-darker);
+
+    @include media-placeholder;
+
+
   }
 }
 </style>

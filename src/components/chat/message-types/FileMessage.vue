@@ -37,6 +37,8 @@ const handleClick = () => {
 </template>
 
 <style lang="scss" scoped>
+@use './_shared.scss' as *;
+
 .message-file {
   display: flex;
   align-items: center;
@@ -67,18 +69,11 @@ const handleClick = () => {
   }
 
   .media-placeholder {
-    display: inline-block;
-    padding: 8px 12px;
-    color: var(--el-text-color-secondary);
-    font-size: 14px;
-    font-style: italic;
-    background: var(--el-fill-color-light);
-    border-radius: 4px;
-    border: 1px dashed var(--el-border-color);
 
-    &:hover {
-      background: var(--el-fill-color);
-    }
+
+    @include media-placeholder;
+
+
   }
 
   &:hover {
@@ -90,12 +85,5 @@ const handleClick = () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-html.dark {
-  .media-placeholder {
-    background: var(--el-fill-color-dark);
-    border-color: var(--el-border-color-darker);
-  }
 }
 </style>

@@ -38,6 +38,8 @@ const handleClick = () => {
 </template>
 
 <style lang="scss" scoped>
+@use './_shared.scss' as *;
+
 .message-miniprogram {
   cursor: pointer;
   user-select: none;
@@ -124,18 +126,11 @@ const handleClick = () => {
   }
 
   .media-placeholder {
-    display: inline-block;
-    padding: 8px 12px;
-    color: var(--el-text-color-secondary);
-    font-size: 14px;
-    font-style: italic;
-    background: var(--el-fill-color-light);
-    border-radius: 4px;
-    border: 1px dashed var(--el-border-color);
 
-    &:hover {
-      background: var(--el-fill-color);
-    }
+
+    @include media-placeholder;
+
+
   }
 }
 
@@ -153,12 +148,6 @@ html.dark {
     .miniprogram-footer {
       background: rgba(255, 255, 255, 0.05);
       border-top-color: var(--el-border-color-darker);
-    }
-
-    .media-placeholder {
-      background: var(--el-fill-color-dark);
-      border-color: var(--el-border-color-darker);
-    }
-  }
+    }}
 }
 </style>
