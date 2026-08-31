@@ -155,7 +155,7 @@ const loadContacts = async () => {
 
     // 如果数据库为空，自动触发后台加载
     if (contactStore.contacts.length === 0) {
-      console.log('数据库为空，自动触发后台加载')
+      if (appStore.isDebug) console.log('数据库为空，自动触发后台加载')
       ElMessage.info('数据库已更新，正在重新加载联系人...')
       await startBackgroundRefresh()
     }

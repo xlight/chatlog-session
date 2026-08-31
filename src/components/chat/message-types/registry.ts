@@ -61,6 +61,7 @@ export const MESSAGE_COMPONENT_REGISTRY: Record<string, Component> = {
 
 /**
  * 根据组件名称获取组件
+ * @deprecated 使用 config 直接获取组件引用替代。计划在后续清理 change 中移除。
  */
 export function getMessageComponent(componentName: string): Component | undefined {
   return MESSAGE_COMPONENT_REGISTRY[componentName]
@@ -68,6 +69,7 @@ export function getMessageComponent(componentName: string): Component | undefine
 
 /**
  * 检查组件是否已注册
+ * @deprecated 使用 config 直接获取组件引用替代。计划在后续清理 change 中移除。
  */
 export function isComponentRegistered(componentName: string): boolean {
   return componentName in MESSAGE_COMPONENT_REGISTRY

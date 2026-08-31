@@ -60,7 +60,7 @@ const loadContact = async () => {
     
     // 如果还是没找到，但有 session 数据，从 session 构造联系人
     if (!contact.value && props.session) {
-      console.log('📝 从 session 数据构造联系人')
+      if (appStore.isDebug) console.log('📝 从 session 数据构造联系人')
       contact.value = {
         wxid: props.contactId,
         nickname: props.session.talkerName || props.session.name || props.contactId,
@@ -75,7 +75,7 @@ const loadContact = async () => {
         city: '',
         signature: ''
       }
-      console.log('构造的 contact:', contact.value)
+      if (appStore.isDebug) console.log('构造的 contact:', contact.value)
     }
     
     // 如果是群聊，加载群聊详情

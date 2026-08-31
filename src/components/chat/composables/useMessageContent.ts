@@ -2,6 +2,10 @@ import { computed } from 'vue'
 import type { Message } from '@/types'
 import { MessageType, RichMessageSubType } from '@/types/message'
 
+/**
+ * 消息内容类型判断 composable
+ * @deprecated 使用 `useMessageType` 替代。计划在后续清理 change 中移除。
+ */
 export function useMessageContent(message: Message) {
   // 消息内容类型判断
   const isTextMessage = computed(() => message.type === MessageType.Text)

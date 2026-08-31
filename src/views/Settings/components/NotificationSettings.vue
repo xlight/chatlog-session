@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAppStore } from '@/stores/app'
 
 interface NotificationSettingsData {
   enableNotifications: boolean
@@ -25,6 +26,8 @@ const props = defineProps<{
   modelValue: NotificationSettingsData
   notificationStats: NotificationStats
 }>()
+
+const appStore = useAppStore()
 
 const emit = defineEmits<{
   'update:modelValue': [value: NotificationSettingsData]
@@ -85,7 +88,7 @@ const testNotification = () => {
     }
 
     notification.onshow = () => {
-      console.log('通知已显示')
+      if (appStore.isDebug) console.log('通知已显示')
     }
 
     if (props.modelValue.enableSound) {
