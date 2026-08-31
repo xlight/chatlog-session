@@ -11,14 +11,13 @@ import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import { ElMessage } from 'element-plus'
 import 'github-markdown-css/github-markdown.css'
-// 全量注册 Element Plus 图标
-import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
 import './assets/styles/index.scss'
 import { db } from './utils/db'
 import { setOnErrorCallback } from './utils/request'
 import { useClarity } from './composables/useClarity'
+import { registerIcons } from './utils/icons'
 
 const app = createApp(App)
 
@@ -33,10 +32,8 @@ app.use(pinia)
 // 注册 Router
 app.use(router)
 
-// 全量注册 Element Plus 图标
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component as any)
-}
+// 按需注册 Element Plus 图标（动态字符串引用）
+registerIcons(app)
 
 // 初始化 IndexedDB
 db.init().catch(err => {
