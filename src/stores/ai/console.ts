@@ -7,13 +7,7 @@ import type {
   ConsoleTab,
   ContextSource,
 } from '@/types/ai/console'
-
-function generateId(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-}
+import { generateId } from '@/utils/id'
 
 function autoTitle(ts: number): string {
   const d = new Date(ts)

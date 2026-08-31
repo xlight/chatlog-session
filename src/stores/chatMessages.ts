@@ -5,7 +5,7 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { chatlogAPI, mediaAPI } from '@/api'
+import { chatlogAPI } from '@/api'
 import type { Message } from '@/types/message'
 import {
   createEmptyRangeMessage,
@@ -69,7 +69,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
   })
 
   const messagesByDate = computed(() => {
-    console.time(`[Perf] messagesByDate (${currentMessages.value.length} msgs)`)
+    if (appStore.isDebug) console.time(`[Perf] messagesByDate (${currentMessages.value.length} msgs)`)
     const grouped: Record<string, { formattedDate: string; messages: Message[] }> = {}
 
     currentMessages.value.forEach(message => {
@@ -114,25 +114,45 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
       formattedDate: data.formattedDate,
       messages: data.messages,
     }))
-    console.timeEnd(`[Perf] messagesByDate (${currentMessages.value.length} msgs)`)
+    if (appStore.isDebug) console.timeEnd(`[Perf] messagesByDate (${currentMessages.value.length} msgs)`)
     return result
   })
 
-  const mediaMessages = computed(() => {
-    return currentMessages.value.filter(msg => mediaAPI.isMediaMessage(msg.type))
+  /**
+   * 消息分类（单遍计算，避免四个 filter computed 独立全量遍历）
+   */
+  const classifiedMessages = computed(() => {
+    const msgs = currentMessages.value
+    const media: Message[] = []
+    const image: Message[] = []
+    const video: Message[] = []
+    const file: Message[] = []
+    for (let i = 0; i < msgs.length; i++) {
+      const msg = msgs[i]
+      const t = msg.type
+      if (t === 3) {
+        image.push(msg)
+        media.push(msg)
+      } else if (t === 43) {
+        video.push(msg)
+        media.push(msg)
+      } else if (t === 49) {
+        file.push(msg)
+        media.push(msg)
+      } else if (t === 34 || t === 47) {
+        media.push(msg)
+      }
+    }
+    return { media, image, video, file }
   })
 
-  const imageMessages = computed(() => {
-    return currentMessages.value.filter(msg => msg.type === 3)
-  })
+  const mediaMessages = computed(() => classifiedMessages.value.media)
 
-  const videoMessages = computed(() => {
-    return currentMessages.value.filter(msg => msg.type === 43)
-  })
+  const imageMessages = computed(() => classifiedMessages.value.image)
 
-  const fileMessages = computed(() => {
-    return currentMessages.value.filter(msg => msg.type === 49)
-  })
+  const videoMessages = computed(() => classifiedMessages.value.video)
+
+  const fileMessages = computed(() => classifiedMessages.value.file)
 
   // ==================== 消息顺序辅助 ====================
 

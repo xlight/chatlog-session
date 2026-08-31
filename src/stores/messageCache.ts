@@ -169,9 +169,12 @@ export const useMessageCacheStore = defineStore('messageCache', {
           return null
         }
 
-        // 更新访问时间
-        item.lastAccess = now
-        sessionStorage.setItem(key, JSON.stringify(item))
+        // 更新访问时间（低频写入：仅当距上次写 ≥ TTL/4 时更新，避免热路径全量重写）
+        const updateThreshold = this.config.ttl / 4
+        if (now - item.lastAccess > updateThreshold) {
+          item.lastAccess = now
+          sessionStorage.setItem(key, JSON.stringify(item))
+        }
         this.updateMetadata(talker, item)
 
         return item.messages

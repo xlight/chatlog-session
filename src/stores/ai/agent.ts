@@ -18,6 +18,7 @@ import type {
 } from '@/types/ai/agent'
 import { DEFAULT_MCP_TOOL_PERMISSION } from '@/types/ai/mcp'
 import { OBSERVER_ANALYZE_TEMPLATE_ID } from '@/stores/ai/prompt'
+import { generateId } from '@/utils/id'
 
 const DEFAULT_CONFIG: AgentConfig = {
   enabled: false,
@@ -51,13 +52,6 @@ const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
 
 const MAX_DRAFTS = 20
 const MAX_RESULTS_PER_SESSION = 20
-
-function generateId(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-}
 
 export function deriveLevelPreset(config: SessionAgentConfig): AgentLevelPreset {
   const { sendPermission, observer, keywordMonitor } = config

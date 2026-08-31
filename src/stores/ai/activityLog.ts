@@ -1,16 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { ActivityAction, ActivityLogEntry } from '@/types/ai/console'
+import { generateId } from '@/utils/id'
 
 const RECENT_LIMIT = 50
 const MAX_ENTRIES = 200
-
-function generateId(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  return `log-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-}
 
 export const useAIActivityLogStore = defineStore(
   'aiActivityLog',
@@ -24,7 +18,7 @@ export const useAIActivityLogStore = defineStore(
 
     function addEntry(action: ActivityAction, detail: string, sessionId?: string): void {
       entries.value.push({
-        id: generateId(),
+        id: generateId('log'),
         timestamp: Date.now(),
         action,
         detail,

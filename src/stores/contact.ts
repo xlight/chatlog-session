@@ -9,7 +9,7 @@ import type { ContactFilterType } from '@/types'
 import { useAppStore } from './app'
 import { db } from '@/utils/db'
 
-import { groupAndSortContacts, generateIndexList, filterContacts } from '@/utils/contact-grouping'
+import { groupAndSortContacts, generateIndexList, filterContacts, batchEnsureContactIndexes } from '@/utils/contact-grouping'
 import { pinyin } from 'pinyin-pro'
 
 export const useContactStore = defineStore('contact', () => {
@@ -111,16 +111,18 @@ export const useContactStore = defineStore('contact', () => {
       result = filterContacts(result, searchKeyword.value)
     }
 
-    // 排序
-    result = [...result].sort((a, b) => {
-      if (sortBy.value === 'name' || sortBy.value === 'pinyin') {
-        const nameA = contactAPI.getDisplayName(a)
-        const nameB = contactAPI.getDisplayName(b)
-        return nameA.localeCompare(nameB, 'zh-CN')
-      } else {
-        return (b.lastContactTime || 0) - (a.lastContactTime || 0)
-      }
-    })
+    // 排序（使用缓存的 sortKey，避免每次 localeCompare）
+    if (sortBy.value === 'name' || sortBy.value === 'pinyin') {
+      // 确保 sortKey 已预计算（与 contactGroups 的 sortGroupContacts 一致）
+      batchEnsureContactIndexes(result)
+      result = [...result].sort((a, b) => {
+        const keyA = a.sortKey || ''
+        const keyB = b.sortKey || ''
+        return keyA.localeCompare(keyB, 'zh-CN')
+      })
+    } else {
+      result = [...result].sort((a, b) => (b.lastContactTime || 0) - (a.lastContactTime || 0))
+    }
 
     return result
   })

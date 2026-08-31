@@ -5,7 +5,6 @@
 
 export { useAppStore } from './app'
 export { useChatMessagesStore } from './chatMessages'
-export { useChatSearchStore } from './chatSearch'
 export { useChatSelectionStore } from './chatSelection'
 export { useChatExportStore } from './chatExport'
 export { useSettingsStore } from './settings'
@@ -26,7 +25,6 @@ export { useMomentsStore } from './moments'
 
 import { useAppStore } from './app'
 import { useChatMessagesStore } from './chatMessages'
-import { useChatSearchStore } from './chatSearch'
 import { useChatSelectionStore } from './chatSelection'
 import { useChatExportStore } from './chatExport'
 import { useSettingsStore } from './settings'
@@ -50,7 +48,6 @@ import { useMomentsStore } from './moments'
 export function resetAllStores() {
   const appStore = useAppStore()
   const chatMessagesStore = useChatMessagesStore()
-  const chatSearchStore = useChatSearchStore()
   const chatSelectionStore = useChatSelectionStore()
   const chatExportStore = useChatExportStore()
   const settingsStore = useSettingsStore()
@@ -70,7 +67,6 @@ export function resetAllStores() {
 
   appStore.$reset()
   chatMessagesStore.$reset()
-  chatSearchStore.$reset()
   chatSelectionStore.$reset()
   chatExportStore.$reset()
   settingsStore.$reset()
