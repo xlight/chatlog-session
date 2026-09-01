@@ -19,14 +19,14 @@ import { useContactStore } from './contact'
 import type { Message } from '@/types/message'
 import { toCST, formatCSTRange } from '@/utils/timezone'
 
-// 懒加载 chatMessages store（避免循环依赖）
-let _useChatMessagesStore: any = null
-async function getChatMessagesStore() {
-  if (!_useChatMessagesStore) {
-    const mod = await import('./chatMessages')
-    _useChatMessagesStore = mod.useChatMessagesStore
-  }
-  return _useChatMessagesStore()
+// ==================== Types ====================
+
+/**
+ * chatMessages store 实例类型（由 chatMessages/index.ts 在创建后通过 setChatMessagesStore 注入）
+ * 仅约束 autoRefresh 实际使用的方法，避免完整 store 类型的循环推导。
+ */
+interface ChatMessagesStore {
+  handleCacheUpdateData: (talker: string, messages: Message[]) => void | Promise<void>
 }
 
 /**
@@ -77,6 +77,8 @@ interface RefreshStats {
   lastRefreshTime: number
 }
 
+// ==================== Constants ====================
+
 /**
  * 默认配置
  */
@@ -92,7 +94,187 @@ const DEFAULT_CONFIG: RefreshConfig = {
   pageSize: 200,            // 每次获取200条消息
 }
 
+// ==================== ChatMessages Store 注入 ====================
+
+/**
+ * chatMessages store 引用，由 chatMessages/index.ts 在创建后通过 setChatMessagesStore 注入。
+ * 保持 null 表示尚未注入（等价于原动态 import 的 "chatMessages store 可能尚未初始化" 语义）。
+ * 此模式消除 any 类型和运行时动态 import，打破 autoRefresh → chatMessages → autoRefresh 循环依赖。
+ */
+let _chatMessagesStore: ChatMessagesStore | null = null
+
+/**
+ * 注入 chatMessages store 实例（由 chatMessages/index.ts 调用）
+ */
+export function setChatMessagesStore(store: ChatMessagesStore) {
+  _chatMessagesStore = store
+}
+
+// ==================== Pure Functions ====================
+
+/**
+ * 纯函数：获取消息的 API 调用逻辑（不含 store state 访问）
+ * 根据 cachedMessages 和 startFromTime 决定查询策略，返回新拉取的消息数组。
+ */
+async function fetchMessagesFromAPI(
+  talker: string,
+  cachedMessages: Message[] | null,
+  startFromTime: string | undefined,
+  pageSize: number,
+  appStore: ReturnType<typeof useAppStore>
+): Promise<Message[]> {
+  if (!cachedMessages || cachedMessages.length === 0) {
+    // 没有缓存，获取最新的消息
+    if (appStore.isDebug) {
+      console.log(`📭 No cache found, fetching latest messages`)
+    }
+    const messages = await chatlogAPI.getSessionMessages(talker, undefined, pageSize)
+    if (appStore.isDebug) {
+      console.log(`📦 fetchMessages: Received ${messages.length} messages (no cache)`)
+    }
+    return messages
+  }
+
+  // 确定刷新的起始时间
+  let latestCachedTimeMs: number
+  let latestCachedTimeCST: string
+
+  if (startFromTime) {
+    // 使用传入的起始时间
+    latestCachedTimeMs = new Date(startFromTime).getTime()
+    latestCachedTimeCST = startFromTime
+    if (appStore.isDebug) {
+      console.log(`📅 Using provided start time: ${startFromTime}`)
+    }
+  } else {
+    // 从缓存中找到最新的消息时间
+    const latestCached = cachedMessages.reduce((latest, msg) => {
+      const msgTime = msg.time ? new Date(msg.time).getTime() : msg.createTime * 1000
+      const latestTime = latest.time ? new Date(latest.time).getTime() : latest.createTime * 1000
+      return msgTime > latestTime ? msg : latest
+    }, cachedMessages[0])
+
+    latestCachedTimeMs = latestCached.time
+      ? new Date(latestCached.time).getTime()
+      : latestCached.createTime * 1000
+
+    // 转换为东八区 ISO 格式
+    latestCachedTimeCST = toCST(new Date(latestCachedTimeMs))
+    if (appStore.isDebug) {
+      console.log(`📅 Latest cached message time (auto-detected): ${latestCachedTimeCST}`)
+    }
+  }
+
+  // 获取从起始时间到现在的新消息
+  const now = Date.now()
+  const nowCST = toCST(new Date(now))
+  const timeDiff = now - latestCachedTimeMs
+  const daysDiff = Math.ceil(timeDiff / (24 * 60 * 60 * 1000))
+
+  if (appStore.isDebug) {
+    console.log(`⏰ Time difference: ${daysDiff} days, fetching updates...`)
+    console.log(`📆 Time range: ${latestCachedTimeCST} ~ ${nowCST}`)
+  }
+
+  // 使用时间范围获取消息
+  let newMessages: Message[]
+
+  if (daysDiff <= 1) {
+    // 时间差小于1天，使用时间范围查询
+    const timeRange = formatCSTRange(new Date(latestCachedTimeMs), new Date(now))
+    if (appStore.isDebug) {
+      console.log(`📅 Fetching with time range: ${timeRange}`)
+    }
+    newMessages = await chatlogAPI.getChatlog({
+      talker,
+      time: timeRange,
+      limit: pageSize * 2,
+    })
+    if (appStore.isDebug) {
+      console.log(`📦 Fetched ${newMessages.length} messages in time range`)
+    }
+  } else if (daysDiff <= 7) {
+    // 获取时间范围内的消息
+    const timeRange = formatCSTRange(new Date(latestCachedTimeMs), new Date(now))
+    if (appStore.isDebug) {
+      console.log(`📅 Fetching with time range: ${timeRange}`)
+    }
+    newMessages = await chatlogAPI.getChatlog({
+      talker,
+      time: timeRange,
+      limit: pageSize * 2,
+    })
+    if (appStore.isDebug) {
+      console.log(`📦 Fetched ${newMessages.length} messages in ${daysDiff} days range`)
+    }
+  } else {
+    // 时间跨度太大，只获取最近7天
+    console.warn(`⚠️ Time gap too large (${daysDiff} days), fetching last 7 days only`)
+    newMessages = await chatlogAPI.getRecentMessages(7, talker, pageSize * 2)
+    if (appStore.isDebug) {
+      console.log(`📦 Fetched recent 7 days messages: ${newMessages.length}`)
+    }
+  }
+
+  return newMessages
+}
+
+/**
+ * 纯函数：合并缓存消息与新消息，去重并按时间排序，超限时裁剪到 maxMessages 条
+ */
+function mergeAndDeduplicateMessages(
+  cachedMessages: Message[],
+  newMessages: Message[],
+  latestCachedTimeMs: number,
+  maxMessages: number,
+  appStore: ReturnType<typeof useAppStore>
+): Message[] {
+  // 过滤出比缓存更新的消息
+  const newerMessages = newMessages.filter(msg => {
+    const msgTime = msg.time ? new Date(msg.time).getTime() : msg.createTime * 1000
+    return msgTime > latestCachedTimeMs
+  })
+
+  if (appStore.isDebug) {
+    console.log(`🆕 Found ${newerMessages.length} newer messages`)
+  }
+
+  // 合并消息：缓存 + 新消息
+  const mergedMessages = [...cachedMessages, ...newerMessages]
+
+  // 去重（基于 id 或 seq）
+  const uniqueMessages = mergedMessages.reduce((acc, msg) => {
+    const key = `${msg.id}_${msg.seq}`
+    if (!acc.has(key)) {
+      acc.set(key, msg)
+    }
+    return acc
+  }, new Map<string, Message>())
+
+  // 转换为数组并按时间排序（旧到新）
+  const result = Array.from(uniqueMessages.values()).sort((a, b) => {
+    const timeA = a.time ? new Date(a.time).getTime() : a.createTime * 1000
+    const timeB = b.time ? new Date(b.time).getTime() : b.createTime * 1000
+    return timeA - timeB
+  })
+
+  if (appStore.isDebug) {
+    console.log(`📦 fetchMessages: Merged ${result.length} messages (${cachedMessages.length} cached + ${newerMessages.length} new)`)
+  }
+
+  // 如果合并后消息太多，只保留最新的 maxMessages 条
+  if (result.length > maxMessages) {
+    if (appStore.isDebug) {
+      console.log(`✂️ Trimming messages from ${result.length} to ${maxMessages}`)
+    }
+    return result.slice(-maxMessages)
+  }
+
+  return result
+}
+
 export const useAutoRefreshStore = defineStore('autoRefresh', {
+  // ==================== State ====================
   state: () => ({
     config: { ...DEFAULT_CONFIG },
     tasks: [] as RefreshTask[],
@@ -108,6 +290,7 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
     needsRefreshTalkers: [] as string[],
   }),
 
+  // ==================== Getters ====================
   getters: {
     /**
      * 等待中的任务
@@ -149,7 +332,10 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
     },
   },
 
+  // ==================== Actions ====================
   actions: {
+    // --- Config ---
+
     /**
      * 初始化
      */
@@ -238,6 +424,8 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
         this.timer = null
       }
     },
+
+    // --- Execute ---
 
     /**
      * 添加刷新任务
@@ -491,11 +679,10 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
           // 直接调用 chatMessages store 的缓存更新处理方法
           try {
             console.time(`[Perf] executeTask:handleCacheUpdateData(${task.talker})`)
-            const chatMessagesStore = await getChatMessagesStore()
-            chatMessagesStore.handleCacheUpdateData(task.talker, messages)
+            _chatMessagesStore?.handleCacheUpdateData(task.talker, messages)
             console.timeEnd(`[Perf] executeTask:handleCacheUpdateData(${task.talker})`)
           } catch (e) {
-            // chatMessages store 可能尚未初始化，静默处理
+            // chatMessages store 可能尚未注入，静默处理
           }
         } else {
           throw new Error('Failed to save cache')
@@ -529,6 +716,8 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
       }
     },
 
+    // --- Fetch ---
+
     /**
      * 获取消息并智能填补缓存缺口
      * @param talker 会话ID
@@ -540,144 +729,41 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
       if (appStore.isDebug) {
         console.log(`📥 fetchMessages: Requesting messages for ${talker}`)
       }
-      
+
+      // 无缓存：直接拉取最新消息
       if (!cachedMessages || cachedMessages.length === 0) {
-        // 没有缓存，获取最新的消息
-        if (appStore.isDebug) {
-          console.log(`📭 No cache found, fetching latest messages`)
-        }
-        const messages = await chatlogAPI.getSessionMessages(talker, undefined, this.config.pageSize)
-        if (appStore.isDebug) {
-          console.log(`📦 fetchMessages: Received ${messages.length} messages (no cache)`)
-        }
-        return messages
+        return fetchMessagesFromAPI(talker, null, undefined, this.config.pageSize, appStore)
       }
 
-      // 确定刷新的起始时间
-      let latestCachedTimeMs: number
-      let latestCachedTimeCST: string
-      
-      if (startFromTime) {
-        // 使用传入的起始时间
-        latestCachedTimeMs = new Date(startFromTime).getTime()
-        latestCachedTimeCST = startFromTime
-        if (appStore.isDebug) {
-          console.log(`📅 Using provided start time: ${startFromTime}`)
-        }
-      } else {
-        // 从缓存中找到最新的消息时间
-        const latestCached = cachedMessages.reduce((latest, msg) => {
-          const msgTime = msg.time ? new Date(msg.time).getTime() : msg.createTime * 1000
-          const latestTime = latest.time ? new Date(latest.time).getTime() : latest.createTime * 1000
-          return msgTime > latestTime ? msg : latest
-        }, cachedMessages[0])
+      // 有缓存：先拉取新消息，再合并去重
+      const newMessages = await fetchMessagesFromAPI(
+        talker,
+        cachedMessages,
+        startFromTime,
+        this.config.pageSize,
+        appStore
+      )
 
-        latestCachedTimeMs = latestCached.time 
-          ? new Date(latestCached.time).getTime() 
-          : latestCached.createTime * 1000
-        
-        // 转换为东八区 ISO 格式
-        latestCachedTimeCST = toCST(new Date(latestCachedTimeMs))
-        if (appStore.isDebug) {
-          console.log(`📅 Latest cached message time (auto-detected): ${latestCachedTimeCST}`)
-        }
-      }
-
-      // 获取从起始时间到现在的新消息
-      const now = Date.now()
-      const nowCST = toCST(new Date(now))
-      const timeDiff = now - latestCachedTimeMs
-      const daysDiff = Math.ceil(timeDiff / (24 * 60 * 60 * 1000))
-      
-      if (appStore.isDebug) {
-        console.log(`⏰ Time difference: ${daysDiff} days, fetching updates...`)
-        console.log(`📆 Time range: ${latestCachedTimeCST} ~ ${nowCST}`)
-      }
-
-      // 使用时间范围获取消息
-      let newMessages: Message[]
-      
-      if (daysDiff <= 1) {
-        // 时间差小于1天，使用时间范围查询
-        const timeRange = formatCSTRange(new Date(latestCachedTimeMs), new Date(now))
-        if (appStore.isDebug) {
-          console.log(`📅 Fetching with time range: ${timeRange}`)
-        }
-        newMessages = await chatlogAPI.getChatlog({
-          talker,
-          time: timeRange,
-          limit: this.config.pageSize * 2,
-        })
-        if (appStore.isDebug) {
-          console.log(`📦 Fetched ${newMessages.length} messages in time range`)
-        }
-      } else if (daysDiff <= 7) {
-        // 获取时间范围内的消息
-        const timeRange = formatCSTRange(new Date(latestCachedTimeMs), new Date(now))
-        if (appStore.isDebug) {
-          console.log(`📅 Fetching with time range: ${timeRange}`)
-        }
-        newMessages = await chatlogAPI.getChatlog({
-          talker,
-          time: timeRange,
-          limit: this.config.pageSize * 2,
-        })
-        if (appStore.isDebug) {
-          console.log(`📦 Fetched ${newMessages.length} messages in ${daysDiff} days range`)
-        }
-      } else {
-        // 时间跨度太大，只获取最近7天
-        console.warn(`⚠️ Time gap too large (${daysDiff} days), fetching last 7 days only`)
-        newMessages = await chatlogAPI.getRecentMessages(7, talker, this.config.pageSize * 2)
-        if (appStore.isDebug) {
-          console.log(`📦 Fetched recent 7 days messages: ${newMessages.length}`)
-        }
-      }
-
-      // 过滤出比缓存更新的消息
-      const newerMessages = newMessages.filter(msg => {
+      // 计算缓存最新时间（用于过滤 newer 消息）
+      const latestCached = cachedMessages.reduce((latest, msg) => {
         const msgTime = msg.time ? new Date(msg.time).getTime() : msg.createTime * 1000
-        return msgTime > latestCachedTimeMs
-      })
+        const latestTime = latest.time ? new Date(latest.time).getTime() : latest.createTime * 1000
+        return msgTime > latestTime ? msg : latest
+      }, cachedMessages[0])
+      const latestCachedTimeMs = latestCached.time
+        ? new Date(latestCached.time).getTime()
+        : latestCached.createTime * 1000
 
-      if (appStore.isDebug) {
-        console.log(`🆕 Found ${newerMessages.length} newer messages`)
-      }
-
-      // 合并消息：缓存 + 新消息
-      const mergedMessages = [...cachedMessages, ...newerMessages]
-
-      // 去重（基于 id 或 seq）
-      const uniqueMessages = mergedMessages.reduce((acc, msg) => {
-        const key = `${msg.id}_${msg.seq}`
-        if (!acc.has(key)) {
-          acc.set(key, msg)
-        }
-        return acc
-      }, new Map<string, Message>())
-
-      // 转换为数组并按时间排序（旧到新）
-      const result = Array.from(uniqueMessages.values()).sort((a, b) => {
-        const timeA = a.time ? new Date(a.time).getTime() : a.createTime * 1000
-        const timeB = b.time ? new Date(b.time).getTime() : b.createTime * 1000
-        return timeA - timeB
-      })
-
-      if (appStore.isDebug) {
-        console.log(`📦 fetchMessages: Merged ${result.length} messages (${cachedMessages.length} cached + ${newerMessages.length} new)`)
-      }
-
-      // 如果合并后消息太多，只保留最新的 pageSize * 3 条
-      const maxMessages = this.config.pageSize * 3
-      if (result.length > maxMessages) {
-        if (appStore.isDebug) {
-          console.log(`✂️ Trimming messages from ${result.length} to ${maxMessages}`)
-        }
-        return result.slice(-maxMessages)
-      }
-
-      return result
+      return mergeAndDeduplicateMessages(
+        cachedMessages,
+        newMessages,
+        latestCachedTimeMs,
+        this.config.pageSize * 3,
+        appStore
+      )
     },
+
+    // --- Stats ---
 
     /**
      * 更新统计
@@ -692,6 +778,8 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
           (this.stats.averageTime * (this.stats.totalTasks - 1) + duration) / this.stats.totalTasks
       }
     },
+
+    // --- Detect ---
 
     /**
      * 检测需要刷新的会话
@@ -897,6 +985,8 @@ export const useAutoRefreshStore = defineStore('autoRefresh', {
         needsRefreshCount: this.needsRefreshTalkers.length,
       }
     },
+
+    // --- Notify ---
 
     /**
      * 检测新消息并发送通知

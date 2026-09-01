@@ -8,6 +8,7 @@ import { useChatMessagesCore } from './core'
 import { useChatMessagesRender } from './render'
 import { useChatMessagesVoice } from './voice'
 import { useChatMessagesLoad } from './load'
+import { setChatMessagesStore } from '../autoRefresh'
 
 export const useChatMessagesStore = defineStore('chatMessages', () => {
   const core = useChatMessagesCore()
@@ -22,7 +23,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     voice.playingVoiceId.value = null
   }
 
-  return {
+  const store = {
     // State from core
     messages: core.messages,
     currentTalker: core.currentTalker,
@@ -79,4 +80,10 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     $reset,
     cleanup: load.cleanup,
   }
+
+  // 注入 chatMessages store 实例到 autoRefresh，替代原动态 import
+  // 注意：useAutoRefreshStore() 调用会触发 autoRefresh store 创建，但 autoRefresh 不再导入 chatMessages，无循环依赖
+  setChatMessagesStore(store)
+
+  return store
 })
