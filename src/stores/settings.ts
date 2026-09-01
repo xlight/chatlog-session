@@ -57,6 +57,15 @@ export interface AdvancedSettingsData {
   cacheSize: number
 }
 
+export interface UISettingsData {
+  fontSize: string
+  messageDensity: string
+  enterToSend: boolean
+  autoPlayVoice: boolean
+  showMessagePreview: boolean
+  timeFormat: string
+}
+
 export type SendShortcut = 'enter' | 'ctrl-enter'
 
 export interface SendmsgSettingsData {
@@ -125,6 +134,15 @@ const defaultAdvancedSettings: AdvancedSettingsData = {
   cacheSize: 0,
 }
 
+const defaultUISettings: UISettingsData = {
+  fontSize: 'medium',
+  messageDensity: 'comfortable',
+  enterToSend: true,
+  autoPlayVoice: false,
+  showMessagePreview: true,
+  timeFormat: '24h',
+}
+
 const defaultSendmsgSettings: SendmsgSettingsData = {
   apiUrl: 'http://127.0.0.1:8765',
   enabled: false,
@@ -150,6 +168,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const chat = ref<ChatSettingsData>({ ...defaultChatSettings })
   const privacy = ref<PrivacySettingsData>({ ...defaultPrivacySettings })
   const advanced = ref<AdvancedSettingsData>({ ...defaultAdvancedSettings })
+  const ui = ref<UISettingsData>({ ...defaultUISettings })
   const sendmsg = ref<SendmsgSettingsData>({ ...defaultSendmsgSettings })
   const ai = ref<AISettingsData>({ ...defaultAISettings })
 
@@ -257,6 +276,7 @@ export const useSettingsStore = defineStore('settings', () => {
     advanced.value = { ...defaultAdvancedSettings }
     sendmsg.value = { ...defaultSendmsgSettings }
     ai.value = { ...defaultAISettings }
+    ui.value = { ...defaultUISettings }
   }
 
   /**
@@ -304,6 +324,7 @@ export const useSettingsStore = defineStore('settings', () => {
     advanced,
     sendmsg,
     ai,
+    ui,
 
     // Getters
     allSettings,
@@ -320,6 +341,6 @@ export const useSettingsStore = defineStore('settings', () => {
 }, {
   persist: {
     key: 'chatlog-settings',
-    pick: ['api', 'appearance', 'notification', 'chat', 'privacy', 'advanced', 'sendmsg', 'ai'],
+    pick: ['api', 'appearance', 'notification', 'chat', 'privacy', 'advanced', 'sendmsg', 'ai', 'ui'],
   },
 })

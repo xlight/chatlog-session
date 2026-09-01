@@ -25,6 +25,7 @@ export interface NavigationStackItem {
 /**
  * app.ts 独有的用户设置（非重叠字段）
  * 重叠字段（theme, language, showMediaResources, enableServerPinning）由 useSettingsStore 管理
+ * @deprecated 使用 settingsStore.ui 代替；此类型仅保留向后兼容
  */
 export interface AppOnlySettings {
   fontSize: string
@@ -56,16 +57,9 @@ export const useAppStore = defineStore('app', () => {
 
   /**
    * app 独有的用户设置（非重叠字段）
-   * 重叠字段通过 settingsStore 读取
+   * 已迁移至 settingsStore.ui，此处为计算属性代理保持 API 兼容
    */
-  const settings = ref<AppOnlySettings>({
-    fontSize: 'medium',
-    messageDensity: 'comfortable',
-    enterToSend: true,
-    autoPlayVoice: false,
-    showMessagePreview: true,
-    timeFormat: '24h',
-  })
+  const settings = computed(() => settingsStore.ui)
 
   /**
    * 加载状态
@@ -151,11 +145,12 @@ export const useAppStore = defineStore('app', () => {
 
   async function loadSettings() {
     try {
-      // 加载 app 独有设置
+      // 迁移旧 app-settings 到 settingsStore.ui（仅首次）
       const saved = localStorage.getItem('app-settings')
       if (saved) {
         const parsed = JSON.parse(saved)
-        settings.value = { ...settings.value, ...parsed }
+        settingsStore.ui = { ...settingsStore.ui, ...parsed }
+        localStorage.removeItem('app-settings')
       }
 
       // 从 settingsStore 获取 enableDebug（单一数据源）
@@ -168,11 +163,7 @@ export const useAppStore = defineStore('app', () => {
   }
 
   function saveSettings() {
-    try {
-      localStorage.setItem('app-settings', JSON.stringify(settings.value))
-    } catch (err) {
-      console.error('Failed to save settings:', err)
-    }
+    // settings 已由 settingsStore 统一持久化，无需手动保存
   }
 
   /**
@@ -202,19 +193,14 @@ export const useAppStore = defineStore('app', () => {
       settingsStore.chat.enableServerPinning = !newSettings.disableServerPinning
     }
 
-    // 非重叠字段 → app settings
-    const appOnlyUpdates: Partial<AppOnlySettings> = {}
-    let hasAppOnlyUpdates = false
-    for (const key of Object.keys(newSettings) as (keyof AppOnlySettings)[]) {
-      if (key in settings.value) {
-        (appOnlyUpdates as any)[key] = newSettings[key]
-        hasAppOnlyUpdates = true
+    // 非重叠字段 → settingsStore.ui
+    const uiKeys: (keyof typeof settingsStore.ui)[] = ['fontSize', 'messageDensity', 'enterToSend', 'autoPlayVoice', 'showMessagePreview', 'timeFormat']
+    for (const key of uiKeys) {
+      if (key in newSettings) {
+        (settingsStore.ui as any)[key] = (newSettings as any)[key]
       }
     }
-    if (hasAppOnlyUpdates) {
-      settings.value = { ...settings.value, ...appOnlyUpdates }
-      saveSettings()
-    }
+    // saveSettings 已空操作（settingsStore 自动持久化）
 
     // 如果更新了主题，重新设置监听器并应用主题
     if (newSettings.theme && newSettings.theme !== oldTheme) {
@@ -348,14 +334,6 @@ export const useAppStore = defineStore('app', () => {
   }
 
   function $reset() {
-    settings.value = {
-      fontSize: 'medium',
-      messageDensity: 'comfortable',
-      enterToSend: true,
-      autoPlayVoice: false,
-      showMessagePreview: true,
-      timeFormat: '24h',
-    }
     sidebarCollapsed.value = false
     activeNav.value = 'chat'
     aiPanelOpen.value = false

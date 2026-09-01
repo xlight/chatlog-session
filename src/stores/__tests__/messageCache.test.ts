@@ -69,4 +69,46 @@ describe('useMessageCacheStore', () => {
       expect(cached).toBeNull()
     })
   })
+
+  describe('get - 低频写入（spec scenario: 读取不触发全量重写）', () => {
+    const sid = 'wxid_lowfreq'
+    const messages = [createMockMessage(1), createMockMessage(2)]
+
+    it('距上次访问 < TTL/4 时不重写缓存项', () => {
+      store.set(sid, messages)
+      const cacheKey = `chatlog_cache_${sid}`
+      // 立即读取：距上次访问几乎为 0，远小于 TTL/4（30min/4 = 7.5min）
+      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+
+      const result = store.get(sid)
+
+      expect(result).toEqual(messages)
+      // 不应重写缓存项本身（metadata 更新允许，但缓存项 JSON 不重写）
+      const cacheItemWrite = setItemSpy.mock.calls.find(([k]) => k === cacheKey)
+      expect(cacheItemWrite).toBeUndefined()
+      setItemSpy.mockRestore()
+    })
+
+    it('距上次访问 ≥ TTL/4 时更新 lastAccess 并重写', () => {
+      store.set(sid, messages)
+      const cacheKey = `chatlog_cache_${sid}`
+      // 手动将 lastAccess 设为足够久之前，触发更新
+      const raw = sessionStorage.getItem(cacheKey)
+      if (raw) {
+        const item = JSON.parse(raw)
+        // 设为 10 分钟前（TTL/4 = 7.5 分钟，超过阈值）
+        item.lastAccess = Date.now() - 10 * 60 * 1000
+        sessionStorage.setItem(cacheKey, JSON.stringify(item))
+      }
+
+      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+
+      store.get(sid)
+
+      // 应重写缓存项本身（更新 lastAccess）
+      const cacheItemWrite = setItemSpy.mock.calls.find(([k]) => k === cacheKey)
+      expect(cacheItemWrite).toBeDefined()
+      setItemSpy.mockRestore()
+    })
+  })
 })

@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createTestingPinia } from '@pinia/testing'
 import { useAppStore } from '@/stores/app'
+import { useSettingsStore } from '@/stores/settings'
 
 function createStore() {
   return useAppStore(
@@ -208,9 +209,16 @@ describe('useAppStore', () => {
 
   describe('$reset', () => {
     it('恢复 settings 为默认值', () => {
-      store.settings.fontSize = 'large'
-      store.settings.enterToSend = false
+      const settingsStore = useSettingsStore()
+      settingsStore.ui.fontSize = 'large'
+      settingsStore.ui.enterToSend = false
       store.$reset()
+      // $reset 不再重置 settings（由 settingsStore.$reset 管理）
+      // 验证 settings 代理 settingsStore.ui
+      expect(store.settings.fontSize).toBe('large')
+      expect(store.settings.enterToSend).toBe(false)
+      // settingsStore.$reset 才重置 ui
+      settingsStore.$reset()
       expect(store.settings.fontSize).toBe('medium')
       expect(store.settings.enterToSend).toBe(true)
     })

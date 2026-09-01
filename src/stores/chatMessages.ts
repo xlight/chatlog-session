@@ -163,7 +163,8 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
   }
 
   const mergeWithCurrentMessages = (incomingBatch: Message[], label: string) => {
-    console.time(`[Perf] mergeWithCurrentMessages(${label}, incoming=${incomingBatch.length})`)
+    const mergeLabel = `[Perf] mergeWithCurrentMessages(${label}, incoming=${incomingBatch.length})`
+    if (appStore.isDebug) console.time(mergeLabel)
     const current = normalizeBatchToChronological(messages.value, appStore.isDebug)
     const incoming = normalizeBatchToChronological(incomingBatch, appStore.isDebug)
 
@@ -175,7 +176,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     if (!currentFirst || !currentLast || !incomingFirst || !incomingLast) {
       messages.value = mergeChronologicalMessages(current, incoming)
       assertChronologicalOrder(messages.value, appStore.isDebug, `${label}:merged`)
-      console.timeEnd(`[Perf] mergeWithCurrentMessages(${label}, incoming=${incomingBatch.length})`)
+      if (appStore.isDebug) console.timeEnd(mergeLabel)
       return
     }
 
@@ -187,20 +188,20 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     if (incomingLastTs <= currentFirstTs) {
       messages.value = [...incoming, ...current]
       assertChronologicalOrder(messages.value, appStore.isDebug, `${label}:prepend`)
-      console.timeEnd(`[Perf] mergeWithCurrentMessages(${label}, incoming=${incomingBatch.length})`)
+      if (appStore.isDebug) console.timeEnd(mergeLabel)
       return
     }
 
     if (incomingFirstTs >= currentLastTs) {
       messages.value = [...current, ...incoming]
       assertChronologicalOrder(messages.value, appStore.isDebug, `${label}:append`)
-      console.timeEnd(`[Perf] mergeWithCurrentMessages(${label}, incoming=${incomingBatch.length})`)
+      if (appStore.isDebug) console.timeEnd(mergeLabel)
       return
     }
 
     messages.value = mergeChronologicalMessages(current, incoming)
     assertChronologicalOrder(messages.value, appStore.isDebug, `${label}:merged`)
-    console.timeEnd(`[Perf] mergeWithCurrentMessages(${label}, incoming=${incomingBatch.length})`)
+    if (appStore.isDebug) console.timeEnd(mergeLabel)
   }
 
   const getFirstRealMessage = (list: Message[]) => list.find(isRealMessage)
@@ -258,7 +259,8 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
       return
     }
 
-    console.time(`[Perf] loadMessages(${talker}, page=${page}, append=${append})`)
+    const loadLabel = `[Perf] loadMessages(${talker}, page=${page}, append=${append})`
+    if (appStore.isDebug) console.time(loadLabel)
     if (timeRange && !timeRange.includes('~')) {
       const beforeDate =
         typeof timeRange === 'string' ? new Date(timeRange) : new Date(timeRange * 1000)
@@ -280,9 +282,10 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
       const limit = pageSize.value
 
       if (page === 1 && !append) {
-        console.time(`[Perf] loadMessages:cacheStore.get(${talker})`)
+        const cacheGetLabel = `[Perf] loadMessages:cacheStore.get(${talker})`
+        if (appStore.isDebug) console.time(cacheGetLabel)
         const cached = cacheStore.get(talker)
-        console.timeEnd(`[Perf] loadMessages:cacheStore.get(${talker})`)
+        if (appStore.isDebug) console.timeEnd(cacheGetLabel)
         if (cached) {
           result = cached
           if (appStore.isDebug) {
@@ -308,9 +311,10 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
       if (result.length === 0) {
         const offset = (page - 1) * limit
         result = await chatlogAPI.getSessionMessages(talker, timeRange, limit, offset, bottom)
-        console.time(`[Perf] loadMessages:normalize(${talker})`)
+        const normalizeLabel = `[Perf] loadMessages:normalize(${talker})`
+        if (appStore.isDebug) console.time(normalizeLabel)
         result = normalizeAndAssertBatch(result, 'loadMessages:api')
-        console.timeEnd(`[Perf] loadMessages:normalize(${talker})`)
+        if (appStore.isDebug) console.timeEnd(normalizeLabel)
 
         if (page === 1 && !append) {
           cacheStore.set(talker, result)
@@ -363,14 +367,16 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
       }
 
       if (append) {
-        console.time(`[Perf] loadMessages:mergeWithCurrent(${talker})`)
+        const mergeLabel = `[Perf] loadMessages:mergeWithCurrent(${talker})`
+        if (appStore.isDebug) console.time(mergeLabel)
         mergeWithCurrentMessages(result, 'loadMessages:append')
-        console.timeEnd(`[Perf] loadMessages:mergeWithCurrent(${talker})`)
+        if (appStore.isDebug) console.timeEnd(mergeLabel)
       } else {
-        console.time(`[Perf] loadMessages:replaceMessages(${talker})`)
+        const replaceLabel = `[Perf] loadMessages:replaceMessages(${talker})`
+        if (appStore.isDebug) console.time(replaceLabel)
         messages.value = normalizeAndAssertBatch(result, 'loadMessages:replace')
         assertChronologicalOrder(messages.value, appStore.isDebug, 'loadMessages:replace')
-        console.timeEnd(`[Perf] loadMessages:replaceMessages(${talker})`)
+        if (appStore.isDebug) console.timeEnd(replaceLabel)
         currentTalker.value = talker
       }
 
@@ -386,10 +392,10 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
         })
       }
 
-      console.timeEnd(`[Perf] loadMessages(${talker}, page=${page}, append=${append})`)
+      if (appStore.isDebug) console.timeEnd(loadLabel)
       return result
     } catch (err) {
-      console.timeEnd(`[Perf] loadMessages(${talker}, page=${page}, append=${append})`)
+      if (appStore.isDebug) console.timeEnd(loadLabel)
       error.value = err as Error
       appStore.setError(err as Error)
       throw err
@@ -402,7 +408,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
 
   async function loadMessagesWithBatchRender(talker: string) {
     const timerLabel = `[Perf] loadMessagesWithBatchRender(${talker})`
-    console.time(timerLabel)
+    if (appStore.isDebug) console.time(timerLabel)
 
     try {
       loading.value = true
@@ -443,7 +449,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
       loading.value = false
       loadingTalker.value = null
       appStore.setLoading('messages', false)
-      console.timeEnd(timerLabel)
+      if (appStore.isDebug) console.timeEnd(timerLabel)
     }
   }
 
@@ -937,7 +943,8 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
 
   // 缓存更新处理（由 autoRefresh store 直接调用）
   function handleCacheUpdateData(talker: string, newMessages: Message[]) {
-    console.time(`[Perf] handleCacheUpdateData(${talker}, new=${newMessages.length})`)
+    const updateLabel = `[Perf] handleCacheUpdateData(${talker}, new=${newMessages.length})`
+    if (appStore.isDebug) console.time(updateLabel)
     if (appStore.isDebug) {
       console.log('🛎️ Chatlog cache updated:', { talker })
     }
@@ -959,7 +966,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
         }
       }
     }
-    console.timeEnd(`[Perf] handleCacheUpdateData(${talker}, new=${newMessages.length})`)
+    if (appStore.isDebug) console.timeEnd(updateLabel)
   }
 
   function init() {
