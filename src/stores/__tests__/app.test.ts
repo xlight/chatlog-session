@@ -256,4 +256,42 @@ describe('useAppStore', () => {
       expect(store.navigationStack).toEqual([{ view: 'sessionList' }])
     })
   })
+
+  // ==================== spec: 设置持久化统一 ====================
+
+  describe('设置持久化统一（spec scenario: 设置持久化统一）', () => {
+    it('app.settings 是 settingsStore.ui 的代理（app 不维护独立设置状态）', () => {
+      const settingsStore = useSettingsStore()
+      // 修改 settingsStore.ui 应反映到 app.settings
+      settingsStore.ui.fontSize = 'large'
+      expect(store.settings.fontSize).toBe('large')
+      settingsStore.ui.fontSize = 'small'
+      expect(store.settings.fontSize).toBe('small')
+    })
+
+    it('app.$reset 不重置设置（设置由 settingsStore 管理持久化）', () => {
+      const settingsStore = useSettingsStore()
+      settingsStore.ui.enterToSend = false
+      store.$reset()
+      // app.$reset 仅重置运行时状态，不影响持久化设置
+      expect(store.settings.enterToSend).toBe(false)
+      // 恢复
+      settingsStore.$reset()
+    })
+
+    it('app store 仅保留运行时状态（loading/error/sidebarCollapsed/isMobile 等）', () => {
+      // 运行时状态应由 app store 自己管理
+      store.setLoading('messages', true)
+      expect(store.loading.messages).toBe(true)
+      store.setError(new Error('runtime'))
+      expect(store.error).toBeInstanceOf(Error)
+      store.sidebarCollapsed = true
+      expect(store.sidebarCollapsed).toBe(true)
+      // $reset 重置运行时状态
+      store.$reset()
+      expect(store.loading.messages).toBe(false)
+      expect(store.error).toBeNull()
+      expect(store.sidebarCollapsed).toBe(false)
+    })
+  })
 })

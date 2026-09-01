@@ -1,10 +1,8 @@
 /**
- * Chat Messages 子 Store
+ * chatMessages store - load 子模块
  *
- * 从 chat.ts 积出的消息加载/分页/Gap/EmptyRange/currentTalker 逻辑
+ * 消息加载/分页/历史/Gap/EmptyRange/缓存封装/初始化
  */
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
 import { chatlogAPI } from '@/api'
 import type { Message } from '@/types/message'
 import {
@@ -13,11 +11,7 @@ import {
   parseTimeRangeStart,
   parseTimeRangeEnd,
 } from '@/utils/message-factory'
-import { useAppStore } from './app'
-import { useMessageCacheStore } from './messageCache'
-import { useAutoRefreshStore } from './autoRefresh'
 import { formatCSTRange } from '@/utils/timezone'
-import { formatDateGroup, formatDate } from '@/utils/date'
 import {
   assertChronologicalOrder,
   getMessageTimestamp,
@@ -25,10 +19,7 @@ import {
   fetchSmartHistoryMessages,
   deduplicateMessages,
   detectTimeGap,
-  normalizeBatchToChronological,
-  mergeChronologicalMessages,
   getHistoryAnchorBeforeTime,
-  isRealMessage,
   loadMessagesInTimeRange,
   handleEmptyResult,
   checkDataConnection,
@@ -36,182 +27,74 @@ import {
   getGapEstimateConfidence,
   mergeAdjacentGapMessages,
   mergeTopAdjacentEmptyRanges,
-} from './chat/utils'
+} from '../chat/utils'
+import type { ChatMessagesCore } from './core'
+import type { ChatMessagesRender } from './render'
 
-export const useChatMessagesStore = defineStore('chatMessages', () => {
-  const appStore = useAppStore()
-  const cacheStore = useMessageCacheStore()
-  const refreshStore = useAutoRefreshStore()
-
-  // ==================== State ====================
-
-  const messages = ref<Message[]>([])
-  const currentTalker = ref<string>('')
-  const totalMessages = ref(0)
-  const currentPage = ref(1)
-  const pageSize = computed(() => appStore.config.pageSize)
-  const hasMore = ref(true)
-  const playingVoiceId = ref<number | null>(null)
-  const loading = ref(false)
-  const loadingTalker = ref<string | null>(null)  // 并发保护：当前哪个 talker 正在加载
-  const error = ref<Error | null>(null)
-  const loadingHistory = ref(false)
-  const historyLoadMessage = ref('')
-  const scrollTargetId = ref<number | null>(null)
-  const isBatchRendering = ref(false)  // 分批渲染状态
-  const batchRenderAbort = ref<AbortController | null>(null)  // 分批渲染中止控制器
-
-  // ==================== Getters ====================
-
-  const currentMessages = computed(() => {
-    if (!currentTalker.value) return []
-    return messages.value.filter(msg => msg.talker === currentTalker.value)
-  })
-
-  const messagesByDate = computed(() => {
-    if (appStore.isDebug) console.time(`[Perf] messagesByDate (${currentMessages.value.length} msgs)`)
-    const grouped: Record<string, { formattedDate: string; messages: Message[] }> = {}
-
-    currentMessages.value.forEach(message => {
-      const timestamp = message.time || message.createTime
-
-      if (appStore.isDebug && !timestamp) {
-        console.warn('⚠️ Message missing time fields:', {
-          id: message.id,
-          seq: message.seq,
-          time: message.time,
-          createTime: message.createTime,
-        })
-        return
-      }
-
-      const dateObj =
-        typeof timestamp === 'string'
-          ? new Date(timestamp)
-          : new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp)
-
-      if (isNaN(dateObj.getTime())) {
-        if (appStore.isDebug) {
-          console.warn('⚠️ Invalid date format:', { timestamp, message })
-        }
-        return
-      }
-
-      const canonicalDate = formatDate(dateObj)
-      const formattedDate = formatDateGroup(timestamp)
-
-      if (!grouped[canonicalDate]) {
-        grouped[canonicalDate] = {
-          formattedDate,
-          messages: [],
-        }
-      }
-      grouped[canonicalDate].messages.push(message)
-    })
-
-    const result = Object.entries(grouped).map(([date, data]) => ({
-      date,
-      formattedDate: data.formattedDate,
-      messages: data.messages,
-    }))
-    if (appStore.isDebug) console.timeEnd(`[Perf] messagesByDate (${currentMessages.value.length} msgs)`)
-    return result
-  })
-
-  /**
-   * 消息分类（单遍计算，避免四个 filter computed 独立全量遍历）
-   */
-  const classifiedMessages = computed(() => {
-    const msgs = currentMessages.value
-    const media: Message[] = []
-    const image: Message[] = []
-    const video: Message[] = []
-    const file: Message[] = []
-    for (let i = 0; i < msgs.length; i++) {
-      const msg = msgs[i]
-      const t = msg.type
-      if (t === 3) {
-        image.push(msg)
-        media.push(msg)
-      } else if (t === 43) {
-        video.push(msg)
-        media.push(msg)
-      } else if (t === 49) {
-        file.push(msg)
-        media.push(msg)
-      } else if (t === 34 || t === 47) {
-        media.push(msg)
-      }
-    }
-    return { media, image, video, file }
-  })
-
-  const mediaMessages = computed(() => classifiedMessages.value.media)
-
-  const imageMessages = computed(() => classifiedMessages.value.image)
-
-  const videoMessages = computed(() => classifiedMessages.value.video)
-
-  const fileMessages = computed(() => classifiedMessages.value.file)
-
-  // ==================== 消息顺序辅助 ====================
-
-  const normalizeAndAssertBatch = (batch: Message[], label: string) => {
-    const normalized = normalizeBatchToChronological(batch, appStore.isDebug)
-    assertChronologicalOrder(normalized, appStore.isDebug, `${label}:normalized`)
-    return normalized
+export interface ChatMessagesLoad {
+  loadMessages: (
+    talker: string,
+    page?: number,
+    append?: boolean,
+    timeRange?: string,
+    bottom?: number
+  ) => Promise<Message[] | void>
+  loadMessagesWithBatchRender: (talker: string) => Promise<void>
+  loadMoreMessages: () => Promise<void>
+  loadHistoryMessages: (
+    talker: string,
+    beforeTime: string | number
+  ) => Promise<{ messages: Message[]; hasMore: boolean; timeRange: string; offset: number }>
+  loadGapMessages: (gapMessage: Message) => Promise<{ success: boolean; hasMore: boolean }>
+  removeGapMessages: (talker: string) => void
+  removeGapMessage: (gapId: number) => void
+  hasGapMessage: (talker: string) => boolean
+  refreshMessages: () => Promise<void>
+  switchSession: (talker: string) => Promise<void>
+  getMessageStats: () => {
+    total: number
+    text: number
+    image: number
+    voice: number
+    video: number
+    file: number
+    other: number
   }
+  getCacheMetadata: () => unknown
+  removeCache: (talker: string) => void
+  getCache: (talker: string) => Message[] | null
+  isAutoRefreshEnabled: () => boolean
+  triggerRefresh: (talker: string, count: number, startFromTime?: string) => Promise<unknown>
+  handleCacheUpdateData: (talker: string, newMessages: Message[]) => void
+  init: () => void
+  cleanup: () => void
+}
 
-  const mergeWithCurrentMessages = (incomingBatch: Message[], label: string) => {
-    const mergeLabel = `[Perf] mergeWithCurrentMessages(${label}, incoming=${incomingBatch.length})`
-    if (appStore.isDebug) console.time(mergeLabel)
-    const current = normalizeBatchToChronological(messages.value, appStore.isDebug)
-    const incoming = normalizeBatchToChronological(incomingBatch, appStore.isDebug)
+export function useChatMessagesLoad(
+  core: ChatMessagesCore,
+  render: ChatMessagesRender
+): ChatMessagesLoad {
+  const {
+    appStore,
+    cacheStore,
+    refreshStore,
+    messages,
+    currentTalker,
+    currentPage,
+    pageSize,
+    hasMore,
+    loading,
+    loadingTalker,
+    error,
+    loadingHistory,
+    historyLoadMessage,
+    currentMessages,
+    normalizeAndAssertBatch,
+    mergeWithCurrentMessages,
+  } = core
+  const { abortBatchRender, batchRenderMessages } = render
 
-    const currentFirst = getFirstRealMessage(current)
-    const currentLast = getLastRealMessage(current)
-    const incomingFirst = getFirstRealMessage(incoming)
-    const incomingLast = getLastRealMessage(incoming)
-
-    if (!currentFirst || !currentLast || !incomingFirst || !incomingLast) {
-      messages.value = mergeChronologicalMessages(current, incoming)
-      assertChronologicalOrder(messages.value, appStore.isDebug, `${label}:merged`)
-      if (appStore.isDebug) console.timeEnd(mergeLabel)
-      return
-    }
-
-    const currentFirstTs = getMessageTimestamp(currentFirst)
-    const currentLastTs = getMessageTimestamp(currentLast)
-    const incomingFirstTs = getMessageTimestamp(incomingFirst)
-    const incomingLastTs = getMessageTimestamp(incomingLast)
-
-    if (incomingLastTs <= currentFirstTs) {
-      messages.value = [...incoming, ...current]
-      assertChronologicalOrder(messages.value, appStore.isDebug, `${label}:prepend`)
-      if (appStore.isDebug) console.timeEnd(mergeLabel)
-      return
-    }
-
-    if (incomingFirstTs >= currentLastTs) {
-      messages.value = [...current, ...incoming]
-      assertChronologicalOrder(messages.value, appStore.isDebug, `${label}:append`)
-      if (appStore.isDebug) console.timeEnd(mergeLabel)
-      return
-    }
-
-    messages.value = mergeChronologicalMessages(current, incoming)
-    assertChronologicalOrder(messages.value, appStore.isDebug, `${label}:merged`)
-    if (appStore.isDebug) console.timeEnd(mergeLabel)
-  }
-
-  const getFirstRealMessage = (list: Message[]) => list.find(isRealMessage)
-
-  const getLastRealMessage = (list: Message[]) => {
-    for (let i = list.length - 1; i >= 0; i--) {
-      if (isRealMessage(list[i])) return list[i]
-    }
-    return undefined
-  }
+  // ==================== 辅助函数 ====================
 
   const assertHistoryAnchorProgress = (
     previousBeforeTime: string | number,
@@ -796,54 +679,6 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     await loadMessages(currentTalker.value, 1, false)
   }
 
-  function abortBatchRender() {
-    if (batchRenderAbort.value) {
-      batchRenderAbort.value.abort()
-      batchRenderAbort.value = null
-    }
-    isBatchRendering.value = false
-  }
-
-  async function batchRenderMessages(newMessages: Message[], batchSize: number = 20): Promise<void> {
-    abortBatchRender()
-
-    if (newMessages.length <= batchSize) {
-      messages.value = newMessages
-      return
-    }
-
-    const controller = new AbortController()
-    batchRenderAbort.value = controller
-    isBatchRendering.value = true
-
-    try {
-      let index = 0
-
-      while (index < newMessages.length && !controller.signal.aborted) {
-        const end = Math.min(index + batchSize, newMessages.length)
-        const batch = newMessages.slice(0, end)
-
-        await new Promise<void>((resolve) => {
-          requestAnimationFrame(() => {
-            if (controller.signal.aborted) {
-              resolve()
-              return
-            }
-            messages.value = batch
-            resolve()
-          })
-        })
-
-        index = end
-      }
-    } finally {
-      if (batchRenderAbort.value === controller) {
-        batchRenderAbort.value = null
-        isBatchRendering.value = false
-      }
-    }
-  }
-
   async function switchSession(talker: string) {
     if (talker === currentTalker.value) return
 
@@ -853,31 +688,11 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     hasMore.value = true
     messages.value = []
 
-    const { useChatSelectionStore } = await import('./chatSelection')
+    const { useChatSelectionStore } = await import('../chatSelection')
     const selectionStore = useChatSelectionStore()
     selectionStore.clearSelection()
 
     await loadMessagesWithBatchRender(talker)
-  }
-
-  function getMessageById(id: number): Message | undefined {
-    return messages.value.find(msg => msg.id === id)
-  }
-
-  function getMessageIndex(id: number): number {
-    return currentMessages.value.findIndex(msg => msg.id === id)
-  }
-
-  async function jumpToMessage(messageId: number) {
-    const message = getMessageById(messageId)
-    if (!message) {
-      return
-    }
-    scrollTargetId.value = messageId
-  }
-
-  function setPlayingVoice(id: number | null) {
-    playingVoiceId.value = id
   }
 
   function getMessageStats() {
@@ -914,10 +729,6 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     })
 
     return stats
-  }
-
-  function clearError() {
-    error.value = null
   }
 
   // 封装方法：替代直接暴露 cacheStore/refreshStore
@@ -980,55 +791,7 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
 
   function cleanup() {}
 
-  function $reset() {
-    abortBatchRender()
-    messages.value = []
-    currentTalker.value = ''
-    totalMessages.value = 0
-    currentPage.value = 1
-    hasMore.value = true
-    playingVoiceId.value = null
-    loading.value = false
-    error.value = null
-    loadingHistory.value = false
-    historyLoadMessage.value = ''
-    scrollTargetId.value = null
-  }
-
   return {
-    // State
-    messages,
-    currentTalker,
-    totalMessages,
-    currentPage,
-    pageSize,
-    hasMore,
-    playingVoiceId,
-    loading,
-    error,
-    loadingHistory,
-    historyLoadMessage,
-    scrollTargetId,
-    isBatchRendering,
-
-    // Getters
-    currentMessages,
-    messagesByDate,
-    mediaMessages,
-    imageMessages,
-    videoMessages,
-    fileMessages,
-
-    // Cache & Refresh 封装方法
-    getCacheMetadata,
-    removeCache,
-    getCache,
-    isAutoRefreshEnabled,
-    triggerRefresh,
-    handleCacheUpdateData,
-
-    // Actions
-    init,
     loadMessages,
     loadMessagesWithBatchRender,
     loadMoreMessages,
@@ -1039,15 +802,14 @@ export const useChatMessagesStore = defineStore('chatMessages', () => {
     hasGapMessage,
     refreshMessages,
     switchSession,
-    batchRenderMessages,
-    abortBatchRender,
-    getMessageById,
-    getMessageIndex,
-    jumpToMessage,
-    setPlayingVoice,
     getMessageStats,
-    clearError,
-    $reset,
+    getCacheMetadata,
+    removeCache,
+    getCache,
+    isAutoRefreshEnabled,
+    triggerRefresh,
+    handleCacheUpdateData,
+    init,
     cleanup,
   }
-})
+}
