@@ -5,27 +5,32 @@ import type { VirtualListItem } from '@/types/virtual-list'
 import { MessageType } from '@/types/message'
 
 /**
+ * 获取当前消息与上一条的时间差（毫秒）
+ * index=0 时返回 Infinity 以确保首条显示头像/时间
+ */
+function getTimeDiffFromPrev(index: number, messages: Message[]): number {
+  if (index === 0) return Infinity
+  const current = messages[index]!
+  const prev = messages[index - 1]!
+  const currentTime = current.createTime
+    ? current.createTime * 1000
+    : new Date(current.time).getTime()
+  const prevTime = prev.createTime ? prev.createTime * 1000 : new Date(prev.time).getTime()
+  return currentTime - prevTime
+}
+
+/**
  * 判断是否与上一条消息不同（需要显示头像/名称）
  * 连续同一发送者且时间间隔 < 5分钟时不显示
  */
 function shouldDiffFromPrev(index: number, messages: Message[]): boolean {
   if (index === 0) return true
-
-  const current = messages[index]
-  const prev = messages[index - 1]
-
+  const current = messages[index]!
+  const prev = messages[index - 1]!
   // 不同发送者显示头像
   if (current.sender !== prev.sender) return true
-
   // 时间间隔超过5分钟显示头像
-  const currentTime = current.createTime
-    ? current.createTime * 1000
-    : new Date(current.time).getTime()
-  const prevTime = prev.createTime ? prev.createTime * 1000 : new Date(prev.time).getTime()
-  const timeDiff = currentTime - prevTime
-  if (timeDiff > 5 * 60 * 1000) return true
-
-  return false
+  return getTimeDiffFromPrev(index, messages) > 5 * 60 * 1000
 }
 
 /**
@@ -33,17 +38,7 @@ function shouldDiffFromPrev(index: number, messages: Message[]): boolean {
  * 时间间隔超过5分钟显示
  */
 function shouldShowTime(index: number, messages: Message[]): boolean {
-  if (index === 0) return true
-
-  const current = messages[index]
-  const prev = messages[index - 1]
-
-  const currentTime = current.createTime
-    ? current.createTime * 1000
-    : new Date(current.time).getTime()
-  const prevTime = prev.createTime ? prev.createTime * 1000 : new Date(prev.time).getTime()
-  const timeDiff = currentTime - prevTime
-  return timeDiff > 5 * 60 * 1000
+  return getTimeDiffFromPrev(index, messages) > 5 * 60 * 1000
 }
 
 /**

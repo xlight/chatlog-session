@@ -6,6 +6,7 @@ import { getHistoryAnchorBeforeTime } from '@/stores/chat/utils'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useFlatMessageList } from '@/composables/useFlatMessageList'
 import { estimateItemSize } from '@/utils/virtual-size'
+import { mediaAPI } from '@/api/media'
 import type { Message } from '@/types'
 import MessageBubble from './MessageBubble.vue'
 
@@ -36,6 +37,9 @@ const historyLoadMessage = ref('')
 // 默认 true：初始加载时自动滚动到底部
 const isUserAtBottom = ref(true)
 
+// 日期导航 hover 展开状态（showDate 为外层功能开关，hover 为内层展开控制）
+const isDateNavHovered = ref(false)
+
 // 当前消息列表
 const messages = computed(() => {
   if (!props.sessionId) return []
@@ -46,6 +50,40 @@ const messages = computed(() => {
 const messagesByDate = computed(() => {
   return chatStore.messagesByDate
 })
+
+// 图片预览序列（一次计算，复用 chatStore.imageMessages，已按 currentTalker 过滤）
+const imagePreviewList = computed(() =>
+  chatStore.imageMessages
+    .map(msg => {
+      const thumbUrl = msg.content
+        ? msg.content
+        : msg.contents?.md5
+          ? mediaAPI.getThumbnailUrl(msg.contents.md5, msg.contents.path)
+          : ''
+      const imageUrl = msg.content
+        ? msg.content
+        : msg.contents?.md5
+          ? mediaAPI.getImageUrl(msg.contents.md5, msg.contents.path)
+          : ''
+      return { imageUrl, thumbUrl }
+    })
+    .filter(item => Boolean(item.imageUrl || item.thumbUrl))
+)
+
+// 视频预览序列（一次计算，复用 chatStore.videoMessages，已按 currentTalker 过滤）
+const videoPreviewList = computed(() =>
+  chatStore.videoMessages
+    .map(msg => {
+      const thumbUrl = msg.contents?.md5
+        ? mediaAPI.getThumbnailUrl(msg.contents.md5, msg.contents.path)
+        : ''
+      const imageUrl = msg.contents?.md5
+        ? mediaAPI.getVideoUrl(msg.contents.md5)
+        : msg.content || ''
+      return { imageUrl, thumbUrl }
+    })
+    .filter(item => Boolean(item.imageUrl))
+)
 
 // 扁平化虚拟列表
 const hasMoreHistoryComputed = computed(() => hasMoreHistory.value)
@@ -227,12 +265,6 @@ const scrollToBottom = (smooth = false) => {
   if (smooth) {
     virtualizer.value.scrollToEnd({ behavior: 'smooth' })
   }
-}
-
-// 处理 MessageBubble 的 resize 事件（元素高度变化时重新测量）
-const handleBubbleResize = () => {
-  // measureElement 已经通过 ResizeObserver 自动处理
-  // 这里不需要额外操作，但保留事件处理以备将来使用
 }
 
 // 滚动到指定消息
@@ -446,8 +478,9 @@ defineExpose({
                 :show-avatar="getFlatItem(virtualRow.index).showAvatar"
                 :show-time="getFlatItem(virtualRow.index).showTime"
                 :show-name="getFlatItem(virtualRow.index).showName"
+                :image-preview-list="imagePreviewList"
+                :video-preview-list="videoPreviewList"
                 @gap-click="handleGapClick"
-                @resize="handleBubbleResize"
               />
             </template>
           </div>
@@ -457,9 +490,14 @@ defineExpose({
 
     <!-- 滚动到底部按钮 -->
     <transition name="fade">
-      <div v-show="messages.length > 0" class="message-list__scroll-bottom">
-        <!-- 日期快速跳转 -->
-        <div v-if="showDate" class="date-nav">
+      <div
+        v-show="messages.length > 0"
+        class="message-list__scroll-bottom"
+        @mouseenter="isDateNavHovered = true"
+        @mouseleave="isDateNavHovered = false"
+      >
+        <!-- 日期快速跳转（hover 展开懒渲染） -->
+        <div v-if="showDate && isDateNavHovered" class="date-nav">
           <div
             v-for="group in messagesByDate"
             :key="group.date"

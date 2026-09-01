@@ -60,9 +60,18 @@ function highlightSnippet(snippet: string, keyword: string): string {
 
 /**
  * 根据消息 id 查找对应命中（含 snippet/score）
+ * 使用 hitMap computed 实现 O(1) 索引查询
  */
+const hitMap = computed(() => {
+  const map = new Map<number | string, SearchHit>()
+  for (const hit of searchStore.searchHits) {
+    map.set(hit.message.id, hit)
+  }
+  return map
+})
+
 function hitOf(message: Message): SearchHit | undefined {
-  return searchStore.searchHits.find(h => h.message.id === message.id)
+  return hitMap.value.get(message.id)
 }
 
 // 计算属性

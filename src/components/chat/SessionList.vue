@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSessionStore } from '@/stores/session'
 import { useAutoRefreshStore } from '@/stores/autoRefresh'
 import { useAppStore } from '@/stores/app'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import type { Session, SessionFilterType } from '@/types'
 import SessionItem from './SessionItem.vue'
 
@@ -186,6 +187,22 @@ const handleSortChange = (type: 'time' | 'name' | 'unread') => {
   sessionStore.setSortBy(type)
 }
 
+// ==================== 虚拟滚动（unpinnedSessions）====================
+const scrollRef = ref<HTMLElement | null>(null)
+const unpinnedSessions = computed(() => sessionStore.unpinnedSessions)
+
+const virtualizer = useVirtualizer(computed(() => ({
+  count: unpinnedSessions.value.length,
+  getScrollElement: () => scrollRef.value,
+  estimateSize: () => 64, // SessionItem 估计高度
+  overscan: 4,
+})))
+
+// 搜索切换时重置虚拟列表滚动位置
+watch(isSearchMode, () => {
+  virtualizer.value.scrollToIndex(0)
+})
+
 // 组件挂载时加载数据
 onMounted(() => {
   if (!sessionStore.hasSessions) {
@@ -289,7 +306,7 @@ defineExpose({
     </div>
 
     <!-- 会话列表 -->
-    <div v-else class="session-list__content">
+    <div v-else ref="scrollRef" class="session-list__content">
       <div v-if="isSearchMode" class="session-list__search-meta">
         <span>匹配到 {{ sessionStore.searchResultCount }} 个会话</span>
         <span v-if="sessionStore.searchIndexIncomplete" class="text-secondary">
@@ -330,7 +347,7 @@ defineExpose({
             </div>
             <el-tag size="small" type="warning">{{ sessionStore.pinnedSessions.length }}</el-tag>
           </div>
-          <div v-show="!isPinnedCollapsed">
+          <div v-show="!isPinnedCollapsed" class="session-group__pinned-list">
             <SessionItem
               v-for="session in sessionStore.pinnedSessions"
               :key="session.id"
@@ -345,23 +362,37 @@ defineExpose({
           </div>
         </div>
 
-        <!-- 普通会话 -->
-        <div v-if="sessionStore.unpinnedSessions.length > 0" class="session-group">
+        <!-- 普通会话（虚拟滚动） -->
+        <div v-if="unpinnedSessions.length > 0" class="session-group">
           <div v-if="sessionStore.pinnedSessions.length > 0" class="session-group__header">
             <span>全部会话</span>
-            <el-tag size="small">{{ sessionStore.unpinnedSessions.length }}</el-tag>
+            <el-tag size="small">{{ unpinnedSessions.length }}</el-tag>
           </div>
-          <SessionItem
-            v-for="session in sessionStore.unpinnedSessions"
-            :key="session.id"
-            :session="session"
-            :active="
-              session.id === sessionStore.currentSessionId ||
-              session.talker === sessionStore.currentSessionId
-            "
-            @click="handleSelectSession"
-            @action="handleSessionAction"
-          />
+          <div
+            :style="{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }"
+          >
+            <div
+              v-for="virtualRow in virtualizer.getVirtualItems()"
+              :key="unpinnedSessions[virtualRow.index]!.id"
+              :style="{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualRow.start}px)`,
+              }"
+            >
+              <SessionItem
+                :session="unpinnedSessions[virtualRow.index]!"
+                :active="
+                  unpinnedSessions[virtualRow.index]!.id === sessionStore.currentSessionId ||
+                  unpinnedSessions[virtualRow.index]!.talker === sessionStore.currentSessionId
+                "
+                @click="handleSelectSession"
+                @action="handleSessionAction"
+              />
+            </div>
+          </div>
         </div>
       </template>
 
@@ -531,6 +562,12 @@ defineExpose({
         transform: rotate(-90deg);
       }
     }
+  }
+
+  // 置顶会话列表兜底：max-height + overflow-y:auto 防止过多置顶项撑高
+  &__pinned-list {
+    max-height: 40vh;
+    overflow-y: auto;
   }
 }
 

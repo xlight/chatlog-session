@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, onBeforeUnmount } from 'vue'
+import { computed, ref } from 'vue'
 import type { Message } from '@/types'
 import { formatMessageTime } from '@/utils'
 import Avatar from '@/components/common/Avatar.vue'
 import { useAppStore } from '@/stores/app'
-import { useChatMessagesStore } from '@/stores/chatMessages'
 import { useSettingsStore } from '@/stores/settings'
 import { mediaAPI } from '@/api/media'
 import { request } from '@/utils/request'
@@ -20,18 +19,21 @@ interface Props {
   showAvatar?: boolean
   showTime?: boolean
   showName?: boolean
+  imagePreviewList?: Array<{ imageUrl: string; thumbUrl: string }>
+  videoPreviewList?: Array<{ imageUrl: string; thumbUrl: string }>
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showAvatar: true,
   showTime: false,
   showName: false,
+  imagePreviewList: () => [],
+  videoPreviewList: () => [],
 })
 
 // 定义 emits
 const emit = defineEmits<{
   'gap-click': [message: Message]
-  resize: []
   delete: [message: Message]
   favorite: [message: Message]
 }>()
@@ -39,27 +41,9 @@ const emit = defineEmits<{
 const handleQuickDelete = (msg: Message) => emit('delete', msg)
 const handleQuickFavorite = (msg: Message) => emit('favorite', msg)
 
-// ResizeObserver 监听根元素尺寸变化，通知虚拟滚动重新测量
-const bubbleRef = ref<HTMLElement | null>(null)
-let resizeObserver: ResizeObserver | null = null
-
-function setupResizeObserver() {
-  if (!bubbleRef.value) return
-  resizeObserver = new ResizeObserver(() => {
-    emit('resize')
-  })
-  resizeObserver.observe(bubbleRef.value)
-}
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
-  resizeObserver = null
-})
-
 // 获取 stores
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
-const chatStore = useChatMessagesStore()
 
 // 是否显示媒体资源
 const showMediaResources = computed(() => settingsStore.chat.showMediaResources)
@@ -90,72 +74,22 @@ const {
 // 使用 URL 处理逻辑
 const messageUrls = useMessageUrl(props.message)
 
-// 当前会话图片预览序列（用于串行浏览）
-const imagePreviewList = computed(() => {
-  const currentTalker = chatStore.currentTalker
-  if (!currentTalker || currentTalker !== props.message.talker) {
-    return []
-  }
-
-  return chatStore.imageMessages
-    .filter(msg => msg.talker === props.message.talker)
-    .map(msg => {
-      const thumbUrl = msg.content
-        ? msg.content
-        : msg.contents?.md5
-          ? mediaAPI.getThumbnailUrl(msg.contents.md5, msg.contents.path)
-          : ''
-      const imageUrl = msg.content
-        ? msg.content
-        : msg.contents?.md5
-          ? mediaAPI.getImageUrl(msg.contents.md5, msg.contents.path)
-          : ''
-
-      return {
-        imageUrl,
-        thumbUrl,
-      }
-    })
-    .filter(item => Boolean(item.imageUrl || item.thumbUrl))
-})
-
+// 图片预览序列从 props 读取（由 MessageList 层一次计算传入，O(1)）
+// imagePreviewIndex 依赖当前消息 URL，保留在 MessageBubble 内计算
 const imagePreviewIndex = computed(() => {
   const currentImageUrl = messageUrls.imageUrl.value
   const currentThumbUrl = messageUrls.imageThumbUrl.value
-  const idx = imagePreviewList.value.findIndex(
+  const idx = props.imagePreviewList.findIndex(
     item => item.imageUrl === currentImageUrl || item.thumbUrl === currentThumbUrl
   )
   return idx >= 0 ? idx : 0
 })
 
-// 当前会话视频预览序列
-const videoPreviewList = computed(() => {
-  const currentTalker = chatStore.currentTalker
-  if (!currentTalker || currentTalker !== props.message.talker) {
-    return []
-  }
-
-  return chatStore.videoMessages
-    .filter(msg => msg.talker === props.message.talker)
-    .map(msg => {
-      const thumbUrl = msg.contents?.md5
-        ? mediaAPI.getThumbnailUrl(msg.contents.md5, msg.contents.path)
-        : ''
-      const imageUrl = msg.contents?.md5
-        ? mediaAPI.getVideoUrl(msg.contents.md5)
-        : msg.content || ''
-
-      return {
-        imageUrl,
-        thumbUrl,
-      }
-    })
-    .filter(item => Boolean(item.imageUrl))
-})
-
+// 视频预览序列从 props 读取（由 MessageList 层一次计算传入，O(1)）
+// videoPreviewIndex 依赖当前消息 URL，保留在 MessageBubble 内计算
 const videoPreviewIndex = computed(() => {
   const currentVideoUrl = messageUrls.videoUrl.value
-  const idx = videoPreviewList.value.findIndex(
+  const idx = props.videoPreviewList.findIndex(
     item => item.imageUrl === currentVideoUrl
   )
   return idx >= 0 ? idx : 0
@@ -249,9 +183,9 @@ const componentProps = computed(() => {
       locationX: messageUrls.locationX.value,
       locationY: messageUrls.locationY.value,
       locationCityname: messageUrls.locationCityname.value,
-      imagePreviewList: imagePreviewList.value,
+      imagePreviewList: props.imagePreviewList,
       imagePreviewIndex: imagePreviewIndex.value,
-      videoPreviewList: videoPreviewList.value,
+      videoPreviewList: props.videoPreviewList,
       videoPreviewIndex: videoPreviewIndex.value,
     }
 
@@ -368,7 +302,7 @@ const favoriteTitle = computed(() => messageUrls.favoriteTitle.value || '收藏�
 </script>
 
 <template>
-  <div ref="bubbleRef" class="message-bubble" :class="bubbleClass" @vue:mounted="setupResizeObserver">
+  <div class="message-bubble" :class="bubbleClass">
     <!-- 系统消息 -->
     <div v-if="isSystemMessage" class="message-bubble__system">
       <span class="system-text">{{ message.content }}</span>
