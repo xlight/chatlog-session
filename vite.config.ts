@@ -4,7 +4,6 @@ import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
-import { ElementPlusIconsResolver } from 'unplugin-vue-components/resolvers'
 import versionPlugin from './vite-plugin-version.ts'
 
 // https://vitejs.dev/config/
@@ -22,7 +21,7 @@ export default defineConfig({
       },
     }),
     Components({
-      resolvers: [ElementPlusResolver(), ElementPlusIconsResolver()],
+      resolvers: [ElementPlusResolver()],
       dts: 'src/components.d.ts',
     }),
   ],

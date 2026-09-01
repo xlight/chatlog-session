@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, getCurrentInstance } from 'vue'
 import { sendmsgAPI, getStageLabel } from '@/api/sendmsg'
 import type { SendTask } from '@/api/sendmsg'
 
@@ -208,13 +208,16 @@ export function useSendQueue(options: UseSendQueueOptions = {}) {
     }
   }
 
-  onUnmounted(() => {
-    stopAllPolling()
-    for (const timer of autoRemoveTimers.values()) {
-      clearTimeout(timer)
-    }
-    autoRemoveTimers.clear()
-  })
+  // 仅在组件上下文中注册卸载清理（单例模式在模块导入时无组件实例）
+  if (getCurrentInstance()) {
+    onUnmounted(() => {
+      stopAllPolling()
+      for (const timer of autoRemoveTimers.values()) {
+        clearTimeout(timer)
+      }
+      autoRemoveTimers.clear()
+    })
+  }
 
   return {
     tasks,
