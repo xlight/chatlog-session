@@ -1,13 +1,25 @@
-import { defineStore } from 'pinia'
+/**
+ * aiAgent store - config 子模块（核心）
+ *
+ * 定义主要 state（config / enabled / persistedConfig / sessionConfigs /
+ * observerStates / observerResults / observerStreaming / keywordResults / drafts /
+ * autoReplyTrackers / analysisAborts）、Config 相关常量与工具函数
+ * （deriveLevelPreset / applyLevelPreset）、以及 Config 相关 actions
+ * （updateConfig / resetConfig / addTargetSession / removeTargetSession /
+ *  isSessionTargeted / updateDefaultLevelPreset / setDefaultActions /
+ *  setSessionConfig / clearSessionConfig / resetPersistedConfig /
+ *  migrateFromB1 / migratePersistedConfig）。
+ *
+ * 其他子模块（draft / observer / keyword / autoReply）依赖此模块返回的 context。
+ */
 import { ref, computed } from 'vue'
+import type { Ref, ComputedRef } from 'vue'
 import { useSessionStore } from '@/stores/session'
 import type {
   AgentConfig,
-  AgentDraft,
   AgentSessionFilter,
   SendPermissionLevel,
   AgentLevelPreset,
-  AutoReplyTracker,
   AgentAction,
   SessionAgentConfig,
   PersistedAgentConfig,
@@ -15,10 +27,13 @@ import type {
   ObserverResult,
   StreamingObserverResult,
   KeywordResult,
+  AgentDraft,
+  AutoReplyTracker,
 } from '@/types/ai/agent'
 import { DEFAULT_MCP_TOOL_PERMISSION } from '@/types/ai/mcp'
 import { OBSERVER_ANALYZE_TEMPLATE_ID } from '@/stores/ai/prompt'
-import { generateId } from '@/utils/id'
+
+// ==================== 常量 ====================
 
 const DEFAULT_CONFIG: AgentConfig = {
   enabled: false,
@@ -50,8 +65,9 @@ const DEFAULT_PERSISTED_CONFIG: PersistedAgentConfig = {
   },
 }
 
-const MAX_DRAFTS = 20
-const MAX_RESULTS_PER_SESSION = 20
+export const MAX_RESULTS_PER_SESSION = 20
+
+// ==================== 工具函数 ====================
 
 export function deriveLevelPreset(config: SessionAgentConfig): AgentLevelPreset {
   const { sendPermission, observer, keywordMonitor } = config
@@ -74,7 +90,55 @@ export function applyLevelPreset(preset: AgentLevelPreset): Partial<SessionAgent
   }
 }
 
-export const useAIAgentStore = defineStore('aiAgent', () => {
+// ==================== Context 接口 ====================
+
+export interface AiAgentConfigContext {
+  // State
+  config: Ref<AgentConfig>
+  enabled: Ref<boolean>
+  persistedConfig: Ref<PersistedAgentConfig>
+  sessionConfigs: Ref<Record<string, SessionAgentConfig>>
+  observerStates: Ref<Map<string, ObserverState>>
+  observerResults: Ref<Map<string, ObserverResult[]>>
+  observerStreaming: Ref<Map<string, StreamingObserverResult | null>>
+  keywordResults: Ref<Map<string, KeywordResult[]>>
+  drafts: Ref<AgentDraft[]>
+  autoReplyTrackers: Ref<Map<string, AutoReplyTracker>>
+  analysisAborts: Map<string, AbortController>
+
+  // Getters
+  canAutoReply: ComputedRef<boolean>
+  getEffectiveConfig: (sessionId: string) => SessionAgentConfig
+
+  // Config Actions (B1 deprecated)
+  updateConfig: (partial: Partial<AgentConfig>) => void
+  resetConfig: () => void
+  addTargetSession: (filter: AgentSessionFilter) => void
+  removeTargetSession: (sessionId: string) => void
+  isSessionTargeted: (sessionId: string) => boolean
+
+  // Config Actions (B2)
+  updateDefaultLevelPreset: (preset: AgentLevelPreset) => void
+  setDefaultActions: (actions: AgentAction[]) => void
+  setSessionConfig: (sessionId: string, partial: Partial<SessionAgentConfig>) => void
+  clearSessionConfig: (sessionId: string) => void
+  resetPersistedConfig: () => void
+
+  // Per-session permission
+  canAutoReplySession: (sessionId: string) => boolean
+  canKeywordAutoSend: (sessionId: string) => boolean
+
+  // Migration
+  migrateFromB1: () => void
+  migratePersistedConfig: () => void
+
+  // $reset config 部分
+  $resetConfig: () => void
+}
+
+// ==================== 子模块实现 ====================
+
+export function useAiAgentConfig(): AiAgentConfigContext {
   // ==================== State ====================
 
   // --- Phase B1 旧 state（保留兼容） ---
@@ -105,12 +169,12 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
   // ==================== Getters ====================
 
-  const pendingDrafts = computed(() =>
-    drafts.value.filter((d) => !d.sent)
-  )
-
-  const hasPendingDrafts = computed(() => pendingDrafts.value.length > 0)
-
+  /** @deprecated 使用 canAutoReplySession(sessionId) 替代 */
+  const canAutoReply = computed(() => {
+    if (!enabled.value) return false
+    if (config.value.mode !== 'auto') return false
+    return true
+  })
 
   /** 获取指定会话的有效配置（session override → 置顶会话 defaults / L0） */
   function getEffectiveConfig(sessionId: string): SessionAgentConfig {
@@ -130,7 +194,7 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
       sendPermission: sessionOverride?.sendPermission ?? defaults.sendPermission,
       userActions: {
         enabled: true,
-        allowedActions: sessionOverride?.userActions?.allowedActions ?? [...defaults.allowedActions],
+        allowedActions: sessionOverride?.userActions?.allowedActions ?? defaults.allowedActions,
       },
       allowScheduledMessages: sessionOverride?.allowScheduledMessages ?? false,
       observer: {
@@ -168,13 +232,6 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
 
     return config
   }
-
-  /** @deprecated 使用 canAutoReplySession(sessionId) 替代 */
-  const canAutoReply = computed(() => {
-    if (!enabled.value) return false
-    if (config.value.mode !== 'auto') return false
-    return true
-  })
 
   /** 检查指定会话是否有权限自动回复（per-session 版） */
   function canAutoReplySession(sessionId: string): boolean {
@@ -293,167 +350,6 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     sessionConfigs.value = {}
   }
 
-  // ==================== Draft Actions ====================
-
-  function addDraft(draft: Omit<AgentDraft, 'id' | 'sent'>): AgentDraft {
-    if (drafts.value.length >= MAX_DRAFTS) {
-      drafts.value = drafts.value.filter((d) => d.sent).concat(
-        drafts.value.filter((d) => !d.sent).slice(-(MAX_DRAFTS - drafts.value.filter((d) => d.sent).length))
-      )
-    }
-
-    const newDraft: AgentDraft = {
-      ...draft,
-      id: generateId(),
-      sent: false,
-    }
-    drafts.value.push(newDraft)
-    return newDraft
-  }
-
-  function removeDraft(draftId: string): void {
-    drafts.value = drafts.value.filter((d) => d.id !== draftId)
-  }
-
-  function markDraftSent(draftId: string, jobId: number): void {
-    const draft = drafts.value.find((d) => d.id === draftId)
-    if (draft) {
-      draft.sent = true
-      draft.jobId = jobId
-    }
-  }
-
-  function clearDrafts(): void {
-    drafts.value = []
-  }
-
-  function clearSentDrafts(): void {
-    drafts.value = drafts.value.filter((d) => !d.sent)
-  }
-
-  // ==================== Draft Task Mapping ====================
-
-  // ==================== Observer Actions ====================
-
-  /** 获取指定会话的 Observer 状态 */
-  function getObserverState(sessionId: string): ObserverState {
-    let state = observerStates.value.get(sessionId)
-    if (!state) {
-      state = {
-        sessionId,
-        lastAnalysisTime: 0,
-        accumulatedMessageCount: 0,
-        isAnalyzing: false,
-      }
-      observerStates.value = new Map(observerStates.value).set(sessionId, state)
-    }
-    return state
-  }
-
-  /** 局部更新 Observer 状态 */
-  function updateObserverState(sessionId: string, partial: Partial<ObserverState>): void {
-    const current = getObserverState(sessionId)
-    observerStates.value = new Map(observerStates.value).set(sessionId, { ...current, ...partial })
-  }
-
-  /** 添加 Observer 分析结果 */
-  function addObserverResult(sessionId: string, result: ObserverResult): void {
-    const results = observerResults.value.get(sessionId) ?? []
-    const updated = [...results, result]
-    if (updated.length > MAX_RESULTS_PER_SESSION) {
-      updated.splice(0, updated.length - MAX_RESULTS_PER_SESSION)
-    }
-    observerResults.value = new Map(observerResults.value).set(sessionId, updated)
-  }
-
-  /** 清空指定会话的 Observer 结果 */
-  function clearObserverResults(sessionId: string): void {
-    const newMap = new Map(observerResults.value)
-    newMap.delete(sessionId)
-    observerResults.value = newMap
-  }
-
-  /** 更新流式分析中间状态 */
-  function updateStreamingState(sessionId: string, partial: Partial<StreamingObserverResult>): void {
-    const current = observerStreaming.value.get(sessionId)
-    observerStreaming.value = new Map(observerStreaming.value).set(sessionId, {
-      streamingStatus: 'streaming',
-      streamingSummary: current?.streamingSummary ?? '',
-      streamingKeyPoints: current?.streamingKeyPoints ?? [],
-      streamingSuggestions: current?.streamingSuggestions ?? [],
-      ...partial,
-    })
-  }
-
-  /** 清空流式分析状态 */
-  function clearStreamingState(sessionId: string): void {
-    const newMap = new Map(observerStreaming.value)
-    newMap.delete(sessionId)
-    observerStreaming.value = newMap
-  }
-
-  /** 注册会话的分析流 AbortController（总闸关闭时中止） */
-  function registerAnalysisAbort(sessionId: string, controller: AbortController): void {
-    analysisAborts.set(sessionId, controller)
-  }
-
-  /** 注销会话的分析流 AbortController */
-  function unregisterAnalysisAbort(sessionId: string): void {
-    analysisAborts.delete(sessionId)
-  }
-
-  /** 中止所有进行中的分析流（ai.enabled 总闸关闭时调用） */
-  function abortAllAnalyses(): void {
-    for (const controller of analysisAborts.values()) {
-      controller.abort()
-    }
-    analysisAborts.clear()
-  }
-
-  // ==================== Keyword Actions ====================
-
-  /** 添加关键词匹配结果 */
-  function addKeywordResult(sessionId: string, result: KeywordResult): void {
-    const results = keywordResults.value.get(sessionId) ?? []
-    const updated = [...results, result]
-    if (updated.length > MAX_RESULTS_PER_SESSION) {
-      updated.splice(0, updated.length - MAX_RESULTS_PER_SESSION)
-    }
-    keywordResults.value = new Map(keywordResults.value).set(sessionId, updated)
-  }
-
-  /** 清空指定会话的关键词匹配结果 */
-  function clearKeywordResults(sessionId: string): void {
-    const newMap = new Map(keywordResults.value)
-    newMap.delete(sessionId)
-    keywordResults.value = newMap
-  }
-
-  // ==================== Auto Reply Tracking ====================
-
-  function getAutoReplyTracker(sessionId: string): AutoReplyTracker {
-    let tracker = autoReplyTrackers.value.get(sessionId)
-    if (!tracker) {
-      tracker = { count: 0, lastAt: null }
-      autoReplyTrackers.value = new Map(autoReplyTrackers.value).set(sessionId, tracker)
-    }
-    return tracker
-  }
-
-  function incrementAutoReplyTracker(sessionId: string): void {
-    const tracker = getAutoReplyTracker(sessionId)
-    autoReplyTrackers.value = new Map(autoReplyTrackers.value).set(sessionId, {
-      count: tracker.count + 1,
-      lastAt: Date.now(),
-    })
-  }
-
-  function resetAutoReplyTracker(sessionId: string): void {
-    const newMap = new Map(autoReplyTrackers.value)
-    newMap.delete(sessionId)
-    autoReplyTrackers.value = newMap
-  }
-
   // ==================== Migration ====================
 
   /** 从 B1 旧 sessionStorage 迁移数据到 B2 新结构 */
@@ -549,27 +445,16 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     }
   }
 
-  /** store 初始化时自动执行数据迁移 */
-  migrateFromB1()
-  migratePersistedConfig()
+  // ==================== Reset (config 部分) ====================
 
-  // ==================== Reset ====================
-
-  function $reset(): void {
+  function $resetConfig(): void {
     config.value = { ...DEFAULT_CONFIG }
     enabled.value = false
     persistedConfig.value = { ...DEFAULT_PERSISTED_CONFIG }
     sessionConfigs.value = {}
-    observerStates.value = new Map()
-    observerResults.value = new Map()
-    observerStreaming.value = new Map()
-    keywordResults.value = new Map()
-    drafts.value = []
-    autoReplyTrackers.value = new Map()
   }
 
   return {
-    // State
     config,
     enabled,
     persistedConfig,
@@ -580,70 +465,23 @@ export const useAIAgentStore = defineStore('aiAgent', () => {
     keywordResults,
     drafts,
     autoReplyTrackers,
-
-    // Getters
-    pendingDrafts,
-    hasPendingDrafts,
+    analysisAborts,
     canAutoReply,
     getEffectiveConfig,
-
-    // Config Actions (B1 deprecated)
     updateConfig,
     resetConfig,
     addTargetSession,
     removeTargetSession,
     isSessionTargeted,
-
-    // Config Actions (B2)
     updateDefaultLevelPreset,
     setDefaultActions,
     setSessionConfig,
     clearSessionConfig,
     resetPersistedConfig,
-
-    // Per-session permission
     canAutoReplySession,
     canKeywordAutoSend,
-
-    // Observer Actions
-    getObserverState,
-    updateObserverState,
-    addObserverResult,
-    clearObserverResults,
-    updateStreamingState,
-    clearStreamingState,
-    registerAnalysisAbort,
-    unregisterAnalysisAbort,
-    abortAllAnalyses,
-
-    // Keyword Actions
-    addKeywordResult,
-    clearKeywordResults,
-
-    // Draft Actions
-    addDraft,
-    removeDraft,
-    markDraftSent,
-    clearDrafts,
-    clearSentDrafts,
-
-    // Draft Task Mapping
-
-    // Auto Reply Tracking
-    getAutoReplyTracker,
-    incrementAutoReplyTracker,
-    resetAutoReplyTracker,
-
-    // Migration
     migrateFromB1,
     migratePersistedConfig,
-
-    // Reset
-    $reset,
+    $resetConfig,
   }
-}, {
-  persist: {
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    pick: ['enabled', 'persistedConfig', 'sessionConfigs'],
-  },
-})
+}

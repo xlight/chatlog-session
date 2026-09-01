@@ -52,10 +52,8 @@ export function useNotificationSender(
     isEnabled,
     isMuted,
     saveConfig,
-    addToHistory,
-    saveHistory,
-    saveNotifiedIds,
   } = ctx
+  const { addToHistory, saveHistory, saveNotifiedIds } = history
   const { requestPermission } = permission
 
   /**
@@ -285,7 +283,7 @@ export function useNotificationSender(
         const notification = new Notification(title, fallbackOptions)
 
         if (appStore.isDebug) {
-          console.log('🔔 Fallback Notification created:', { title, body, talker, permission: permission.value, isEnabled: isEnabled.value })
+          console.log('🔔 Fallback Notification created:', { title, body, talker, permission: permissionRef.value, isEnabled: isEnabled.value })
         }
 
         notification.onclick = () => {
