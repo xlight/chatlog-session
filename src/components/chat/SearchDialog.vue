@@ -213,7 +213,6 @@ watch(() => props.sessionId, (newId) => {
         <!-- 日期范围 -->
         <!-- PC 端：范围选择器 -->
         <div v-if="!isMobile" class="date-range">
-          <label>时间范围：</label>
           <el-date-picker
             v-model="dateRange"
             type="daterange"
@@ -224,12 +223,10 @@ watch(() => props.sessionId, (newId) => {
             clearable
             style="flex: 1;"
           />
-          <span class="hint">最近一个月</span>
         </div>
 
         <!-- 移动端：单独的日期选择器 -->
         <div v-else class="date-range mobile-date-range">
-          <label>时间范围：</label>
           <div class="date-inputs">
             <el-date-picker
               v-model="startDate"
@@ -253,7 +250,6 @@ watch(() => props.sessionId, (newId) => {
               value-format="YYYY-MM-DD"
             />
           </div>
-          <span class="hint">默认最近一个月</span>
         </div>
       </div>
 
@@ -265,7 +261,7 @@ watch(() => props.sessionId, (newId) => {
         <!-- 空状态 -->
         <Empty
           v-else-if="!searchText"
-          icon="Search"
+          icon="DocumentSearch"
           description="输入关键词开始搜索"
         />
 
@@ -274,23 +270,17 @@ watch(() => props.sessionId, (newId) => {
           v-else-if="!isLoading && !hasResults"
           icon="DocumentDelete"
           description="未找到相关结果"
-        >
-          <el-button type="primary" @click="clearSearch">
-            清空搜索
-          </el-button>
-        </Empty>
+        />
 
         <!-- 搜索结果 -->
         <div v-else class="search-results">
           <!-- 统计信息 -->
           <div class="result-stats">
-            <el-tag type="primary">
-              共找到 {{ messages.length }} 条消息
-            </el-tag>
+            找到 {{ messages.length }} 条结果
           </div>
 
           <!-- 消息列表 -->
-          <el-scrollbar height="450px">
+          <el-scrollbar>
             <MessageSearchResults
               :messages="messages"
               :loading="isLoading"
@@ -305,7 +295,6 @@ watch(() => props.sessionId, (newId) => {
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="dialogVisible = false">关闭</el-button>
         <el-button v-if="hasResults" type="primary" @click="clearSearch">
           清空搜索
         </el-button>
@@ -319,6 +308,7 @@ watch(() => props.sessionId, (newId) => {
   :deep(.el-dialog) {
     max-width: 1200px;
     min-width: 600px;
+    max-height: 80vh;
   }
 
   :deep(.el-dialog__header) {
@@ -345,22 +335,21 @@ watch(() => props.sessionId, (newId) => {
   padding: 20px 24px;
   border-bottom: 1px solid var(--el-border-color-light);
   background-color: var(--el-bg-color);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 
   .main-search {
-    margin-bottom: 16px;
+    flex: 1;
+    min-width: 200px;
   }
 
   .date-range {
     display: flex;
     align-items: center;
     gap: 12px;
-
-    label {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--el-text-color-regular);
-      white-space: nowrap;
-    }
+    flex-shrink: 0;
 
     .hint {
       font-size: 12px;
@@ -377,10 +366,21 @@ watch(() => props.sessionId, (newId) => {
 }
 
 .search-results {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
   .result-stats {
     padding-bottom: 16px;
     margin-bottom: 16px;
     border-bottom: 1px solid var(--el-border-color-lighter);
+  }
+
+  :deep(.el-scrollbar) {
+    flex: 1;
+    height: auto;
+    max-height: calc(80vh - 200px);
   }
 }
 

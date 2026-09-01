@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Avatar from '@/components/common/Avatar.vue'
 import MessageBubble from '@/components/chat/MessageBubble.vue'
+import Empty from '@/components/common/Empty.vue'
 import type { Message } from '@/types'
 
 interface Props {
@@ -33,7 +34,7 @@ const handleLoadMore = () => {
 <template>
   <div class="message-search-results">
     <div v-if="messages.length === 0" class="empty-state">
-      <el-empty description="暂无搜索结果" />
+      <Empty description="暂无搜索结果" />
     </div>
 
     <div v-else class="message-list">
@@ -62,6 +63,8 @@ const handleLoadMore = () => {
             :message="message"
             :is-send="message.isSend"
             :show-avatar="false"
+            :show-time="false"
+            :show-name="false"
             class="search-bubble"
           />
         </div>
@@ -102,7 +105,7 @@ const handleLoadMore = () => {
       &:hover {
         background-color: var(--el-fill-color-light);
         border-color: var(--el-color-primary);
-        transform: translateX(2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       }
 
       .message-header {
