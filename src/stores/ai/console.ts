@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AIError, ChatMessage } from '@/types/ai'
+import type { ToolCallRecord } from '@/types/ai/mcp'
 import type {
   ConsoleChatSession,
   ConsoleStats,
   ConsoleTab,
   ContextSource,
 } from '@/types/ai/console'
+import type { AIStreamStore } from '@/composables/useAIStream'
 import { generateId } from '@/utils/id'
 
 function autoTitle(ts: number): string {
@@ -175,6 +177,38 @@ export const useAIConsoleStore = defineStore(
       return !!streamingMap.value[sessionId]
     }
 
+    // 适配器辅助 action — 封装原 ConsoleChat 手动适配器中直接 splice/push session 对象的逻辑
+    function removeLastAssistant(sessionId: string): void {
+      const s = sessions.value.find((x) => x.id === sessionId)
+      if (!s) return
+      for (let i = s.messages.length - 1; i >= 0; i--) {
+        if (s.messages[i].role === 'assistant' && !s.messages[i].content) {
+          s.messages.splice(i, 1)
+          return
+        }
+      }
+    }
+
+    function addToolCallRecord(sessionId: string, record: ToolCallRecord): void {
+      const s = sessions.value.find((x) => x.id === sessionId)
+      if (!s) return
+      if (!s.toolCallRecords) s.toolCallRecords = []
+      s.toolCallRecords.push(record)
+    }
+
+    function updateToolCallRecord(
+      sessionId: string,
+      id: string,
+      updates: Partial<ToolCallRecord>,
+    ): void {
+      const s = sessions.value.find((x) => x.id === sessionId)
+      if (!s?.toolCallRecords) return
+      const idx = s.toolCallRecords.findIndex((r) => r.id === id)
+      if (idx >= 0) {
+        s.toolCallRecords[idx] = { ...s.toolCallRecords[idx], ...updates }
+      }
+    }
+
     // Tab
     function switchTab(tab: ConsoleTab): void {
       activeTab.value = tab
@@ -235,6 +269,9 @@ export const useAIConsoleStore = defineStore(
       abortAllStreams,
       setError,
       isStreaming,
+      removeLastAssistant,
+      addToolCallRecord,
+      updateToolCallRecord,
       switchTab,
       getStats,
       $reset,
@@ -247,3 +284,83 @@ export const useAIConsoleStore = defineStore(
     },
   } as never
 )
+
+/**
+ * 创建绑定指定 session 的 AIStreamStore 适配器。
+ *
+ * ConsoleChat 不需要 thinking/usage/model 等方法，这些以 noop 空实现提供。
+ * removeLastAssistant/addToolCallRecord/updateToolCallRecord 通过 store action 封装，
+ * 不直接操作 sessions 内部数组。
+ */
+export function createAdaptor(
+  sessionId: () => string | null,
+): AIStreamStore {
+  const store = useAIConsoleStore()
+  return {
+    get messages(): { value: ChatMessage[] } {
+      const id = sessionId()
+      const s = id ? store.sessions.find((x) => x.id === id) : undefined
+      return { value: s?.messages ?? [] }
+    },
+    addMessage(msg) {
+      const id = sessionId()
+      if (id) store.addMessage(id, msg)
+    },
+    updateLastAssistantContent(content) {
+      const id = sessionId()
+      if (id) store.updateLastContent(id, content)
+    },
+    appendThinkingContent() {},
+    get streaming(): { value: boolean } {
+      const id = sessionId()
+      return { value: id ? store.isStreaming(id) : false }
+    },
+    setStreaming(val) {
+      const id = sessionId()
+      if (id) store.setStreaming(id, val)
+    },
+    setAbortController(ctrl) {
+      const id = sessionId()
+      if (id) store.setAbortController(id, ctrl)
+    },
+    get abortController(): { value: AbortController | null } {
+      const id = sessionId()
+      return { value: id ? store.abortControllers[id] ?? null : null }
+    },
+    get error(): { value: AIError | null } {
+      const id = sessionId()
+      return { value: id ? store.errorsBySession[id] ?? null : null }
+    },
+    setError(err) {
+      const id = sessionId()
+      if (id) store.setError(id, err)
+    },
+    get thinkingContent(): { value: string } {
+      return { value: '' }
+    },
+    get thinkingVisible(): { value: boolean } {
+      return { value: false }
+    },
+    setThinkingContent() {},
+    setThinkingVisible() {},
+    finalizeThinking() {},
+    setUsage() {},
+    setCurrentModel() {},
+    abortStream() {
+      const id = sessionId()
+      if (id) store.abortStream(id)
+    },
+    removeLastAssistant() {
+      const id = sessionId()
+      if (id) store.removeLastAssistant(id)
+    },
+    addToolCallRecord(record: ToolCallRecord) {
+      const id = sessionId()
+      if (id) store.addToolCallRecord(id, record)
+    },
+    updateToolCallRecord(id: string, updates: Partial<ToolCallRecord>) {
+      const sid = sessionId()
+      if (sid) store.updateToolCallRecord(sid, id, updates)
+    },
+  }
+}

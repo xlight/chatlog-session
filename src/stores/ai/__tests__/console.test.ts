@@ -6,9 +6,10 @@ import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import { nextTick } from 'vue'
-import { useAIConsoleStore } from '@/stores/ai/console'
+import { useAIConsoleStore, createAdaptor } from '@/stores/ai/console'
 import type { ChatMessage } from '@/types/ai'
 import type { ContextSource } from '@/types/ai/console'
+import type { ToolCallRecord } from '@/types/ai/mcp'
 
 function createStore() {
   const pinia = createTestingPinia({
@@ -334,6 +335,188 @@ describe('useAIConsoleStore', () => {
       expect(parsed.sessions).toBeDefined()
       expect(parsed.currentSessionId).toBe(sid)
       expect(parsed.activeTab).toBe('overview')
+    })
+  })
+
+  // ==================== removeLastAssistant / addToolCallRecord / updateToolCallRecord ====================
+
+  describe('removeLastAssistant', () => {
+    it('删除最后一个 content 为空的 assistant 消息', () => {
+      const sid = store.createSession()
+      store.addMessage(sid, { id: 'u1', role: 'user', content: 'hi' })
+      store.addMessage(sid, { id: 'a1', role: 'assistant', content: '' })
+      store.removeLastAssistant(sid)
+      expect(store.sessions.find((s) => s.id === sid)!.messages.length).toBe(1)
+    })
+
+    it('不删除有 content 的 assistant 消息', () => {
+      const sid = store.createSession()
+      store.addMessage(sid, { id: 'a1', role: 'assistant', content: 'hello' })
+      store.removeLastAssistant(sid)
+      expect(store.sessions.find((s) => s.id === sid)!.messages.length).toBe(1)
+    })
+
+    it('不存在的 sessionId 静默', () => {
+      expect(() => store.removeLastAssistant('nonexistent')).not.toThrow()
+    })
+  })
+
+  describe('addToolCallRecord', () => {
+    it('添加 toolCallRecord 并初始化空数组', () => {
+      const sid = store.createSession()
+      const record: ToolCallRecord = {
+        id: 'tc1',
+        toolCallId: 'call_1',
+        namespacedName: 'mcp__server__tool',
+        toolName: 'tool',
+        serverId: 'server',
+        arguments: '{}',
+        status: 'calling',
+        startedAt: Date.now(),
+        requireConfirmation: false,
+      }
+      store.addToolCallRecord(sid, record)
+      const s = store.sessions.find((x) => x.id === sid)!
+      expect(s.toolCallRecords).toHaveLength(1)
+      expect(s.toolCallRecords![0].id).toBe('tc1')
+    })
+
+    it('不存在的 sessionId 静默', () => {
+      const record: ToolCallRecord = {
+        id: 'tc1',
+        toolCallId: 'call_1',
+        namespacedName: 'mcp__server__tool',
+        toolName: 'tool',
+        serverId: 'server',
+        arguments: '{}',
+        status: 'calling',
+        startedAt: Date.now(),
+        requireConfirmation: false,
+      }
+      expect(() => store.addToolCallRecord('nonexistent', record)).not.toThrow()
+    })
+  })
+
+  describe('updateToolCallRecord', () => {
+    it('按 id 更新 record 字段', () => {
+      const sid = store.createSession()
+      const record: ToolCallRecord = {
+        id: 'tc1',
+        toolCallId: 'call_1',
+        namespacedName: 'mcp__server__tool',
+        toolName: 'tool',
+        serverId: 'server',
+        arguments: '{}',
+        status: 'calling',
+        startedAt: Date.now(),
+        requireConfirmation: false,
+      }
+      store.addToolCallRecord(sid, record)
+      store.updateToolCallRecord(sid, 'tc1', { status: 'success', result: 'ok' })
+      const r = store.sessions.find((x) => x.id === sid)!.toolCallRecords![0]
+      expect(r.status).toBe('success')
+      expect(r.result).toBe('ok')
+    })
+
+    it('不存在的 id 静默', () => {
+      const sid = store.createSession()
+      expect(() =>
+        store.updateToolCallRecord(sid, 'nonexistent', { status: 'success' }),
+      ).not.toThrow()
+    })
+
+    it('不存在的 sessionId 静默', () => {
+      expect(() =>
+        store.updateToolCallRecord('nonexistent', 'tc1', { status: 'success' }),
+      ).not.toThrow()
+    })
+  })
+
+  // ==================== createAdaptor ====================
+
+  describe('createAdaptor', () => {
+    it('messages 返回绑定 session 的消息', () => {
+      const sid = store.createSession()
+      store.addMessage(sid, { id: 'm1', role: 'user', content: 'hi' })
+      const adapter = createAdaptor(() => sid)
+      expect(adapter.messages.value).toHaveLength(1)
+      expect(adapter.messages.value[0].content).toBe('hi')
+    })
+
+    it('sessionId 为 null 时 messages 返回空数组', () => {
+      const adapter = createAdaptor(() => null)
+      expect(adapter.messages.value).toEqual([])
+    })
+
+    it('addMessage 调用 store.addMessage', () => {
+      const sid = store.createSession()
+      const adapter = createAdaptor(() => sid)
+      adapter.addMessage({ id: 'm1', role: 'user', content: 'hi' })
+      expect(store.sessions.find((s) => s.id === sid)!.messages).toHaveLength(1)
+    })
+
+    it('streaming/abortController/error 绑定 session', () => {
+      const sid = store.createSession()
+      const adapter = createAdaptor(() => sid)
+      adapter.setStreaming(true)
+      expect(adapter.streaming.value).toBe(true)
+      expect(store.isStreaming(sid)).toBe(true)
+
+      const ctrl = new AbortController()
+      adapter.setAbortController(ctrl)
+      expect(adapter.abortController.value).toBe(ctrl)
+
+      const err = { message: 'test' } as never
+      adapter.setError(err)
+      expect(adapter.error.value).toEqual(err)
+    })
+
+    it('noop 方法不抛错', () => {
+      const adapter = createAdaptor(() => null)
+      expect(() => adapter.appendThinkingContent('x')).not.toThrow()
+      expect(() => adapter.setThinkingContent('x')).not.toThrow()
+      expect(() => adapter.setThinkingVisible(true)).not.toThrow()
+      expect(() => adapter.finalizeThinking()).not.toThrow()
+      expect(() => adapter.setUsage({} as never)).not.toThrow()
+      expect(() => adapter.setCurrentModel('m')).not.toThrow()
+      expect(adapter.thinkingContent.value).toBe('')
+      expect(adapter.thinkingVisible.value).toBe(false)
+    })
+
+    it('removeLastAssistant/addToolCallRecord/updateToolCallRecord 通过 store action', () => {
+      const sid = store.createSession()
+      const adapter = createAdaptor(() => sid)
+      adapter.addMessage({ id: 'a1', role: 'assistant', content: '' })
+      adapter.removeLastAssistant!()
+      expect(adapter.messages.value).toHaveLength(0)
+
+      const record: ToolCallRecord = {
+        id: 'tc1',
+        toolCallId: 'call_1',
+        namespacedName: 'mcp__server__tool',
+        toolName: 'tool',
+        serverId: 'server',
+        arguments: '{}',
+        status: 'calling',
+        startedAt: Date.now(),
+        requireConfirmation: false,
+      }
+      adapter.addToolCallRecord!(record)
+      adapter.updateToolCallRecord!('tc1', { status: 'success' })
+      expect(
+        store.sessions.find((x) => x.id === sid)!.toolCallRecords![0].status,
+      ).toBe('success')
+    })
+
+    it('abortStream 调用 store.abortStream', () => {
+      const sid = store.createSession()
+      const adapter = createAdaptor(() => sid)
+      const ctrl = new AbortController()
+      adapter.setAbortController(ctrl)
+      const spy = vi.spyOn(ctrl, 'abort')
+      adapter.abortStream!()
+      expect(spy).toHaveBeenCalled()
+      expect(adapter.streaming.value).toBe(false)
     })
   })
 })

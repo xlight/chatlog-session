@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useAIConsoleStore } from '@/stores/ai/console'
+import { useAIConsoleStore, createAdaptor } from '@/stores/ai/console'
 import { useAIActivityLogStore } from '@/stores/ai/activityLog'
 import { useAIAgentStore } from '@/stores/ai/agent'
-import { useAIStream, type AIStreamStore } from '@/composables/useAIStream'
+import { useAIStream } from '@/composables/useAIStream'
 import { useSettingsStore } from '@/stores/settings'
 import { useAppStore } from '@/stores/app'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import type { AIError, ChatMessage } from '@/types/ai'
-import type { ToolCallRecord } from '@/types/ai/mcp'
 import ConsoleSessionList from './ConsoleSessionList.vue'
 import AIMessageBubble from '@/components/ai/AIMessageBubble.vue'
 import AIInputBox from '@/components/ai/AIInputBox.vue'
@@ -27,80 +25,7 @@ const currentSessionId = computed(() => consoleStore.currentSessionId)
 const isStreaming = computed(() => consoleStore.isStreamingCurrent)
 const feedOpen = ref(false)
 
-const consoleAdapter: AIStreamStore = {
-  get messages(): { value: ChatMessage[] } {
-    return { value: currentSession.value?.messages ?? [] }
-  },
-  addMessage(msg) {
-    if (currentSessionId.value) consoleStore.addMessage(currentSessionId.value, msg)
-  },
-  updateLastAssistantContent(content) {
-    if (currentSessionId.value) consoleStore.updateLastContent(currentSessionId.value, content)
-  },
-  appendThinkingContent() {},
-  get streaming(): { value: boolean } {
-    return { value: isStreaming.value }
-  },
-  setStreaming(val) {
-    if (currentSessionId.value) consoleStore.setStreaming(currentSessionId.value, val)
-  },
-  setAbortController(ctrl) {
-    if (currentSessionId.value) consoleStore.setAbortController(currentSessionId.value, ctrl)
-  },
-  get abortController(): { value: AbortController | null } {
-    const id = currentSessionId.value
-    return { value: id ? consoleStore.abortControllers[id] ?? null : null }
-  },
-  get error(): { value: AIError | null } {
-    const id = currentSessionId.value
-    return { value: id ? consoleStore.errorsBySession[id] ?? null : null }
-  },
-  setError(err) {
-    if (currentSessionId.value) consoleStore.setError(currentSessionId.value, err)
-  },
-  get thinkingContent(): { value: string } {
-    return { value: '' }
-  },
-  get thinkingVisible(): { value: boolean } {
-    return { value: false }
-  },
-  setThinkingContent() {},
-  setThinkingVisible() {},
-  finalizeThinking() {},
-  setUsage() {},
-  setCurrentModel() {},
-  abortStream() {
-    if (currentSessionId.value) consoleStore.abortStream(currentSessionId.value)
-  },
-  removeLastAssistant() {
-    if (currentSessionId.value) {
-      const s = consoleStore.sessions.find((x) => x.id === currentSessionId.value)
-      if (!s) return
-      for (let i = s.messages.length - 1; i >= 0; i--) {
-        if (s.messages[i].role === 'assistant' && !s.messages[i].content) {
-          s.messages.splice(i, 1)
-          return
-        }
-      }
-    }
-  },
-  addToolCallRecord(record: ToolCallRecord) {
-    if (!currentSessionId.value) return
-    const s = consoleStore.sessions.find((x) => x.id === currentSessionId.value)
-    if (!s) return
-    if (!s.toolCallRecords) s.toolCallRecords = []
-    s.toolCallRecords.push(record)
-  },
-  updateToolCallRecord(id: string, updates: Partial<ToolCallRecord>) {
-    if (!currentSessionId.value) return
-    const s = consoleStore.sessions.find((x) => x.id === currentSessionId.value)
-    if (!s?.toolCallRecords) return
-    const idx = s.toolCallRecords.findIndex((r) => r.id === id)
-    if (idx >= 0) {
-      s.toolCallRecords[idx] = { ...s.toolCallRecords[idx], ...updates }
-    }
-  },
-}
+const consoleAdapter = createAdaptor(() => currentSessionId.value)
 
 const stream = useAIStream(consoleAdapter, {
   getMessages: () => currentSession.value?.messages ?? [],

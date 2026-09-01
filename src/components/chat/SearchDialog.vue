@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useSearchStore } from '@/stores/search'
+import { useAppStore } from '@/stores/app'
 import { ElMessage } from 'element-plus'
 import SearchBar from '@/components/common/SearchBar.vue'
 import Loading from '@/components/common/Loading.vue'
@@ -28,23 +29,10 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const searchStore = useSearchStore()
+const appStore = useAppStore()
 
-// 检测是否为移动端（响应式）
-const windowWidth = ref(window.innerWidth)
-const isMobile = computed(() => windowWidth.value <= 768)
-
-// 监听窗口大小变化
-const updateWindowWidth = () => {
-  windowWidth.value = window.innerWidth
-}
-
-onMounted(() => {
-  window.addEventListener('resize', updateWindowWidth)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateWindowWidth)
-})
+// 移动端判断复用 appStore.isMobile（已在 app store 中维护 resize 监听）
+const isMobile = computed(() => appStore.isMobile)
 
 // 对话框显示状态
 const dialogVisible = computed({
@@ -63,26 +51,29 @@ const getDefaultDateRange = (): [Date, Date] => {
   return [startDate, endDate]
 }
 
-const dateRange = ref<[Date, Date] | null>(getDefaultDateRange())
+// 缓存默认日期范围，避免重复调用产生不同 Date 对象
+const defaultDateRange = getDefaultDateRange()
+const dateRange = ref<[Date, Date] | null>(defaultDateRange)
 
-// 移动端单独的日期选择器
-const startDate = ref<Date>(getDefaultDateRange()[0])
-const endDate = ref<Date>(getDefaultDateRange()[1])
-
-// 同步移动端日期到范围
-watch([startDate, endDate], ([start, end]) => {
-  if (isMobile.value && start && end) {
-    dateRange.value = [start, end]
-  }
+// 移动端日期选择器：computed get/set 绑定 dateRange[0]/dateRange[1]
+const mobileStartDate = computed<Date | null>({
+  get: () => dateRange.value?.[0] ?? null,
+  set: (val) => {
+    if (!dateRange.value) dateRange.value = [val ?? new Date(), new Date()]
+    else dateRange.value = [val ?? dateRange.value[0], dateRange.value[1]]
+  },
 })
 
-// 同步范围到移动端日期
-watch(dateRange, (range) => {
-  if (range && range[0] && range[1]) {
-    startDate.value = range[0]
-    endDate.value = range[1]
-  }
+const mobileEndDate = computed<Date | null>({
+  get: () => dateRange.value?.[1] ?? null,
+  set: (val) => {
+    if (!dateRange.value) dateRange.value = [new Date(), val ?? new Date()]
+    else dateRange.value = [dateRange.value[0], val ?? dateRange.value[1]]
+  },
 })
+
+// clearSearch flag，避免 clearSearch 期间 watch(dateRange) 触发搜索
+let isClearing = false
 
 // 计算属性
 const messages = computed(() => searchStore.messageResults)
@@ -124,9 +115,13 @@ const handleSearch = (value: string) => {
 
 // 清空搜索
 const clearSearch = () => {
+  isClearing = true
   searchText.value = ''
-  dateRange.value = getDefaultDateRange()
+  dateRange.value = defaultDateRange
   searchStore.clearResults()
+  nextTick(() => {
+    isClearing = false
+  })
 }
 
 // 查看消息
@@ -151,11 +146,8 @@ const handleLoadMore = async () => {
 
 // 监听时间范围变化
 watch(dateRange, (newRange) => {
-  searchStore.setTimeRange(newRange)
-  if (!newRange) {
-    dateRange.value = getDefaultDateRange()
-    return
-  }
+  if (isClearing) return
+  if (!newRange) return
   if (searchText.value) {
     performSearch()
   }
@@ -164,11 +156,7 @@ watch(dateRange, (newRange) => {
 // 对话框打开时的处理
 watch(dialogVisible, (visible) => {
   if (visible) {
-    // 设置会话
-    if (props.sessionId) {
-      searchStore.setSearchType('message')
-      searchStore.setSelectedTalker(props.sessionId)
-    }
+    // 打开时不设置 searchStore 全局状态，不搜索
   } else {
     // 关闭时清空搜索
     clearSearch()
@@ -177,11 +165,8 @@ watch(dialogVisible, (visible) => {
 
 // 监听会话变化
 watch(() => props.sessionId, (newId) => {
-  if (newId && dialogVisible.value) {
-    searchStore.setSelectedTalker(newId)
-    if (searchText.value) {
-      performSearch()
-    }
+  if (newId && dialogVisible.value && searchText.value) {
+    performSearch()
   }
 })
 </script>
@@ -229,25 +214,23 @@ watch(() => props.sessionId, (newId) => {
         <div v-else class="date-range mobile-date-range">
           <div class="date-inputs">
             <el-date-picker
-              v-model="startDate"
+              v-model="mobileStartDate"
               type="date"
               placeholder="开始日期"
               size="default"
               clearable
               :teleported="true"
               format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
             />
             <span class="separator">至</span>
             <el-date-picker
-              v-model="endDate"
+              v-model="mobileEndDate"
               type="date"
               placeholder="结束日期"
               size="default"
               clearable
               :teleported="true"
               format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
             />
           </div>
         </div>
