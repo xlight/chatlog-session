@@ -4,6 +4,17 @@
   "description": "基于 Chatlog API 的微信聊天记录查看器",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "overrides": {
+      "postcss": "^8.5.23",
+      "undici": "^7.29.0",
+      "immutable": "^5.1.8",
+      "esbuild": "^0.28.1",
+      "brace-expansion@5": "^5.0.7",
+      "brace-expansion@2": "^2.1.4",
+      "fast-uri": "^3.1.6"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
