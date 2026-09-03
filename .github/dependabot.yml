@@ -9,3 +9,8 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+    ignore:
+      # unplugin-auto-import 21.x 是 major 升级，dependabot 内部错误无法自动处理
+      # 需要手动验证后合并 PR #12
+      - dependency-name: "unplugin-auto-import"
+        update-types: ["version-update:semver-major"]
